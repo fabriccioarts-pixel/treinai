@@ -1,0 +1,20 @@
+{
+  "name": "treinai-api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "db:migrate:local": "wrangler d1 execute treinai-db --local --file=./schema.sql",
+    "db:migrate:remote": "wrangler d1 execute treinai-db --remote --file=./schema.sql",
+    "types": "wrangler types"
+  },
+  "dependencies": {
+    "hono": "^4.6.14"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.2",
+    "wrangler": "^4.15.0"
+  }
+}
