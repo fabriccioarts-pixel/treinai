@@ -150,4 +150,65 @@ export const workerApi = {
         muscleGroup ? `&muscleGroup=${encodeURIComponent(muscleGroup)}` : ""
       }`
     ),
+
+  startSession: (userId: string, workoutId: string) =>
+    workerFetch<{ id: string }>("/workout-sessions", {
+      method: "POST",
+      body: JSON.stringify({ userId, workoutId }),
+    }),
+
+  finishSession: (id: string, durationSeconds: number) =>
+    workerFetch<{ ok: true }>(`/workout-sessions/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ finishedAt: new Date().toISOString(), durationSeconds }),
+    }),
+
+  listSessionSets: (sessionId: string) =>
+    workerFetch<{
+      sets: {
+        id: string;
+        exercise_id: string;
+        set_number: number;
+        weight: number;
+        reps: number;
+        completed: number;
+      }[];
+    }>(`/sets?sessionId=${encodeURIComponent(sessionId)}`),
+
+  logSet: (input: {
+    sessionId: string;
+    exerciseId: string;
+    setNumber: number;
+    weight: number;
+    reps: number;
+    rpe?: number;
+  }) =>
+    workerFetch<{
+      id: string;
+      newPRs: { type: string; weight: number; reps: number }[];
+    }>("/sets", {
+      method: "POST",
+      body: JSON.stringify(input),
+    }),
+
+  getStats: (userId: string) =>
+    workerFetch<{
+      workoutsThisWeek: number;
+      weeklyVolumeKg: number;
+      recentPRsCount: number;
+      streakDays: number;
+      frequencyThisMonth: number;
+      newPRsThisMonth: number;
+      recentPRs: {
+        id: string;
+        exerciseId: string;
+        exerciseName: string;
+        weight: number;
+        reps: number;
+        achievedAt: string;
+      }[];
+      weeklyVolumeSeries: { week: string; volume: number }[];
+      topMovers: { exerciseId: string; label: string; changePct: number }[];
+      loadTrend: { exerciseName: string; series: { date: string; weight: number }[] } | null;
+    }>(`/stats?userId=${encodeURIComponent(userId)}`),
 };

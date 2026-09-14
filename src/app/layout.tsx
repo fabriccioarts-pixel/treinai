@@ -17,8 +17,8 @@ export const metadata: Metadata = {
   description:
     "Monte treinos, registre séries e acompanhe sua evolução de carga, volume e PRs.",
   icons: {
-    icon: "/logo.png",
-    apple: "/logo.png",
+    icon: "/logo-icon.png",
+    apple: "/logo-icon.png",
   },
 };
 

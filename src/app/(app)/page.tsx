@@ -1,4 +1,4 @@
-import { CalendarCheck, Weight, Trophy, Flame, Dumbbell } from "lucide-react";
+import { CalendarCheck, Weight, Trophy, Flame, Dumbbell, LineChart } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { SectionHeader } from "@/components/shared/section-header";
 import { StatCard } from "@/components/shared/stat-card";
@@ -9,15 +9,18 @@ import { LoadTrendChart } from "@/components/charts/load-trend-chart";
 import { Card } from "@/components/ui/card";
 import { buttonVariants } from "@/components/ui/button";
 import Link from "next/link";
-import { mockWeeklyStats, mockRecentPRs, mockLoadTrend, exerciseName } from "@/lib/mock-data";
 import { formatDate } from "@/lib/format";
 import { auth } from "@/auth";
 import { workerApi } from "@/lib/worker-api";
 
 export default async function InicioPage() {
   const session = await auth();
+  const userId = session!.user.id;
   const firstName = session?.user?.name?.split(" ")[0];
-  const { workouts } = await workerApi.listWorkouts(session!.user.id);
+  const [{ workouts }, stats] = await Promise.all([
+    workerApi.listWorkouts(userId),
+    workerApi.getStats(userId),
+  ]);
   const todayWorkout = workouts[0];
 
   return (
@@ -29,11 +32,11 @@ export default async function InicioPage() {
 
       {todayWorkout ? (
         <WorkoutTodayCard
+          id={todayWorkout.id}
           name={todayWorkout.name}
           exerciseCount={todayWorkout.exercise_count}
           estimatedSets={todayWorkout.exercise_count * 3}
           estimatedTime="45–60 min"
-          href={`/treinos/${todayWorkout.id}`}
         />
       ) : (
         <EmptyState
@@ -54,49 +57,61 @@ export default async function InicioPage() {
           <StatCard
             icon={CalendarCheck}
             label="Treinos esta semana"
-            value={String(mockWeeklyStats.workoutsThisWeek)}
+            value={String(stats.workoutsThisWeek)}
           />
           <StatCard
             icon={Weight}
             label="Volume da semana"
-            value={`${mockWeeklyStats.weeklyVolumeKg.toLocaleString("pt-BR")} kg`}
+            value={`${stats.weeklyVolumeKg.toLocaleString("pt-BR")} kg`}
           />
-          <StatCard
-            icon={Trophy}
-            label="PRs recentes"
-            value={String(mockWeeklyStats.recentPRs)}
-          />
+          <StatCard icon={Trophy} label="PRs recentes" value={String(stats.recentPRsCount)} />
           <StatCard
             icon={Flame}
             label="Sequência de treinos"
-            value={`${mockWeeklyStats.streakDays} dias`}
+            value={`${stats.streakDays} dia${stats.streakDays === 1 ? "" : "s"}`}
           />
         </div>
       </section>
 
       <section>
         <SectionHeader title="Evolução" href="/progresso" linkLabel="Ver progresso" />
-        <Card className="p-4">
-          <p className="mb-1 text-xs text-muted-foreground">
-            Supino máquina — carga ao longo do tempo
-          </p>
-          <LoadTrendChart data={mockLoadTrend} />
-        </Card>
+        {stats.loadTrend && stats.loadTrend.series.length >= 2 ? (
+          <Card className="p-4">
+            <p className="mb-1 text-xs text-muted-foreground">
+              {stats.loadTrend.exerciseName} — carga ao longo do tempo
+            </p>
+            <LoadTrendChart data={stats.loadTrend.series} />
+          </Card>
+        ) : (
+          <EmptyState
+            icon={LineChart}
+            title="Sua evolução aparece aqui"
+            description="Registre séries em pelo menos dois treinos para ver o gráfico de carga."
+          />
+        )}
       </section>
 
       <section>
         <SectionHeader title="PRs recentes" href="/prs" />
-        <div className="space-y-2">
-          {mockRecentPRs.map((pr) => (
-            <PrCard
-              key={pr.id}
-              exerciseName={exerciseName(pr.exerciseId)}
-              weight={pr.weight}
-              reps={pr.reps}
-              date={formatDate(pr.achievedAt)}
-            />
-          ))}
-        </div>
+        {stats.recentPRs.length > 0 ? (
+          <div className="space-y-2">
+            {stats.recentPRs.map((pr) => (
+              <PrCard
+                key={pr.id}
+                exerciseName={pr.exerciseName}
+                weight={pr.weight}
+                reps={pr.reps}
+                date={formatDate(pr.achievedAt.slice(0, 10))}
+              />
+            ))}
+          </div>
+        ) : (
+          <EmptyState
+            icon={Trophy}
+            title="Nenhum PR ainda"
+            description="Complete séries nos seus treinos para conquistar seu primeiro recorde."
+          />
+        )}
       </section>
     </div>
   );

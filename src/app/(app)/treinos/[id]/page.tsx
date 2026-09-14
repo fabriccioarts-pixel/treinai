@@ -1,14 +1,14 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, PlayCircle, Trash2, Clock, Layers } from "lucide-react";
+import { ArrowLeft, Trash2, Clock, Layers } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
-import { EmptyState } from "@/components/shared/empty-state";
 import { Card } from "@/components/ui/card";
 import { buttonVariants } from "@/components/ui/button";
 import { MUSCLE_GROUP_LABEL } from "@/lib/muscle-groups";
 import type { MuscleGroup } from "@/lib/types";
 import { workerApi, WorkerApiError } from "@/lib/worker-api";
 import { deleteWorkoutAction } from "@/app/actions/workout-actions";
+import { startWorkoutAction } from "@/app/actions/session-actions";
 
 export default async function TreinoDetalhePage({
   params,
@@ -69,15 +69,19 @@ export default async function TreinoDetalhePage({
         ))}
       </div>
 
-      <div className="mt-6">
-        <EmptyState
-          icon={PlayCircle}
-          title="Execução do treino chega na Fase 3"
-          description="Aqui você vai registrar carga e repetições de cada série em poucos toques, com salvamento imediato."
-        />
-      </div>
+      <form action={startWorkoutAction.bind(null, workout.id)} className="mt-6">
+        <button
+          type="submit"
+          className={buttonVariants({
+            size: "lg",
+            className: "h-12 w-full text-base font-semibold",
+          })}
+        >
+          Iniciar treino
+        </button>
+      </form>
 
-      <form action={deleteWorkoutAction.bind(null, workout.id)} className="mt-6">
+      <form action={deleteWorkoutAction.bind(null, workout.id)} className="mt-3">
         <button
           type="submit"
           className={buttonVariants({ variant: "outline", className: "w-full gap-2 text-destructive" })}
