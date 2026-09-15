@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS users (
   name TEXT NOT NULL,
   password_hash TEXT,
   google_id TEXT UNIQUE,
+  avatar_key TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 

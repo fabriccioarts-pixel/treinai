@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { CalendarCheck, Camera, Trophy, TrendingUp, Sparkles, ChevronRight } from "lucide-react";
+import Image from "next/image";
+import { CalendarCheck, Camera, Trophy, TrendingUp, ChevronRight } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { SectionHeader } from "@/components/shared/section-header";
 import { StatCard } from "@/components/shared/stat-card";
@@ -24,9 +25,13 @@ export default async function ProgressoPage() {
 
       <Link href="/progresso/assistente">
         <Card className="flex-row items-center gap-3 border-none bg-gradient-to-br from-primary/15 via-card to-card p-4 ring-1 ring-primary/20">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary">
-            <Sparkles className="h-5 w-5" />
-          </div>
+          <Image
+            src="/ai-coach-avatar.png"
+            alt="Personal trainer IA"
+            width={40}
+            height={40}
+            className="h-10 w-10 shrink-0 rounded-full ring-1 ring-primary/30"
+          />
           <div className="flex-1">
             <p className="font-medium text-foreground">Personal trainer IA</p>
             <p className="text-xs text-muted-foreground">

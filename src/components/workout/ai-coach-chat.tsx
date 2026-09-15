@@ -2,10 +2,23 @@
 
 import { useState, useTransition, useRef, useEffect } from "react";
 import Link from "next/link";
-import { Sparkles, Send, CheckCircle2, User } from "lucide-react";
+import Image from "next/image";
+import { Send, CheckCircle2, User } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { askCoachAction } from "@/app/actions/ai-actions";
+
+function CoachAvatar({ pulse = false }: { pulse?: boolean }) {
+  return (
+    <Image
+      src="/ai-coach-avatar.png"
+      alt="Personal trainer IA"
+      width={28}
+      height={28}
+      className={`h-7 w-7 shrink-0 rounded-full ring-1 ring-primary/30 ${pulse ? "animate-pulse" : ""}`}
+    />
+  );
+}
 
 interface Turn {
   role: "user" | "assistant";
@@ -80,8 +93,8 @@ export function AiCoachChat() {
                 className={`max-w-[90%] gap-2 p-3.5 ${turn.error ? "ring-1 ring-destructive/40" : ""}`}
               >
                 <div className="flex items-start gap-2">
-                  <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-                  <p className="text-sm whitespace-pre-wrap text-foreground">{turn.text}</p>
+                  <CoachAvatar />
+                  <p className="mt-0.5 text-sm whitespace-pre-wrap text-foreground">{turn.text}</p>
                 </div>
                 {turn.actions && turn.actions.length > 0 && (
                   <div className="ml-6 space-y-1.5 border-t border-border pt-2">
@@ -106,7 +119,7 @@ export function AiCoachChat() {
           <div className="flex justify-start">
             <Card className="gap-2 p-3.5">
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Sparkles className="h-4 w-4 animate-pulse text-primary" />
+                <CoachAvatar pulse />
                 Pensando…
               </div>
             </Card>
