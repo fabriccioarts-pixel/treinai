@@ -7,10 +7,9 @@ import {
   Zap,
 } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
-import { SectionHeader } from "@/components/shared/section-header";
 import { SignOutButton } from "@/components/auth/sign-out-button";
 import { ProfileAvatarEditor } from "@/components/profile/profile-avatar-editor";
-import { BadgeGrid } from "@/components/profile/badge-grid";
+import { BadgeSummary } from "@/components/profile/badge-summary";
 import { auth } from "@/auth";
 import { workerApi } from "@/lib/worker-api";
 
@@ -75,10 +74,7 @@ export default async function PerfilPage() {
         </div>
       </div>
 
-      <section>
-        <SectionHeader title="Conquistas" />
-        <BadgeGrid badges={badgesResult.badges} />
-      </section>
+      <BadgeSummary badges={badgesResult.badges} />
 
       {/* Menu / Settings List */}
       <div className="overflow-hidden rounded-2xl border border-border/60 bg-card/60 backdrop-blur-xl shadow-xs divide-y divide-border/40">
