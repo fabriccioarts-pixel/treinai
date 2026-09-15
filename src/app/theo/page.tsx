@@ -3,13 +3,13 @@ import { ArrowLeft } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 import { AiCoachChat } from "@/components/workout/ai-coach-chat";
 
-export default function AssistenteIaPage() {
+export default function TheoPage() {
   return (
     <div className="flex h-[calc(100dvh-3rem)] flex-col">
       {/* Premium header with humanized coach identity */}
       <div className="mb-1 flex items-center gap-3 pb-4">
         <Link
-          href="/progresso"
+          href="/"
           aria-label="Voltar"
           className={buttonVariants({ variant: "ghost", size: "icon" })}
         >

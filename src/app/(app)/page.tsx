@@ -112,7 +112,7 @@ export default async function InicioPage() {
       </section>
 
       <section>
-        <SectionHeader title="PRs recentes" href="/prs" />
+        <SectionHeader title="PRs recentes" href="/progresso/prs" />
         {stats.recentPRs.length > 0 ? (
           <div className="space-y-2">
             {stats.recentPRs.map((pr) => (

@@ -2,14 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Dumbbell, LineChart, Trophy, User } from "lucide-react";
+import { Home, Dumbbell, LineChart, Bot, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const NAV_ITEMS = [
   { href: "/", label: "Início", icon: Home },
   { href: "/treinos", label: "Treinos", icon: Dumbbell },
+  { href: "/theo", label: "Théo", icon: Bot },
   { href: "/progresso", label: "Progresso", icon: LineChart },
-  { href: "/prs", label: "PRs", icon: Trophy },
   { href: "/perfil", label: "Perfil", icon: User },
 ] as const;
 
