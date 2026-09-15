@@ -9,7 +9,15 @@ export interface AskCoachResult {
   error?: string;
 }
 
-export async function askCoachAction(message: string): Promise<AskCoachResult> {
+export interface ChatHistoryMessage {
+  role: "user" | "assistant";
+  content: string;
+}
+
+export async function askCoachAction(
+  message: string,
+  history?: ChatHistoryMessage[]
+): Promise<AskCoachResult> {
   const session = await auth();
   if (!session?.user?.id) return { error: "Sessão expirada. Entre novamente." };
 
@@ -17,7 +25,7 @@ export async function askCoachAction(message: string): Promise<AskCoachResult> {
   if (!trimmed) return { error: "Escreva sua pergunta ou pedido." };
 
   try {
-    const { reply, actions } = await workerApi.askCoach(session.user.id, trimmed);
+    const { reply, actions } = await workerApi.askCoach(session.user.id, trimmed, history);
     return { reply, actions };
   } catch (err) {
     if (err instanceof WorkerApiError && err.status === 503) {

@@ -1,13 +1,18 @@
 "use client";
 
-import { useState, Suspense } from "react";
+import { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
+import { Sparkles } from "lucide-react";
 import { AuthShell } from "@/components/auth/auth-shell";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { AsciiEffect } from "@/components/ui/ascii-effect";
+
+const LAST_PROVIDER_KEY = "treinai_last_login_provider";
 
 function LoginForm() {
   const searchParams = useSearchParams();
@@ -19,6 +24,14 @@ function LoginForm() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [lastProvider, setLastProvider] = useState<string | null>(null);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(LAST_PROVIDER_KEY);
+      if (saved) setLastProvider(saved);
+    } catch {}
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -30,6 +43,9 @@ function LoginForm() {
       setError("E-mail ou senha incorretos.");
       return;
     }
+    try {
+      localStorage.setItem(LAST_PROVIDER_KEY, "credentials");
+    } catch {}
     window.location.href = callbackUrl;
   }
 
@@ -37,6 +53,16 @@ function LoginForm() {
     <AuthShell
       title="Entrar no Treinai"
       subtitle="Registre séries e acompanhe sua evolução"
+      background={
+        <div className="h-[520px] w-full max-w-xl overflow-hidden rounded-2xl opacity-40">
+          <AsciiEffect
+            variant="image"
+            imageSrc="/Treinai/bg-login.jpg"
+            fontSize={9}
+            scale={1.15}
+          />
+        </div>
+      }
       footer={
         <>
           Não tem conta?{" "}
@@ -46,19 +72,42 @@ function LoginForm() {
         </>
       }
     >
-      <Button
-        type="button"
-        variant="outline"
-        size="lg"
-        className="h-11 w-full"
-        disabled={googleLoading}
-        onClick={() => {
-          setGoogleLoading(true);
-          signIn("google", { callbackUrl });
-        }}
-      >
-        {googleLoading ? "Redirecionando…" : "Entrar com Google"}
-      </Button>
+      <div className="relative">
+        <Button
+          type="button"
+          variant="outline"
+          size="lg"
+          className={`relative h-12 w-full gap-3 font-medium transition-all hover:bg-secondary/70 ${
+            lastProvider === "google"
+              ? "border-primary/50 shadow-sm shadow-primary/10 ring-1 ring-primary/30"
+              : ""
+          }`}
+          disabled={googleLoading}
+          onClick={() => {
+            try {
+              localStorage.setItem(LAST_PROVIDER_KEY, "google");
+            } catch {}
+            setGoogleLoading(true);
+            signIn("google", { callbackUrl });
+          }}
+        >
+          <Image
+            src="/icone_google.webp"
+            alt="Google"
+            width={20}
+            height={20}
+            className="h-5 w-5 shrink-0 object-contain"
+          />
+          <span>{googleLoading ? "Redirecionando…" : "Entrar com Google"}</span>
+        </Button>
+
+        {lastProvider === "google" && (
+          <span className="pointer-events-none absolute -top-2.5 right-3 inline-flex items-center gap-1 rounded-full bg-primary px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-primary-foreground shadow-md shadow-primary/25">
+            <Sparkles className="h-3 w-3" />
+            Último login realizado
+          </span>
+        )}
+      </div>
 
       <div className="my-5 flex items-center gap-3">
         <div className="h-px flex-1 bg-border" />

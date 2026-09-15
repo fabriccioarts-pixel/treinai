@@ -6,6 +6,15 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { MUSCLE_GROUP_LABEL } from "@/lib/muscle-groups";
 import type { MuscleGroup } from "@/lib/types";
 import { createWorkoutAction } from "@/app/actions/workout-actions";
@@ -230,21 +239,26 @@ export function WorkoutBuilder({ exercises }: { exercises: ExerciseOption[] }) {
       <Card className="gap-3 p-4">
         <Label className="text-xs text-muted-foreground">Adicionar exercício</Label>
         <div className="flex gap-2">
-          <select
-            className="h-9 flex-1 rounded-lg border border-input bg-transparent px-3 text-sm text-foreground outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+          <Select
             value={selectedExerciseId}
-            onChange={(e) => setSelectedExerciseId(e.target.value)}
+            onValueChange={(value) => setSelectedExerciseId(value ?? "")}
           >
-            {grouped.map(({ group, items }) => (
-              <optgroup key={group} label={MUSCLE_GROUP_LABEL[group]}>
-                {items.map((ex) => (
-                  <option key={ex.id} value={ex.id}>
-                    {ex.name}
-                  </option>
-                ))}
-              </optgroup>
-            ))}
-          </select>
+            <SelectTrigger className="h-10 flex-1 rounded-xl border-border/60 bg-secondary/40 [&>span]:flex-1">
+              <SelectValue placeholder="Selecione um exercício" />
+            </SelectTrigger>
+            <SelectContent>
+              {grouped.map(({ group, items }) => (
+                <SelectGroup key={group}>
+                  <SelectLabel>{MUSCLE_GROUP_LABEL[group]}</SelectLabel>
+                  {items.map((ex) => (
+                    <SelectItem key={ex.id} value={ex.id}>
+                      {ex.name}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              ))}
+            </SelectContent>
+          </Select>
           <Button type="button" onClick={addExercise} className="gap-1.5">
             <Plus className="h-4 w-4" />
             Adicionar

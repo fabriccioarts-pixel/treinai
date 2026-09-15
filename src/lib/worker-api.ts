@@ -319,12 +319,16 @@ export const workerApi = {
       loadTrend: { exerciseName: string; series: { date: string; weight: number }[] } | null;
     }>(`/stats?userId=${encodeURIComponent(userId)}`),
 
-  askCoach: (userId: string, message: string) =>
+  askCoach: (
+    userId: string,
+    message: string,
+    history?: { role: "user" | "assistant"; content: string }[]
+  ) =>
     workerFetch<{
       reply: string;
       actions: { type: "workout_created" | "workout_updated"; workoutId: string; name: string }[];
     }>("/ai/coach", {
       method: "POST",
-      body: JSON.stringify({ userId, message }),
+      body: JSON.stringify({ userId, message, history }),
     }),
 };

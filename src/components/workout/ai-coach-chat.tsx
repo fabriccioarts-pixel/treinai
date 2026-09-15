@@ -2,12 +2,12 @@
 
 import { useState, useTransition, useRef, useEffect } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { Send, CheckCircle2, User, Sparkles, ArrowRight } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { askCoachAction } from "@/app/actions/ai-actions";
+import { AiMessageRenderer, parseAiMessage } from "./ai-message-renderer";
 
 function CoachAvatar({ pulse = false }: { pulse?: boolean }) {
   return (
@@ -18,13 +18,9 @@ function CoachAvatar({ pulse = false }: { pulse?: boolean }) {
           style={{ animation: "pulse-glow 2s ease-in-out infinite" }}
         />
       )}
-      <Image
-        src="/ai-coach-avatar.png"
-        alt="Personal trainer IA"
-        width={28}
-        height={28}
-        className={`relative h-7 w-7 rounded-full ring-1 ring-primary/30 ${pulse ? "" : ""}`}
-      />
+      <div className="relative flex h-7 w-7 items-center justify-center rounded-lg border border-primary/25 bg-gradient-to-b from-primary/15 to-primary/5 text-[11px] font-bold text-primary shadow-xs">
+        T
+      </div>
     </div>
   );
 }
@@ -81,10 +77,19 @@ export function AiCoachChat() {
 
   function send(message: string) {
     if (!message.trim() || pending) return;
-    setTurns((prev) => [...prev, { role: "user", text: message }]);
+    const userText = message.trim();
+
+    const history = turns
+      .filter((t) => !t.error && t.text.trim())
+      .map((t) => ({
+        role: t.role,
+        content: t.role === "assistant" ? parseAiMessage(t.text).cleanText : t.text,
+      }));
+
+    setTurns((prev) => [...prev, { role: "user", text: userText }]);
     setInput("");
     startTransition(async () => {
-      const result = await askCoachAction(message);
+      const result = await askCoachAction(userText, history);
       setTurns((prev) => [
         ...prev,
         result.error
@@ -156,41 +161,68 @@ export function AiCoachChat() {
               className={turn.role === "user" ? "flex justify-end" : "flex justify-start"}
             >
               {turn.role === "user" ? (
-                <div className="max-w-[85%] rounded-2xl rounded-br-sm bg-gradient-to-br from-primary to-primary/80 px-4 py-3 text-sm text-primary-foreground shadow-lg shadow-primary/10">
+                <div className="max-w-[85%] rounded-2xl rounded-br-sm bg-gradient-to-br from-primary to-primary/80 px-4 py-3 text-sm font-medium text-primary-foreground shadow-lg shadow-primary/10">
                   {turn.text}
                 </div>
               ) : (
-                <Card
-                  className={`max-w-[90%] gap-2 border-none p-4 ring-1 ${
+                <div
+                  className={`max-w-[95%] sm:max-w-[85%] rounded-2xl rounded-tl-sm border p-4 transition-all duration-300 shadow-sm ${
                     turn.error
-                      ? "ring-destructive/40 bg-destructive/5"
-                      : "ring-foreground/[0.06] glass"
+                      ? "border-destructive/40 bg-destructive/5"
+                      : "border-border/50 bg-secondary/35 backdrop-blur-md"
                   }`}
                 >
-                  <div className="flex items-start gap-2.5">
+                  <div className="flex items-start gap-3">
                     <CoachAvatar />
-                    <p className="mt-0.5 text-sm leading-relaxed whitespace-pre-wrap text-foreground">
-                      {turn.text}
-                    </p>
+                    <div className="min-w-0 flex-1">
+                      {turn.error ? (
+                        <p className="mt-0.5 text-sm leading-relaxed font-medium text-destructive">
+                          {turn.text}
+                        </p>
+                      ) : (
+                        <AiMessageRenderer
+                          content={turn.text}
+                          isLatest={i === turns.length - 1}
+                          disabled={pending}
+                          onSelectOption={send}
+                        />
+                      )}
+                    </div>
                   </div>
+
+                  {/* Action badges / Workout created or updated */}
                   {turn.actions && turn.actions.length > 0 && (
-                    <div className="ml-9 space-y-1.5 border-t border-border/50 pt-2.5">
+                    <div className="ml-10 mt-3 space-y-2 border-t border-border/40 pt-3">
                       {turn.actions.map((action, j) => (
-                        <Link
+                        <div
                           key={j}
-                          href={`/treinos/${action.workoutId}`}
-                          className="group/action flex items-center gap-1.5 text-xs font-medium text-primary transition-colors hover:text-primary/80"
+                          className="group/action flex items-center justify-between gap-3 rounded-xl border border-primary/30 bg-primary/5 p-3 transition-all hover:border-primary/50 hover:bg-primary/10"
                         >
-                          <CheckCircle2 className="h-3.5 w-3.5" />
-                          <span className="underline-offset-2 group-hover/action:underline">
-                            {action.type === "workout_created" ? "Treino criado" : "Treino atualizado"}:{" "}
-                            {action.name}
-                          </span>
-                        </Link>
+                          <div className="flex min-w-0 items-center gap-2.5">
+                            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/20 text-primary">
+                              <CheckCircle2 className="h-4.5 w-4.5" />
+                            </div>
+                            <div className="min-w-0">
+                              <span className="text-[10px] font-bold uppercase tracking-wider text-primary">
+                                {action.type === "workout_created" ? "Treino criado" : "Treino atualizado"}
+                              </span>
+                              <h4 className="truncate text-sm font-semibold text-foreground">
+                                {action.name}
+                              </h4>
+                            </div>
+                          </div>
+                          <Link
+                            href={`/treinos/${action.workoutId}`}
+                            className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground shadow-sm transition-all hover:bg-primary/90 hover:shadow-md hover:shadow-primary/25"
+                          >
+                            <span>Ver treino</span>
+                            <ArrowRight className="h-3.5 w-3.5" />
+                          </Link>
+                        </div>
                       ))}
                     </div>
                   )}
-                </Card>
+                </div>
               )}
             </motion.div>
           ))}
@@ -205,12 +237,12 @@ export function AiCoachChat() {
               exit={{ opacity: 0 }}
               className="flex justify-start"
             >
-              <Card className="gap-2 border-none p-4 ring-1 ring-foreground/[0.06] glass">
+              <div className="rounded-2xl rounded-tl-sm border border-border/50 bg-secondary/35 backdrop-blur-md p-4 shadow-sm">
                 <div className="flex items-center gap-2.5 text-sm text-muted-foreground">
                   <CoachAvatar pulse />
                   <TypingDots />
                 </div>
-              </Card>
+              </div>
             </motion.div>
           )}
         </AnimatePresence>

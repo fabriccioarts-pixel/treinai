@@ -6,8 +6,6 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
-import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { SignOutButton } from "@/components/auth/sign-out-button";
 import { ProfileAvatarEditor } from "@/components/profile/profile-avatar-editor";
 import { auth } from "@/auth";
@@ -29,34 +27,53 @@ export default async function PerfilPage() {
     : { user: null };
 
   return (
-    <div className="space-y-8">
-      <PageHeader title="Perfil" />
+    <div className="space-y-6">
+      <PageHeader title="Perfil" plainTitle />
 
-      <Card className="flex-row items-center gap-4 p-4">
-        <ProfileAvatarEditor name={name} hasAvatar={user?.hasAvatar ?? false} />
-        <div>
-          <p className="font-semibold text-foreground">{name}</p>
-          <p className="text-sm text-muted-foreground">{email}</p>
+      {/* User profile card */}
+      <div className="relative overflow-hidden rounded-2xl border border-border/60 bg-card/60 p-5 backdrop-blur-xl shadow-xs transition-all">
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/25 to-transparent" />
+        <div className="flex items-center gap-4">
+          <ProfileAvatarEditor name={name} hasAvatar={user?.hasAvatar ?? false} />
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2">
+              <p className="font-semibold text-foreground tracking-tight text-base truncate">
+                {name}
+              </p>
+              <span className="inline-flex items-center rounded-full border border-primary/20 bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary tracking-wide shrink-0">
+                Atleta
+              </span>
+            </div>
+            <p className="text-xs text-muted-foreground truncate mt-0.5">{email}</p>
+          </div>
         </div>
-      </Card>
+      </div>
 
-      <Card className="divide-y divide-border p-0">
+      {/* Menu / Settings List */}
+      <div className="overflow-hidden rounded-2xl border border-border/60 bg-card/60 backdrop-blur-xl shadow-xs divide-y divide-border/40">
         {SETTINGS_ITEMS.map(({ label, icon: Icon }) => (
           <div
             key={label}
-            className="flex items-center gap-3 px-4 py-3.5 text-muted-foreground"
+            className="group flex items-center gap-3.5 px-4 py-3.5 text-muted-foreground transition-colors hover:bg-secondary/30 hover:text-foreground"
           >
-            <Icon className="h-4.5 w-4.5" />
-            <span className="flex-1 text-sm font-medium">{label}</span>
-            <Badge variant="secondary" className="font-normal">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-border/50 bg-secondary/50 text-muted-foreground transition-colors group-hover:border-primary/30 group-hover:bg-primary/10 group-hover:text-primary">
+              <Icon className="h-4 w-4" />
+            </div>
+            <span className="flex-1 text-sm font-medium text-foreground/90">
+              {label}
+            </span>
+            <span className="rounded-full border border-border/50 bg-secondary/60 px-2.5 py-0.5 text-[10px] font-medium tracking-wide text-muted-foreground">
               Em breve
-            </Badge>
-            <ChevronRight className="h-4 w-4" />
+            </span>
+            <ChevronRight className="h-4 w-4 text-muted-foreground/40 transition-transform group-hover:translate-x-0.5 group-hover:text-muted-foreground" />
           </div>
         ))}
-      </Card>
+      </div>
 
-      <SignOutButton />
+      {/* Sign Out Button */}
+      <div className="pt-2">
+        <SignOutButton />
+      </div>
     </div>
   );
 }

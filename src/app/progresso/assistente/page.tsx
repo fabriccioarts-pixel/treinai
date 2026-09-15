@@ -1,13 +1,12 @@
 import Link from "next/link";
-import Image from "next/image";
-import { ArrowLeft, Sparkles } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 import { AiCoachChat } from "@/components/workout/ai-coach-chat";
 
 export default function AssistenteIaPage() {
   return (
     <div className="flex h-[calc(100dvh-3rem)] flex-col">
-      {/* Premium header with glow avatar and gradient accent */}
+      {/* Premium header with humanized coach identity */}
       <div className="mb-1 flex items-center gap-3 pb-4">
         <Link
           href="/progresso"
@@ -18,21 +17,24 @@ export default function AssistenteIaPage() {
         </Link>
 
         <div className="relative shrink-0">
-          <div className="absolute -inset-1.5 rounded-full bg-primary/15 blur-md" />
-          <Image
-            src="/ai-coach-avatar.png"
-            alt="Personal trainer IA"
-            width={40}
-            height={40}
-            className="relative h-10 w-10 rounded-full ring-2 ring-primary/30"
-          />
-          <Sparkles className="absolute -right-0.5 -top-0.5 h-3 w-3 text-chart-3" />
+          <div className="relative flex h-10 w-10 items-center justify-center rounded-xl border border-primary/25 bg-gradient-to-b from-primary/15 to-primary/5 text-primary shadow-xs">
+            <span className="text-base font-bold text-primary">T</span>
+            <span className="absolute -bottom-0.5 -right-0.5 flex h-2.5 w-2.5">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60 duration-1000" />
+              <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-background" />
+            </span>
+          </div>
         </div>
 
         <div>
-          <h1 className="text-lg font-bold tracking-tight text-foreground">
-            Personal trainer IA
-          </h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-base font-bold tracking-tight text-foreground">
+              Théo
+            </h1>
+            <span className="inline-flex items-center rounded-full border border-primary/20 bg-primary/10 px-2 py-0.5 text-[10px] font-medium tracking-wide text-primary">
+              Personal Trainer
+            </span>
+          </div>
           <p className="text-xs text-muted-foreground">
             Baseado nos seus dados reais de treino
           </p>

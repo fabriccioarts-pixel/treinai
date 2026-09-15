@@ -8,8 +8,7 @@ export function SignOutButton() {
   return (
     <Button
       type="button"
-      variant="outline"
-      className="w-full gap-2 text-destructive"
+      className="h-11 w-full gap-2.5 rounded-xl bg-destructive px-8 text-sm font-semibold text-destructive-foreground shadow-sm shadow-destructive/20 transition-all hover:bg-destructive/90 hover:shadow-md hover:shadow-destructive/30 active:scale-[0.99]"
       onClick={() => signOut({ callbackUrl: "/login" })}
     >
       <LogOut className="h-4 w-4" />

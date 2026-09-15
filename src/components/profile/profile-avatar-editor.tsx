@@ -2,7 +2,7 @@
 
 import { useRef, useState, useTransition } from "react";
 import { Camera, Loader2, X } from "lucide-react";
-import { Avatar, AvatarBadge, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { uploadAvatarAction, removeAvatarAction } from "@/app/actions/profile-actions";
 import { cn } from "@/lib/utils";
 
@@ -60,27 +60,25 @@ export function ProfileAvatarEditor({
   return (
     <div className="flex flex-col items-center gap-1.5">
       <div className="relative">
-        <Avatar size="lg" className="h-14 w-14">
+        <Avatar className="h-16 w-16 ring-2 ring-primary/20 transition-all">
           {displayUrl && <AvatarImage src={displayUrl} alt={name} />}
-          <AvatarFallback className="bg-primary/15 text-base font-semibold text-primary">
+          <AvatarFallback className="bg-primary/15 text-lg font-bold text-primary">
             {initial}
           </AvatarFallback>
         </Avatar>
 
         <label
           className={cn(
-            "cursor-pointer",
+            "absolute -bottom-1 -right-1 z-10 flex size-7 cursor-pointer items-center justify-center rounded-full bg-primary text-primary-foreground ring-2 ring-card shadow-sm transition-all hover:bg-primary/90 hover:scale-105 active:scale-95",
             pending && "pointer-events-none opacity-70"
           )}
           aria-label="Alterar foto de perfil"
         >
-          <AvatarBadge>
-            {pending ? (
-              <Loader2 className="h-2.5 w-2.5 animate-spin" />
-            ) : (
-              <Camera className="h-2.5 w-2.5" />
-            )}
-          </AvatarBadge>
+          {pending ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <Camera className="h-3.5 w-3.5" />
+          )}
           <input
             ref={inputRef}
             type="file"
@@ -96,9 +94,9 @@ export function ProfileAvatarEditor({
             type="button"
             onClick={handleRemove}
             aria-label="Remover foto de perfil"
-            className="absolute top-0 right-0 z-10 flex size-4 items-center justify-center rounded-full bg-muted text-muted-foreground ring-2 ring-background"
+            className="absolute -top-1 -right-1 z-10 flex size-5 items-center justify-center rounded-full bg-muted text-muted-foreground ring-2 ring-card hover:bg-destructive hover:text-destructive-foreground transition-colors"
           >
-            <X className="h-2.5 w-2.5" />
+            <X className="h-3 w-3" />
           </button>
         )}
       </div>
