@@ -13,14 +13,34 @@ import { formatDate } from "@/lib/format";
 import { auth } from "@/auth";
 import { workerApi } from "@/lib/worker-api";
 
+const DEFAULT_STATS = {
+  workoutsThisWeek: 0,
+  weeklyVolumeKg: 0,
+  recentPRsCount: 0,
+  streakDays: 0,
+  frequencyThisMonth: 0,
+  newPRsThisMonth: 0,
+  recentPRs: [],
+  weeklyVolumeSeries: [],
+  topMovers: [],
+  loadTrend: null,
+};
+
 export default async function InicioPage() {
   const session = await auth();
   const userId = session!.user.id;
   const firstName = session?.user?.name?.split(" ")[0];
-  const [{ workouts }, stats] = await Promise.all([
-    workerApi.listWorkouts(userId),
-    workerApi.getStats(userId),
+  const [workoutsResult, stats] = await Promise.all([
+    workerApi.listWorkouts(userId).catch((err) => {
+      console.error("Erro ao carregar treinos em /:", err);
+      return { workouts: [] };
+    }),
+    workerApi.getStats(userId).catch((err) => {
+      console.error("Erro ao carregar stats em /:", err);
+      return DEFAULT_STATS;
+    }),
   ]);
+  const workouts = workoutsResult?.workouts ?? [];
   const todayWorkout = workouts[0];
 
   return (

@@ -10,14 +10,34 @@ import { WeeklyVolumeChart } from "@/components/charts/weekly-volume-chart";
 import { auth } from "@/auth";
 import { workerApi } from "@/lib/worker-api";
 
+const DEFAULT_STATS = {
+  workoutsThisWeek: 0,
+  weeklyVolumeKg: 0,
+  recentPRsCount: 0,
+  streakDays: 0,
+  frequencyThisMonth: 0,
+  newPRsThisMonth: 0,
+  recentPRs: [],
+  weeklyVolumeSeries: [],
+  topMovers: [],
+  loadTrend: null,
+};
+
 export default async function ProgressoPage() {
   const session = await auth();
   const userId = session!.user.id;
-  const [stats, { sessions: recentPhotos }] = await Promise.all([
-    workerApi.getStats(userId),
-    workerApi.listSessions(userId, { limit: 6, withPhoto: true }),
+  const [stats, recentPhotosResult] = await Promise.all([
+    workerApi.getStats(userId).catch((err) => {
+      console.error("Erro ao carregar stats em /progresso:", err);
+      return DEFAULT_STATS;
+    }),
+    workerApi.listSessions(userId, { limit: 6, withPhoto: true }).catch((err) => {
+      console.error("Erro ao carregar fotos em /progresso:", err);
+      return { sessions: [] };
+    }),
   ]);
-  const hasVolume = stats.weeklyVolumeSeries.some((w) => w.volume > 0);
+  const recentPhotos = recentPhotosResult?.sessions ?? [];
+  const hasVolume = (stats.weeklyVolumeSeries ?? []).some((w) => w.volume > 0);
 
   return (
     <div className="space-y-8">

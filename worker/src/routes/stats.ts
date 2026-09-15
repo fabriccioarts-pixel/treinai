@@ -140,9 +140,11 @@ statsRoutes.get("/", async (c) => {
     .map(([exerciseId, { name, first, last }]) => ({
       exerciseId,
       label: name,
-      changePct: Math.round(
-        ((last.estimated_one_rep_max - first.estimated_one_rep_max) / first.estimated_one_rep_max) * 100
-      ),
+      changePct: first.estimated_one_rep_max > 0
+        ? Math.round(
+            ((last.estimated_one_rep_max - first.estimated_one_rep_max) / first.estimated_one_rep_max) * 100
+          )
+        : 0,
     }))
     .filter((m) => m.changePct > 0)
     .sort((a, b) => b.changePct - a.changePct)

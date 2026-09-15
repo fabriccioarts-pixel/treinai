@@ -23,8 +23,16 @@ async function workerFetch<T>(path: string, init?: RequestInit): Promise<T> {
   });
 
   if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new WorkerApiError(res.status, (body as { error?: string }).error ?? "request_failed");
+    const rawText = await res.text().catch(() => "");
+    let errorMsg = "request_failed";
+    try {
+      const body = JSON.parse(rawText);
+      if (body?.error) errorMsg = body.error;
+    } catch {
+      if (rawText) errorMsg = rawText.slice(0, 100);
+    }
+    console.error(`[workerFetch] ${init?.method ?? "GET"} ${path} failed (${res.status}):`, rawText);
+    throw new WorkerApiError(res.status, errorMsg);
   }
 
   return res.json() as Promise<T>;
