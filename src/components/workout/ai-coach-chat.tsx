@@ -65,15 +65,30 @@ const messageVariants = {
   },
 };
 
-export function AiCoachChat() {
+export function AiCoachChat({ autoGreetMessage }: { autoGreetMessage?: string } = {}) {
   const [turns, setTurns] = useState<Turn[]>([]);
   const [input, setInput] = useState("");
   const [pending, startTransition] = useTransition();
   const bottomRef = useRef<HTMLDivElement>(null);
+  const greetedRef = useRef(false);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [turns, pending]);
+
+  useEffect(() => {
+    if (!autoGreetMessage || greetedRef.current) return;
+    greetedRef.current = true;
+    startTransition(async () => {
+      const result = await askCoachAction(autoGreetMessage, []);
+      setTurns((prev) => [
+        ...prev,
+        result.error
+          ? { role: "assistant", text: result.error, error: true }
+          : { role: "assistant", text: result.reply ?? "", actions: result.actions },
+      ]);
+    });
+  }, [autoGreetMessage]);
 
   function send(message: string) {
     if (!message.trim() || pending) return;
@@ -103,7 +118,7 @@ export function AiCoachChat() {
     <div className="flex h-full flex-col">
       {/* Suggestions — shown only when no messages */}
       <AnimatePresence>
-        {turns.length === 0 && (
+        {turns.length === 0 && !autoGreetMessage && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}

@@ -7,6 +7,7 @@ import {
   Zap,
 } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
+import { Card } from "@/components/ui/card";
 import { SignOutButton } from "@/components/auth/sign-out-button";
 import { ProfileAvatarEditor } from "@/components/profile/profile-avatar-editor";
 import { BadgeSummary } from "@/components/profile/badge-summary";
@@ -43,7 +44,7 @@ export default async function PerfilPage() {
       <PageHeader title="Perfil" plainTitle />
 
       {/* User profile card */}
-      <div className="relative overflow-hidden rounded-2xl border border-border/60 bg-card/60 p-5 backdrop-blur-xl shadow-xs transition-all">
+      <Card className="relative p-5">
         <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/25 to-transparent" />
         <div className="flex items-center gap-4">
           <ProfileAvatarEditor name={name} hasAvatar={user?.hasAvatar ?? false} />
@@ -72,16 +73,16 @@ export default async function PerfilPage() {
             {badgesResult.xpIntoLevel} / {badgesResult.xpForNextLevel} XP para o nível {badgesResult.level + 1}
           </p>
         </div>
-      </div>
+      </Card>
 
       <BadgeSummary badges={badgesResult.badges} />
 
       {/* Menu / Settings List */}
-      <div className="overflow-hidden rounded-2xl border border-border/60 bg-card/60 backdrop-blur-xl shadow-xs divide-y divide-border/40">
+      <Card className="divide-y divide-border/50 p-0">
         {SETTINGS_ITEMS.map(({ label, icon: Icon }) => (
           <div
             key={label}
-            className="group flex items-center gap-3.5 px-4 py-3.5 text-muted-foreground transition-colors hover:bg-secondary/30 hover:text-foreground"
+            className="group flex items-center gap-3.5 px-4 py-3.5 text-muted-foreground transition-colors hover:bg-muted/30 hover:text-foreground"
           >
             <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-border/50 bg-secondary/50 text-muted-foreground transition-colors group-hover:border-primary/30 group-hover:bg-primary/10 group-hover:text-primary">
               <Icon className="h-4 w-4" />
@@ -95,7 +96,7 @@ export default async function PerfilPage() {
             <ChevronRight className="h-4 w-4 text-muted-foreground/40 transition-transform group-hover:translate-x-0.5 group-hover:text-muted-foreground" />
           </div>
         ))}
-      </div>
+      </Card>
 
       {/* Sign Out Button */}
       <div className="pt-2">
