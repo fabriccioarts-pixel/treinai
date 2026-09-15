@@ -7,6 +7,7 @@ import { sessionRoutes } from "./routes/sessions";
 import { setRoutes } from "./routes/sets";
 import { personalRecordRoutes } from "./routes/personal-records";
 import { statsRoutes } from "./routes/stats";
+import { aiRoutes } from "./routes/ai";
 
 const app = new Hono<{ Bindings: Env }>();
 
@@ -21,5 +22,6 @@ app.route("/workout-sessions", sessionRoutes);
 app.route("/sets", setRoutes);
 app.route("/personal-records", personalRecordRoutes);
 app.route("/stats", statsRoutes);
+app.route("/ai", aiRoutes);
 
 export default app;

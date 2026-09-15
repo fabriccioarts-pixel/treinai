@@ -157,6 +157,68 @@ export const workerApi = {
       body: JSON.stringify({ userId, workoutId }),
     }),
 
+  listSessions: (userId: string, options?: { limit?: number; withPhoto?: boolean }) =>
+    workerFetch<{
+      sessions: {
+        id: string;
+        workout_id: string;
+        workout_name: string;
+        started_at: string;
+        finished_at: string | null;
+        duration_seconds: number | null;
+        photo_key: string | null;
+      }[];
+    }>(
+      `/workout-sessions?userId=${encodeURIComponent(userId)}${
+        options?.limit ? `&limit=${options.limit}` : ""
+      }${options?.withPhoto ? "&withPhoto=1" : ""}`
+    ),
+
+  getSession: (id: string) =>
+    workerFetch<{
+      session: {
+        id: string;
+        user_id: string;
+        workout_id: string;
+        started_at: string;
+        finished_at: string | null;
+        duration_seconds: number | null;
+        photo_key: string | null;
+      };
+    }>(`/workout-sessions/${id}`),
+
+  uploadSessionPhoto: async (sessionId: string, bytes: ArrayBuffer, contentType: string) => {
+    if (!BASE_URL || !SECRET) {
+      throw new Error("WORKER_API_URL / WORKER_API_SECRET não configurados.");
+    }
+    const res = await fetch(`${BASE_URL}/workout-sessions/${sessionId}/photo`, {
+      method: "PUT",
+      headers: { Authorization: `Bearer ${SECRET}`, "Content-Type": contentType },
+      body: bytes,
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new WorkerApiError(res.status, (body as { error?: string }).error ?? "request_failed");
+    }
+    return res.json() as Promise<{ ok: true; key: string }>;
+  },
+
+  getSessionPhoto: async (sessionId: string): Promise<{ body: ReadableStream<Uint8Array>; contentType: string } | null> => {
+    if (!BASE_URL || !SECRET) {
+      throw new Error("WORKER_API_URL / WORKER_API_SECRET não configurados.");
+    }
+    const res = await fetch(`${BASE_URL}/workout-sessions/${sessionId}/photo`, {
+      headers: { Authorization: `Bearer ${SECRET}` },
+      cache: "no-store",
+    });
+    if (res.status === 404) return null;
+    if (!res.ok || !res.body) throw new WorkerApiError(res.status, "request_failed");
+    return { body: res.body, contentType: res.headers.get("content-type") ?? "application/octet-stream" };
+  },
+
+  deleteSessionPhoto: (sessionId: string) =>
+    workerFetch<{ ok: true }>(`/workout-sessions/${sessionId}/photo`, { method: "DELETE" }),
+
   finishSession: (id: string, durationSeconds: number) =>
     workerFetch<{ ok: true }>(`/workout-sessions/${id}`, {
       method: "PATCH",
@@ -211,4 +273,13 @@ export const workerApi = {
       topMovers: { exerciseId: string; label: string; changePct: number }[];
       loadTrend: { exerciseName: string; series: { date: string; weight: number }[] } | null;
     }>(`/stats?userId=${encodeURIComponent(userId)}`),
+
+  askCoach: (userId: string, message: string) =>
+    workerFetch<{
+      reply: string;
+      actions: { type: "workout_created" | "workout_updated"; workoutId: string; name: string }[];
+    }>("/ai/coach", {
+      method: "POST",
+      body: JSON.stringify({ userId, message }),
+    }),
 };

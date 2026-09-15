@@ -1,4 +1,5 @@
-import { CalendarCheck, Trophy, TrendingUp } from "lucide-react";
+import Link from "next/link";
+import { CalendarCheck, Camera, Trophy, TrendingUp, Sparkles, ChevronRight } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { SectionHeader } from "@/components/shared/section-header";
 import { StatCard } from "@/components/shared/stat-card";
@@ -10,12 +11,31 @@ import { workerApi } from "@/lib/worker-api";
 
 export default async function ProgressoPage() {
   const session = await auth();
-  const stats = await workerApi.getStats(session!.user.id);
+  const userId = session!.user.id;
+  const [stats, { sessions: recentPhotos }] = await Promise.all([
+    workerApi.getStats(userId),
+    workerApi.listSessions(userId, { limit: 6, withPhoto: true }),
+  ]);
   const hasVolume = stats.weeklyVolumeSeries.some((w) => w.volume > 0);
 
   return (
     <div className="space-y-8">
       <PageHeader title="Progresso" subtitle="Sua evolução ao longo do tempo" />
+
+      <Link href="/progresso/assistente">
+        <Card className="flex-row items-center gap-3 border-none bg-gradient-to-br from-primary/15 via-card to-card p-4 ring-1 ring-primary/20">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary">
+            <Sparkles className="h-5 w-5" />
+          </div>
+          <div className="flex-1">
+            <p className="font-medium text-foreground">Personal trainer IA</p>
+            <p className="text-xs text-muted-foreground">
+              Analisa sua evolução, sugere ajustes e adapta seus treinos
+            </p>
+          </div>
+          <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground" />
+        </Card>
+      </Link>
 
       <div className="grid grid-cols-2 gap-3">
         <StatCard
@@ -37,6 +57,35 @@ export default async function ProgressoPage() {
             icon={TrendingUp}
             title="Sem volume registrado ainda"
             description="Complete treinos para ver seu volume semanal aqui."
+          />
+        )}
+      </section>
+
+      <section>
+        <SectionHeader title="Fotos dos treinos" href="/progresso/fotos" />
+        {recentPhotos.length > 0 ? (
+          <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
+            {recentPhotos.map((s) => (
+              <Link
+                key={s.id}
+                href={`/progresso/fotos/${s.id}`}
+                className="aspect-square overflow-hidden rounded-lg bg-muted"
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={`/api/sessoes/${s.id}/foto`}
+                  alt={`Foto do treino ${s.workout_name}`}
+                  loading="lazy"
+                  className="h-full w-full object-cover"
+                />
+              </Link>
+            ))}
+          </div>
+        ) : (
+          <EmptyState
+            icon={Camera}
+            title="Nenhuma foto ainda"
+            description="Ao finalizar um treino, você pode registrar uma foto."
           />
         )}
       </section>

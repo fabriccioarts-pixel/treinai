@@ -1,17 +1,11 @@
 import { Hono } from "hono";
-import { newId, nowIso } from "../lib/id";
+import {
+  createWorkoutRecord,
+  updateWorkoutRecord,
+  type WorkoutExerciseInput,
+} from "../lib/workout-mutations";
 
 export const workoutRoutes = new Hono<{ Bindings: Env }>();
-
-interface WorkoutExerciseInput {
-  exerciseId: string;
-  order: number;
-  targetSets: number;
-  targetRepsMin: number;
-  targetRepsMax: number;
-  restTime: number;
-  notes?: string;
-}
 
 workoutRoutes.get("/", async (c) => {
   const userId = c.req.query("userId");
@@ -46,31 +40,7 @@ workoutRoutes.post("/", async (c) => {
     return c.json({ error: "invalid_input" }, 400);
   }
 
-  const workoutId = newId();
-  const statements = [
-    c.env.DB.prepare(
-      "INSERT INTO workouts (id, user_id, name, description, created_at) VALUES (?, ?, ?, ?, ?)"
-    ).bind(workoutId, body.userId, body.name, body.description ?? null, nowIso()),
-    ...body.exercises.map((we) =>
-      c.env.DB.prepare(
-        `INSERT INTO workout_exercises
-          (id, workout_id, exercise_id, order_index, target_sets, target_reps_min, target_reps_max, rest_time, notes)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
-      ).bind(
-        newId(),
-        workoutId,
-        we.exerciseId,
-        we.order,
-        we.targetSets,
-        we.targetRepsMin,
-        we.targetRepsMax,
-        we.restTime,
-        we.notes ?? null
-      )
-    ),
-  ];
-
-  await c.env.DB.batch(statements);
+  const workoutId = await createWorkoutRecord(c.env.DB, body.userId, body);
   return c.json({ id: workoutId }, 201);
 });
 
@@ -104,33 +74,7 @@ workoutRoutes.put("/:id", async (c) => {
     return c.json({ error: "invalid_input" }, 400);
   }
 
-  const statements = [
-    c.env.DB.prepare("UPDATE workouts SET name = ?, description = ? WHERE id = ?").bind(
-      body.name,
-      body.description ?? null,
-      id
-    ),
-    c.env.DB.prepare("DELETE FROM workout_exercises WHERE workout_id = ?").bind(id),
-    ...body.exercises.map((we) =>
-      c.env.DB.prepare(
-        `INSERT INTO workout_exercises
-          (id, workout_id, exercise_id, order_index, target_sets, target_reps_min, target_reps_max, rest_time, notes)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
-      ).bind(
-        newId(),
-        id,
-        we.exerciseId,
-        we.order,
-        we.targetSets,
-        we.targetRepsMin,
-        we.targetRepsMax,
-        we.restTime,
-        we.notes ?? null
-      )
-    ),
-  ];
-
-  await c.env.DB.batch(statements);
+  await updateWorkoutRecord(c.env.DB, id, body);
   return c.json({ ok: true });
 });
 

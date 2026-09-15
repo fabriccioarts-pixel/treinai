@@ -60,7 +60,8 @@ CREATE TABLE IF NOT EXISTS workout_sessions (
   workout_id TEXT NOT NULL REFERENCES workouts(id),
   started_at TEXT NOT NULL DEFAULT (datetime('now')),
   finished_at TEXT,
-  duration_seconds INTEGER
+  duration_seconds INTEGER,
+  photo_key TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_workout_sessions_user ON workout_sessions(user_id);
 

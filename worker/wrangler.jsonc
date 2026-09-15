@@ -11,6 +11,12 @@
       "database_id": "34c1de17-f7dc-4cbf-8b53-abf914eef73c"
     }
   ],
+  "r2_buckets": [
+    {
+      "binding": "PHOTOS",
+      "bucket_name": "treinai-photos"
+    }
+  ],
   "observability": {
     "enabled": true,
     "logs": { "enabled": true, "head_sampling_rate": 1 },

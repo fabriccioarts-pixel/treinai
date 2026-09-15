@@ -1,8 +1,6 @@
 import Link from "next/link";
-import { Plus, Dumbbell } from "lucide-react";
-import { PageHeader } from "@/components/shared/page-header";
-import { WorkoutCard } from "@/components/workout/workout-card";
-import { EmptyState } from "@/components/shared/empty-state";
+import { Plus } from "lucide-react";
+import { WorkoutsBrowser } from "@/components/workout/workouts-browser";
 import { buttonVariants } from "@/components/ui/button";
 import { auth } from "@/auth";
 import { workerApi } from "@/lib/worker-api";
@@ -10,53 +8,57 @@ import type { MuscleGroup } from "@/lib/types";
 
 export default async function TreinosPage() {
   const session = await auth();
-  const { workouts } = await workerApi.listWorkouts(session!.user.id);
+  const { workouts: raw } = await workerApi.listWorkouts(session!.user.id);
+
+  const workouts = raw.map((w) => ({
+    id: w.id,
+    name: w.name,
+    exerciseCount: w.exercise_count,
+    muscleGroups: ((w.muscle_groups?.split(",").filter(Boolean) as MuscleGroup[]) ?? []),
+  }));
+
+  const totalExercises = workouts.reduce((sum, w) => sum + w.exerciseCount, 0);
+  const uniqueGroups = new Set(workouts.flatMap((w) => w.muscleGroups));
 
   return (
     <div>
-      <PageHeader
-        title="Treinos"
-        subtitle={`${workouts.length} treino${workouts.length === 1 ? "" : "s"} criado${workouts.length === 1 ? "" : "s"}`}
-        action={
-          <Link
-            href="/treinos/novo"
-            className={buttonVariants({ size: "icon", className: "shrink-0" })}
-            aria-label="Criar novo treino"
-          >
-            <Plus className="h-5 w-5" />
-          </Link>
-        }
-      />
+      <header className="mb-6 flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-[2rem] font-semibold tracking-tight text-foreground">Treinos</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {workouts.length} treino{workouts.length === 1 ? "" : "s"} criado
+            {workouts.length === 1 ? "" : "s"}
+          </p>
+        </div>
+        <Link
+          href="/treinos/novo"
+          aria-label="Criar novo treino"
+          className={buttonVariants({ size: "icon", className: "size-[52px] shrink-0" })}
+        >
+          <Plus className="h-5 w-5" />
+        </Link>
+      </header>
 
-      {workouts.length === 0 ? (
-        <EmptyState
-          icon={Dumbbell}
-          title="Nenhum treino ainda"
-          description="Crie seu primeiro treino para começar a registrar séries."
-          action={
-            <Link
-              href="/treinos/novo"
-              className={buttonVariants({ className: "mt-2" })}
-            >
-              Criar treino
-            </Link>
-          }
-        />
-      ) : (
-        <div className="space-y-3">
-          {workouts.map((workout) => (
-            <WorkoutCard
-              key={workout.id}
-              id={workout.id}
-              name={workout.name}
-              exerciseCount={workout.exercise_count}
-              muscleGroups={
-                (workout.muscle_groups?.split(",").filter(Boolean) as MuscleGroup[]) ?? []
-              }
-            />
-          ))}
+      {workouts.length > 0 && (
+        <div className="mb-5 flex items-stretch rounded-xl bg-card p-4 ring-1 ring-foreground/10">
+          <div className="flex-1">
+            <p className="tabular text-xl font-semibold text-foreground">{workouts.length}</p>
+            <p className="mt-0.5 text-[11px] text-muted-foreground">Treinos</p>
+          </div>
+          <div className="mx-3.5 w-px bg-border" />
+          <div className="flex-1">
+            <p className="tabular text-xl font-semibold text-foreground">{totalExercises}</p>
+            <p className="mt-0.5 text-[11px] text-muted-foreground">Exercícios</p>
+          </div>
+          <div className="mx-3.5 w-px bg-border" />
+          <div className="flex-1">
+            <p className="tabular text-xl font-semibold text-foreground">{uniqueGroups.size}</p>
+            <p className="mt-0.5 text-[11px] text-muted-foreground">Grupos</p>
+          </div>
         </div>
       )}
+
+      <WorkoutsBrowser workouts={workouts} />
     </div>
   );
 }
