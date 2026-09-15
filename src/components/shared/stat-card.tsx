@@ -1,7 +1,4 @@
-"use client";
-
 import type { LucideIcon } from "lucide-react";
-import { motion } from "framer-motion";
 import { Card } from "@/components/ui/card";
 
 interface StatCardProps {
@@ -20,10 +17,7 @@ export function StatCard({
   accentColor = "var(--primary)",
 }: StatCardProps) {
   return (
-    <motion.div
-      whileHover={{ scale: 1.03, y: -2 }}
-      transition={{ type: "spring", stiffness: 400, damping: 25 }}
-    >
+    <div className="group transition-all duration-300 hover:-translate-y-0.5 hover:scale-[1.02]">
       <Card className="relative gap-2 overflow-hidden p-4 transition-shadow duration-300 hover:shadow-lg hover:shadow-primary/5">
         {/* Subtle gradient overlay */}
         <div
@@ -35,7 +29,7 @@ export function StatCard({
 
         <div className="relative flex items-center gap-2.5">
           <div
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-transform duration-300 group-hover:scale-110"
             style={{
               background: `color-mix(in oklch, ${accentColor} 15%, transparent)`,
             }}
@@ -58,6 +52,6 @@ export function StatCard({
           <p className="relative text-xs text-muted-foreground">{hint}</p>
         )}
       </Card>
-    </motion.div>
+    </div>
   );
 }
