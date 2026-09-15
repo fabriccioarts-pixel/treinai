@@ -103,7 +103,7 @@ export function ProfileAvatarEditor({
         )}
       </div>
 
-      {error && <p className="max-w-24 text-center text-[11px] leading-tight text-destructive">{error}</p>}
+      {error && <p className="max-w-xs text-center text-xs leading-tight text-destructive">{error}</p>}
     </div>
   );
 }

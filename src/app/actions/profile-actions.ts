@@ -25,7 +25,8 @@ export async function uploadAvatarAction(formData: FormData): Promise<UploadAvat
   try {
     const bytes = await file.arrayBuffer();
     await workerApi.uploadUserAvatar(session.user.id, bytes, file.type);
-  } catch {
+  } catch (err) {
+    console.error("Erro no upload do avatar:", err);
     return { error: "Não foi possível enviar a foto agora. Tente novamente." };
   }
 
