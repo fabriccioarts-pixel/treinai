@@ -7,10 +7,11 @@ import {
 } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { Card } from "@/components/ui/card";
-import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { SignOutButton } from "@/components/auth/sign-out-button";
+import { ProfileAvatarEditor } from "@/components/profile/profile-avatar-editor";
 import { auth } from "@/auth";
+import { workerApi } from "@/lib/worker-api";
 
 const SETTINGS_ITEMS = [
   { label: "Biblioteca de exercícios", icon: Dumbbell },
@@ -23,19 +24,16 @@ export default async function PerfilPage() {
   const session = await auth();
   const name = session?.user?.name ?? "Usuário";
   const email = session?.user?.email ?? "";
-  const initial = name.charAt(0).toUpperCase();
+  const { user } = session?.user?.id
+    ? await workerApi.getUser(session.user.id).catch(() => ({ user: null }))
+    : { user: null };
 
   return (
     <div className="space-y-8">
       <PageHeader title="Perfil" />
 
       <Card className="flex-row items-center gap-4 p-4">
-        <Avatar
-          size="lg"
-          className="h-14 w-14 items-center justify-center bg-primary/15 text-base font-semibold text-primary"
-        >
-          {initial}
-        </Avatar>
+        <ProfileAvatarEditor name={name} hasAvatar={user?.hasAvatar ?? false} />
         <div>
           <p className="font-semibold text-foreground">{name}</p>
           <p className="text-sm text-muted-foreground">{email}</p>

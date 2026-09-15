@@ -63,6 +63,43 @@ export const workerApi = {
       body: JSON.stringify({ googleId, email, name }),
     }),
 
+  getUser: (userId: string) =>
+    workerFetch<{
+      user: { id: string; email: string; name: string; hasAvatar: boolean };
+    }>(`/users/${encodeURIComponent(userId)}`),
+
+  uploadUserAvatar: async (userId: string, bytes: ArrayBuffer, contentType: string) => {
+    if (!BASE_URL || !SECRET) {
+      throw new Error("WORKER_API_URL / WORKER_API_SECRET não configurados.");
+    }
+    const res = await fetch(`${BASE_URL}/users/${userId}/avatar`, {
+      method: "PUT",
+      headers: { Authorization: `Bearer ${SECRET}`, "Content-Type": contentType },
+      body: bytes,
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new WorkerApiError(res.status, (body as { error?: string }).error ?? "request_failed");
+    }
+    return res.json() as Promise<{ ok: true; key: string }>;
+  },
+
+  getUserAvatar: async (userId: string): Promise<{ body: ReadableStream<Uint8Array>; contentType: string } | null> => {
+    if (!BASE_URL || !SECRET) {
+      throw new Error("WORKER_API_URL / WORKER_API_SECRET não configurados.");
+    }
+    const res = await fetch(`${BASE_URL}/users/${userId}/avatar`, {
+      headers: { Authorization: `Bearer ${SECRET}` },
+      cache: "no-store",
+    });
+    if (res.status === 404) return null;
+    if (!res.ok || !res.body) throw new WorkerApiError(res.status, "request_failed");
+    return { body: res.body, contentType: res.headers.get("content-type") ?? "application/octet-stream" };
+  },
+
+  deleteUserAvatar: (userId: string) =>
+    workerFetch<{ ok: true }>(`/users/${userId}/avatar`, { method: "DELETE" }),
+
   requestPasswordReset: (email: string) =>
     workerFetch<{ ok: true }>("/auth/reset-request", {
       method: "POST",
