@@ -9,6 +9,8 @@ import { setRoutes } from "./routes/sets";
 import { personalRecordRoutes } from "./routes/personal-records";
 import { statsRoutes } from "./routes/stats";
 import { aiRoutes } from "./routes/ai";
+import { goalRoutes } from "./routes/goals";
+import { badgeRoutes } from "./routes/badges";
 
 const app = new Hono<{ Bindings: Env }>();
 
@@ -25,5 +27,7 @@ app.route("/sets", setRoutes);
 app.route("/personal-records", personalRecordRoutes);
 app.route("/stats", statsRoutes);
 app.route("/ai", aiRoutes);
+app.route("/goals", goalRoutes);
+app.route("/badges", badgeRoutes);
 
 export default app;

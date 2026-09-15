@@ -6,6 +6,7 @@ import { StatCard } from "@/components/shared/stat-card";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Card } from "@/components/ui/card";
 import { WeeklyVolumeChart } from "@/components/charts/weekly-volume-chart";
+import { GoalsSection } from "@/components/goals/goals-section";
 import { auth } from "@/auth";
 import { workerApi } from "@/lib/worker-api";
 
@@ -25,7 +26,7 @@ const DEFAULT_STATS = {
 export default async function ProgressoPage() {
   const session = await auth();
   const userId = session!.user.id;
-  const [stats, recentPhotosResult] = await Promise.all([
+  const [stats, recentPhotosResult, goalsResult, exercisesResult] = await Promise.all([
     workerApi.getStats(userId).catch((err) => {
       console.error("Erro ao carregar stats em /progresso:", err);
       return DEFAULT_STATS;
@@ -33,6 +34,14 @@ export default async function ProgressoPage() {
     workerApi.listSessions(userId, { limit: 6, withPhoto: true }).catch((err) => {
       console.error("Erro ao carregar fotos em /progresso:", err);
       return { sessions: [] };
+    }),
+    workerApi.listGoals(userId).catch((err) => {
+      console.error("Erro ao carregar metas em /progresso:", err);
+      return { goals: [] };
+    }),
+    workerApi.listExercises(userId).catch((err) => {
+      console.error("Erro ao carregar exercícios em /progresso:", err);
+      return { exercises: [] };
     }),
   ]);
   const recentPhotos = recentPhotosResult?.sessions ?? [];
@@ -104,6 +113,8 @@ export default async function ProgressoPage() {
           accentColor="var(--chart-3)"
         />
       </div>
+
+      <GoalsSection goals={goalsResult.goals} exercises={exercisesResult.exercises} />
 
       {/* Weekly Volume */}
       <section>

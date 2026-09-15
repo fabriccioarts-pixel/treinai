@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { refresh } from "next/cache";
 import { auth } from "@/auth";
 import { workerApi } from "@/lib/worker-api";
 
@@ -9,12 +10,15 @@ export async function startWorkoutAction(workoutId: string): Promise<void> {
   if (!session?.user?.id) redirect("/login");
 
   const { id: sessionId } = await workerApi.startSession(session.user.id, workoutId);
+  refresh();
   redirect(`/treinos/${workoutId}/executar/${sessionId}`);
 }
 
 export interface LogSetResult {
   id?: string;
   newPRs?: { type: string; weight: number; reps: number }[];
+  newGoals?: { id: string; exerciseName: string; targetWeight: number }[];
+  newBadges?: { key: string; label: string; description: string; icon: string }[];
   error?: string;
 }
 
@@ -30,8 +34,8 @@ export async function logSetAction(input: {
   if (input.weight < 0 || input.reps <= 0) return { error: "Valores inválidos." };
 
   try {
-    const { id, newPRs } = await workerApi.logSet(input);
-    return { id, newPRs };
+    const { id, newPRs, newGoals, newBadges } = await workerApi.logSet(input);
+    return { id, newPRs, newGoals, newBadges };
   } catch {
     return { error: "Não foi possível salvar a série. Tente novamente." };
   }
@@ -94,5 +98,15 @@ export async function finishWorkoutAction(
   if (!session?.user?.id) redirect("/login");
 
   await workerApi.finishSession(sessionId, durationSeconds);
+  refresh();
   redirect("/");
+}
+
+export async function discardSessionAction(sessionId: string): Promise<void> {
+  const session = await auth();
+  if (!session?.user?.id) redirect("/login");
+
+  const owns = await assertOwnsSession(sessionId, session.user.id);
+  if (owns) await workerApi.deleteSession(sessionId).catch(() => {});
+  refresh();
 }

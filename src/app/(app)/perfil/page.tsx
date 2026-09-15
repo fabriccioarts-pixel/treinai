@@ -4,10 +4,13 @@ import {
   Download,
   Info,
   ChevronRight,
+  Zap,
 } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
+import { SectionHeader } from "@/components/shared/section-header";
 import { SignOutButton } from "@/components/auth/sign-out-button";
 import { ProfileAvatarEditor } from "@/components/profile/profile-avatar-editor";
+import { BadgeGrid } from "@/components/profile/badge-grid";
 import { auth } from "@/auth";
 import { workerApi } from "@/lib/worker-api";
 
@@ -22,9 +25,19 @@ export default async function PerfilPage() {
   const session = await auth();
   const name = session?.user?.name ?? "Usuário";
   const email = session?.user?.email ?? "";
-  const { user } = session?.user?.id
-    ? await workerApi.getUser(session.user.id).catch(() => ({ user: null }))
-    : { user: null };
+  const userId = session?.user?.id;
+
+  const [{ user }, badgesResult] = await Promise.all([
+    userId ? workerApi.getUser(userId).catch(() => ({ user: null })) : Promise.resolve({ user: null }),
+    userId
+      ? workerApi.getBadges(userId).catch(() => ({ badges: [], xp: 0, level: 1, xpIntoLevel: 0, xpForNextLevel: 100 }))
+      : Promise.resolve({ badges: [], xp: 0, level: 1, xpIntoLevel: 0, xpForNextLevel: 100 }),
+  ]);
+
+  const levelProgressPct = Math.min(
+    100,
+    Math.round((badgesResult.xpIntoLevel / badgesResult.xpForNextLevel) * 100)
+  );
 
   return (
     <div className="space-y-6">
@@ -40,14 +53,32 @@ export default async function PerfilPage() {
               <p className="font-semibold text-foreground tracking-tight text-base truncate">
                 {name}
               </p>
-              <span className="inline-flex items-center rounded-full border border-primary/20 bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary tracking-wide shrink-0">
-                Atleta
+              <span className="inline-flex items-center gap-1 rounded-full border border-primary/20 bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary tracking-wide shrink-0">
+                <Zap className="h-2.5 w-2.5" />
+                Nível {badgesResult.level}
               </span>
             </div>
             <p className="text-xs text-muted-foreground truncate mt-0.5">{email}</p>
           </div>
         </div>
+
+        <div className="mt-4 space-y-1">
+          <div className="h-1.5 overflow-hidden rounded-full bg-muted">
+            <div
+              className="h-full rounded-full bg-primary transition-all"
+              style={{ width: `${levelProgressPct}%` }}
+            />
+          </div>
+          <p className="tabular text-[11px] text-muted-foreground">
+            {badgesResult.xpIntoLevel} / {badgesResult.xpForNextLevel} XP para o nível {badgesResult.level + 1}
+          </p>
+        </div>
       </div>
+
+      <section>
+        <SectionHeader title="Conquistas" />
+        <BadgeGrid badges={badgesResult.badges} />
+      </section>
 
       {/* Menu / Settings List */}
       <div className="overflow-hidden rounded-2xl border border-border/60 bg-card/60 backdrop-blur-xl shadow-xs divide-y divide-border/40">

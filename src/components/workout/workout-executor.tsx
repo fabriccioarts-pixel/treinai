@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
-import { Camera, Check, ChevronLeft, ChevronRight, Play, Trophy, X } from "lucide-react";
+import { Award, Camera, Check, ChevronLeft, ChevronRight, Play, Target, Trophy, X } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { MUSCLE_GROUP_LABEL } from "@/lib/muscle-groups";
@@ -112,6 +112,8 @@ export function WorkoutExecutor({
   const [error, setError] = useState<string | null>(null);
   const [prBanner, setPrBanner] = useState<string[] | null>(null);
   const [totalPRs, setTotalPRs] = useState(0);
+  const [goalBanner, setGoalBanner] = useState<string[] | null>(null);
+  const [badgeBanner, setBadgeBanner] = useState<{ label: string; description: string }[] | null>(null);
   const [finishing, setFinishing] = useState(false);
   const [restRemaining, setRestRemaining] = useState<number | null>(null);
   const [pending, startTransition] = useTransition();
@@ -148,6 +150,18 @@ export function WorkoutExecutor({
     const timeout = setTimeout(() => setPrBanner(null), 5000);
     return () => clearTimeout(timeout);
   }, [prBanner]);
+
+  useEffect(() => {
+    if (!goalBanner) return;
+    const timeout = setTimeout(() => setGoalBanner(null), 6000);
+    return () => clearTimeout(timeout);
+  }, [goalBanner]);
+
+  useEffect(() => {
+    if (!badgeBanner) return;
+    const timeout = setTimeout(() => setBadgeBanner(null), 6000);
+    return () => clearTimeout(timeout);
+  }, [badgeBanner]);
 
   function formatElapsed(ms: number) {
     const totalSeconds = Math.floor(ms / 1000);
@@ -192,6 +206,14 @@ export function WorkoutExecutor({
       if (result.newPRs && result.newPRs.length > 0) {
         setTotalPRs((n) => n + result.newPRs!.length);
         setPrBanner(result.newPRs.map((pr) => `${PR_LABEL[pr.type] ?? pr.type}: ${pr.weight}kg × ${pr.reps}`));
+      }
+      if (result.newGoals && result.newGoals.length > 0) {
+        setGoalBanner(
+          result.newGoals.map((g) => `${g.exerciseName}: ${g.targetWeight}kg alcançados`)
+        );
+      }
+      if (result.newBadges && result.newBadges.length > 0) {
+        setBadgeBanner(result.newBadges.map((b) => ({ label: b.label, description: b.description })));
       }
     });
   }
@@ -312,6 +334,38 @@ export function WorkoutExecutor({
             <p className="font-bold text-gold">Novo recorde pessoal!</p>
             {prBanner.map((line) => (
               <p key={line} className="text-foreground">{line}</p>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {goalBanner && (
+        <div
+          className="mb-4 flex items-start gap-2 rounded-2xl p-3 text-sm"
+          style={{ background: "color-mix(in oklch, var(--primary), transparent 85%)", boxShadow: "inset 0 0 0 1px color-mix(in oklch, var(--primary), transparent 65%)" }}
+        >
+          <Target className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+          <div className="space-y-0.5">
+            <p className="font-bold text-primary">Meta batida! 🎯</p>
+            {goalBanner.map((line) => (
+              <p key={line} className="text-foreground">{line}</p>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {badgeBanner && (
+        <div
+          className="mb-4 flex items-start gap-2 rounded-2xl p-3 text-sm"
+          style={{ background: "color-mix(in oklch, var(--accent), transparent 85%)", boxShadow: "inset 0 0 0 1px color-mix(in oklch, var(--accent), transparent 65%)" }}
+        >
+          <Award className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
+          <div className="space-y-0.5">
+            <p className="font-bold text-accent">Conquista desbloqueada!</p>
+            {badgeBanner.map((b) => (
+              <p key={b.label} className="text-foreground">
+                <span className="font-semibold">{b.label}</span> — {b.description}
+              </p>
             ))}
           </div>
         </div>

@@ -202,7 +202,10 @@ export const workerApi = {
       body: JSON.stringify({ userId, workoutId }),
     }),
 
-  listSessions: (userId: string, options?: { limit?: number; withPhoto?: boolean }) =>
+  listSessions: (
+    userId: string,
+    options?: { limit?: number; withPhoto?: boolean; active?: boolean }
+  ) =>
     workerFetch<{
       sessions: {
         id: string;
@@ -216,7 +219,7 @@ export const workerApi = {
     }>(
       `/workout-sessions?userId=${encodeURIComponent(userId)}${
         options?.limit ? `&limit=${options.limit}` : ""
-      }${options?.withPhoto ? "&withPhoto=1" : ""}`
+      }${options?.withPhoto ? "&withPhoto=1" : ""}${options?.active ? "&active=1" : ""}`
     ),
 
   getSession: (id: string) =>
@@ -231,6 +234,11 @@ export const workerApi = {
         photo_key: string | null;
       };
     }>(`/workout-sessions/${id}`),
+
+  getActiveSession: async (userId: string) => {
+    const { sessions } = await workerApi.listSessions(userId, { limit: 1, active: true });
+    return sessions[0] ?? null;
+  },
 
   uploadSessionPhoto: async (sessionId: string, bytes: ArrayBuffer, contentType: string) => {
     if (!BASE_URL || !SECRET) {
@@ -270,6 +278,9 @@ export const workerApi = {
       body: JSON.stringify({ finishedAt: new Date().toISOString(), durationSeconds }),
     }),
 
+  deleteSession: (id: string) =>
+    workerFetch<{ ok: true }>(`/workout-sessions/${id}`, { method: "DELETE" }),
+
   listSessionSets: (sessionId: string) =>
     workerFetch<{
       sets: {
@@ -293,6 +304,8 @@ export const workerApi = {
     workerFetch<{
       id: string;
       newPRs: { type: string; weight: number; reps: number }[];
+      newGoals: { id: string; exerciseName: string; targetWeight: number }[];
+      newBadges: { key: string; label: string; description: string; icon: string }[];
     }>("/sets", {
       method: "POST",
       body: JSON.stringify(input),
@@ -331,4 +344,52 @@ export const workerApi = {
       method: "POST",
       body: JSON.stringify({ userId, message, history }),
     }),
+
+  listGoals: (userId: string) =>
+    workerFetch<{
+      goals: {
+        id: string;
+        exerciseId: string;
+        exerciseName: string;
+        muscleGroup: string;
+        targetWeight: number;
+        targetReps: number;
+        startingWeight: number;
+        currentWeight: number;
+        progressPct: number;
+        deadline: string | null;
+        achievedAt: string | null;
+        createdAt: string;
+      }[];
+    }>(`/goals?userId=${encodeURIComponent(userId)}`),
+
+  createGoal: (input: {
+    userId: string;
+    exerciseId: string;
+    targetWeight: number;
+    targetReps?: number;
+    deadline?: string;
+  }) =>
+    workerFetch<{ id: string }>("/goals", {
+      method: "POST",
+      body: JSON.stringify(input),
+    }),
+
+  deleteGoal: (id: string) => workerFetch<{ ok: true }>(`/goals/${id}`, { method: "DELETE" }),
+
+  getBadges: (userId: string) =>
+    workerFetch<{
+      badges: {
+        key: string;
+        label: string;
+        description: string;
+        icon: string;
+        unlocked: boolean;
+        achievedAt: string | null;
+      }[];
+      xp: number;
+      level: number;
+      xpIntoLevel: number;
+      xpForNextLevel: number;
+    }>(`/badges?userId=${encodeURIComponent(userId)}`),
 };

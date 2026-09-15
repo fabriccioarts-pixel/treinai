@@ -92,3 +92,28 @@ CREATE TABLE IF NOT EXISTS personal_records (
   achieved_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 CREATE INDEX IF NOT EXISTS idx_personal_records_user_exercise ON personal_records(user_id, exercise_id);
+
+-- Metas de progressão de carga (gamificação — Fase A)
+CREATE TABLE IF NOT EXISTS load_goals (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  exercise_id TEXT NOT NULL REFERENCES exercises(id),
+  target_weight REAL NOT NULL,
+  target_reps INTEGER NOT NULL DEFAULT 1,
+  starting_weight REAL NOT NULL,
+  deadline TEXT,
+  achieved_at TEXT,
+  active INTEGER NOT NULL DEFAULT 1,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_load_goals_user ON load_goals(user_id);
+
+-- Conquistas desbloqueadas (gamificação — Fase B)
+CREATE TABLE IF NOT EXISTS user_badges (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  badge_key TEXT NOT NULL,
+  achieved_at TEXT NOT NULL DEFAULT (datetime('now')),
+  UNIQUE(user_id, badge_key)
+);
+CREATE INDEX IF NOT EXISTS idx_user_badges_user ON user_badges(user_id);

@@ -28,9 +28,11 @@ function intensityFor(repsMin: number) {
 export function WorkoutExerciseGroups({
   groupList,
   startWorkoutAction,
+  isResuming = false,
 }: {
   groupList: ExerciseGroup[];
   startWorkoutAction: () => Promise<void>;
+  isResuming?: boolean;
 }) {
   const [collapsed, setCollapsed] = useState(true);
 
@@ -133,7 +135,7 @@ export function WorkoutExerciseGroups({
           })}
         >
           <Play className="h-4 w-4 fill-current" />
-          Iniciar treino
+          {isResuming ? "Retomar treino" : "Iniciar treino"}
         </button>
       </form>
     </div>

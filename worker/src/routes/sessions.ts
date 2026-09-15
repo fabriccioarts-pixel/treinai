@@ -1,11 +1,25 @@
 import { Hono } from "hono";
 import { newId, nowIso } from "../lib/id";
+import { evaluateBadges } from "../lib/badges";
 
 export const sessionRoutes = new Hono<{ Bindings: Env }>();
+
+// Uma sessão não finalizada iniciada há mais tempo que isso é considerada abandonada:
+// não é reaproveitada ao iniciar o treino de novo, nem contada como "em andamento".
+const ACTIVE_SESSION_WINDOW = "-6 hours";
 
 sessionRoutes.post("/", async (c) => {
   const { userId, workoutId } = await c.req.json<{ userId: string; workoutId: string }>();
   if (!userId || !workoutId) return c.json({ error: "invalid_input" }, 400);
+
+  const existing = await c.env.DB.prepare(
+    `SELECT id FROM workout_sessions
+     WHERE user_id = ? AND workout_id = ? AND finished_at IS NULL AND started_at > datetime('now', ?)
+     ORDER BY started_at DESC LIMIT 1`
+  )
+    .bind(userId, workoutId, ACTIVE_SESSION_WINDOW)
+    .first<{ id: string }>();
+  if (existing) return c.json({ id: existing.id }, 200);
 
   const id = newId();
   await c.env.DB.prepare(
@@ -88,6 +102,19 @@ sessionRoutes.delete("/:id/photo", async (c) => {
   return c.json({ ok: true });
 });
 
+sessionRoutes.delete("/:id", async (c) => {
+  const id = c.req.param("id");
+  const session = await c.env.DB.prepare("SELECT photo_key FROM workout_sessions WHERE id = ?")
+    .bind(id)
+    .first<{ photo_key: string | null }>();
+  if (!session) return c.json({ error: "not_found" }, 404);
+
+  if (session.photo_key) await c.env.PHOTOS.delete(session.photo_key);
+  await c.env.DB.prepare("DELETE FROM workout_sessions WHERE id = ?").bind(id).run();
+
+  return c.json({ ok: true });
+});
+
 sessionRoutes.patch("/:id", async (c) => {
   const id = c.req.param("id");
   const { finishedAt, durationSeconds } = await c.req.json<{
@@ -101,24 +128,33 @@ sessionRoutes.patch("/:id", async (c) => {
     .bind(finishedAt ?? nowIso(), durationSeconds ?? null, id)
     .run();
 
-  return c.json({ ok: true });
+  let newBadges: Awaited<ReturnType<typeof evaluateBadges>> = [];
+  const session = await c.env.DB.prepare("SELECT user_id FROM workout_sessions WHERE id = ?")
+    .bind(id)
+    .first<{ user_id: string }>();
+  if (session) newBadges = await evaluateBadges(c.env.DB, session.user_id);
+
+  return c.json({ ok: true, newBadges });
 });
 
 sessionRoutes.get("/", async (c) => {
   const userId = c.req.query("userId");
   const limit = Number(c.req.query("limit") ?? "20");
   const withPhoto = c.req.query("withPhoto") === "1";
+  const activeOnly = c.req.query("active") === "1";
   if (!userId) return c.json({ error: "missing_userId" }, 400);
 
   const { results } = await c.env.DB.prepare(
     `SELECT s.*, w.name AS workout_name
      FROM workout_sessions s
      JOIN workouts w ON w.id = s.workout_id
-     WHERE s.user_id = ?${withPhoto ? " AND s.photo_key IS NOT NULL" : ""}
+     WHERE s.user_id = ?${withPhoto ? " AND s.photo_key IS NOT NULL" : ""}${
+       activeOnly ? " AND s.finished_at IS NULL AND s.started_at > datetime('now', ?)" : ""
+     }
      ORDER BY s.started_at DESC
      LIMIT ?`
   )
-    .bind(userId, limit)
+    .bind(userId, ...(activeOnly ? [ACTIVE_SESSION_WINDOW] : []), limit)
     .all();
 
   return c.json({ sessions: results });

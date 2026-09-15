@@ -15,6 +15,7 @@ import { workerApi, WorkerApiError } from "@/lib/worker-api";
 import { deleteWorkoutAction } from "@/app/actions/workout-actions";
 import { startWorkoutAction } from "@/app/actions/session-actions";
 import { WorkoutExerciseGroups } from "@/components/workout/workout-exercise-groups";
+import { auth } from "@/auth";
 
 export default async function TreinoDetalhePage({
   params,
@@ -30,6 +31,12 @@ export default async function TreinoDetalhePage({
     if (err instanceof WorkerApiError && err.status === 404) notFound();
     throw err;
   }
+
+  const authSession = await auth();
+  const activeSession = authSession?.user?.id
+    ? await workerApi.getActiveSession(authSession.user.id).catch(() => null)
+    : null;
+  const isResuming = activeSession?.workout_id === workout.id;
 
   const totalSets = workout.exercises.reduce((sum, e) => sum + e.target_sets, 0);
   // Sem histórico de execução — aproxima a duração pelas séries e descansos configurados.
@@ -117,6 +124,7 @@ export default async function TreinoDetalhePage({
       <WorkoutExerciseGroups
         groupList={groupList}
         startWorkoutAction={startWorkoutAction.bind(null, workout.id)}
+        isResuming={isResuming}
       />
     </div>
   );

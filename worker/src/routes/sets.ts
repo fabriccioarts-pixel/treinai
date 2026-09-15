@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { newId, nowIso } from "../lib/id";
 import { estimateOneRepMax, setVolume } from "../lib/calculations";
+import { evaluateBadges, type BadgeDef } from "../lib/badges";
 
 export const setRoutes = new Hono<{ Bindings: Env }>();
 
@@ -71,8 +72,42 @@ setRoutes.post("/", async (c) => {
 
   const newPRs = await detectAndSavePRs(c.env, body.sessionId, body.exerciseId, body.weight, body.reps);
 
-  return c.json({ id, newPRs }, 201);
+  const session = await c.env.DB.prepare("SELECT user_id FROM workout_sessions WHERE id = ?")
+    .bind(body.sessionId)
+    .first<{ user_id: string }>();
+
+  let newGoals: { id: string; exerciseName: string; targetWeight: number }[] = [];
+  let newBadges: BadgeDef[] = [];
+  if (session) {
+    if (newPRs.some((pr) => pr.type === "carga")) {
+      newGoals = await checkGoalAchievements(c.env.DB, session.user_id, body.exerciseId, body.weight);
+    }
+    newBadges = await evaluateBadges(c.env.DB, session.user_id);
+  }
+
+  return c.json({ id, newPRs, newGoals, newBadges }, 201);
 });
+
+async function checkGoalAchievements(db: D1Database, userId: string, exerciseId: string, currentWeight: number) {
+  const { results: goals } = await db
+    .prepare(
+      `SELECT g.id, g.target_weight, e.name AS exercise_name FROM load_goals g
+       JOIN exercises e ON e.id = g.exercise_id
+       WHERE g.user_id = ? AND g.exercise_id = ? AND g.active = 1 AND g.achieved_at IS NULL AND g.target_weight <= ?`
+    )
+    .bind(userId, exerciseId, currentWeight)
+    .all<{ id: string; target_weight: number; exercise_name: string }>();
+
+  if (goals.length === 0) return [];
+
+  await db.batch(
+    goals.map((g) =>
+      db.prepare("UPDATE load_goals SET achieved_at = ? WHERE id = ?").bind(nowIso(), g.id)
+    )
+  );
+
+  return goals.map((g) => ({ id: g.id, exerciseName: g.exercise_name, targetWeight: g.target_weight }));
+}
 
 async function detectAndSavePRs(
   env: Env,
