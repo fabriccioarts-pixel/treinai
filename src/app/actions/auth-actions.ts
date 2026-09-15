@@ -27,7 +27,7 @@ export async function registerAction(_prev: ActionState, formData: FormData): Pr
     return { error: "Não foi possível criar sua conta agora. Tente novamente." };
   }
 
-  await signIn("credentials", { email, password, redirectTo: "/bem-vindo/conversa" });
+  await signIn("credentials", { email, password, redirectTo: "/bem-vindo/objetivo" });
   return {};
 }
 

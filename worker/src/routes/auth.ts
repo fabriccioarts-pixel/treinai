@@ -2,7 +2,6 @@ import { Hono } from "hono";
 import { hashPassword, verifyPassword, hashToken, generateToken } from "../lib/password";
 import { sendPasswordResetEmail } from "../lib/email";
 import { newId, nowIso } from "../lib/id";
-import { seedDefaultWorkoutsForUser } from "../lib/seed-user";
 
 export const authRoutes = new Hono<{ Bindings: Env }>();
 
@@ -44,7 +43,6 @@ authRoutes.post("/register", async (c) => {
   )
     .bind(id, email.toLowerCase(), name, passwordHash, nowIso())
     .run();
-  await seedDefaultWorkoutsForUser(c.env.DB, id);
 
   return c.json({ user: { id, email: email.toLowerCase(), name, createdAt: nowIso() } }, 201);
 });
@@ -98,7 +96,6 @@ authRoutes.post("/google", async (c) => {
         .bind(id, email.toLowerCase(), name, googleId, createdAt)
         .run();
       row = { id, email: email.toLowerCase(), name, password_hash: null, google_id: googleId, created_at: createdAt };
-      await seedDefaultWorkoutsForUser(c.env.DB, id);
     }
   }
 
