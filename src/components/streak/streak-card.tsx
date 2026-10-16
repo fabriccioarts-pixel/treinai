@@ -23,6 +23,20 @@ export interface StreakData {
   last7Days: { date: string; trained: boolean }[];
 }
 
+/** Campos novos do worker podem faltar quando o front é publicado antes do worker */
+type StreakInput = { streakDays?: number } & Partial<Omit<StreakData, "streakDays">>;
+
+function normalizeStreak(input: StreakInput): StreakData {
+  const streakDays = input.streakDays ?? 0;
+  return {
+    streakDays,
+    // Sem a informação, não acusa "em risco" à toa: assume que a ofensiva está em dia
+    trainedToday: input.trainedToday ?? streakDays > 0,
+    lostStreakDays: input.lostStreakDays ?? 0,
+    last7Days: Array.isArray(input.last7Days) ? input.last7Days : [],
+  };
+}
+
 export function getStreakState({ streakDays, trainedToday, lostStreakDays }: StreakData): StreakState {
   if (streakDays > 0 && !trainedToday) return "at-risk";
   if (streakDays === 0) return lostStreakDays >= 2 ? "lost" : "sleeping";
@@ -47,14 +61,15 @@ const STATE_COPY: Record<StreakState, (d: StreakData) => string> = {
 const WEEKDAY_INITIAL = ["D", "S", "T", "Q", "Q", "S", "S"];
 
 export function StreakCard({
-  data,
+  data: input,
   compact = false,
   footer,
 }: {
-  data: StreakData;
+  data: StreakInput;
   compact?: boolean;
   footer?: React.ReactNode;
 }) {
+  const data = normalizeStreak(input);
   const state = getStreakState(data);
   const isGold = state === "legendary";
   const isCold = state === "sleeping" || state === "lost";
@@ -105,6 +120,7 @@ export function StreakCard({
             {STATE_COPY[state](data)}
           </p>
 
+          {data.last7Days.length > 0 && (
           <ol className="mt-3 flex gap-1.5" aria-label="Últimos 7 dias">
             {data.last7Days.map((day, i) => {
               const isToday = i === data.last7Days.length - 1;
@@ -136,6 +152,7 @@ export function StreakCard({
               );
             })}
           </ol>
+          )}
         </div>
       </div>
 
