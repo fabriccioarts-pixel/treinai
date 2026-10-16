@@ -31,7 +31,8 @@ const COACH_IMAGE = {
 };
 
 const RAMP = " .,:;i1tfLCG08@";
-const FPS = 30;
+// Quadros por segundo por perfil de aparelho (celular/aparelho modesto anima com menos quadros)
+const FPS = { bust: 30, bustLowPower: 20, icon: 20, iconLowPower: 12 };
 const BREATH_PERIOD = 4; // segundos
 const BREATH_RISE = 0.02; // fração da altura da imagem
 const BREATH_WIDEN = 0.028; // fração da largura
@@ -179,6 +180,11 @@ export function AsciiCoach({
     if (!ctx || !sctx || !wctx) return;
 
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    // Tela de toque ou poucos núcleos: menos densidade de pixels, células maiores e menos quadros
+    const lowPower =
+      window.matchMedia("(pointer: coarse)").matches || (navigator.hardwareConcurrency ?? 8) <= 4;
+    const fps = isIcon ? (lowPower ? FPS.iconLowPower : FPS.icon) : lowPower ? FPS.bustLowPower : FPS.bust;
+    let visible = true;
 
     let source: PreparedSource | null = null;
     const crop = isIcon ? FACE_CROP : FULL_CROP;
@@ -190,6 +196,33 @@ export function AsciiCoach({
     let cellW = 0;
     let cellH = 0;
     let color = "#22c55e";
+    let dpr = 1;
+    let colFade = new Float32Array(0);
+
+    // Atlas: cada caractere da rampa (já com cor e opacidade) é rasterizado uma vez; os quadros só
+    // copiam pedaços dele com drawImage, bem mais barato que fillText por célula.
+    const atlas = document.createElement("canvas");
+    const actx = atlas.getContext("2d");
+    let glyphW = 0;
+    let glyphH = 0;
+    let atlasColor = "";
+    function buildAtlas() {
+      if (!actx) return;
+      glyphW = Math.ceil(cellW * dpr) + 1;
+      glyphH = Math.ceil(cellH * dpr) + 1;
+      atlas.width = glyphW * RAMP.length;
+      atlas.height = glyphH;
+      actx.clearRect(0, 0, atlas.width, atlas.height);
+      actx.fillStyle = color;
+      actx.font = `${cellH * dpr}px ui-monospace, SFMono-Regular, Menlo, monospace`;
+      actx.textBaseline = "top";
+      for (let i = 1; i < RAMP.length; i++) {
+        actx.globalAlpha = 0.3 + 0.7 * (i / (RAMP.length - 1));
+        actx.fillText(RAMP[i], i * glyphW, 0);
+      }
+      actx.globalAlpha = 1;
+      atlasColor = color;
+    }
 
     // Piscar: fecha 70ms, segura 70ms, abre 110ms
     const CLOSE = 0.07;
@@ -208,20 +241,24 @@ export function AsciiCoach({
     function resize() {
       const rect = canvas!.getBoundingClientRect();
       // No ícone os caracteres são minúsculos, então vale usar toda a densidade da tela
-      const dpr = Math.min(window.devicePixelRatio || 1, isIcon ? 3 : 2);
+      dpr = Math.min(window.devicePixelRatio || 1, isIcon ? (lowPower ? 2 : 3) : lowPower ? 1.5 : 2);
       width = rect.width;
       height = rect.height;
       canvas!.width = Math.max(1, Math.round(width * dpr));
       canvas!.height = Math.max(1, Math.round(height * dpr));
-      ctx!.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx!.setTransform(1, 0, 0, 1, 0, 0);
 
-      cellH = isIcon ? Math.max(1.8, height / 14) : Math.min(8, Math.max(5, height / 110));
+      cellH = isIcon
+        ? Math.max(1.8, height / 14)
+        : Math.min(8, Math.max(lowPower ? 6 : 5, height / (lowPower ? 92 : 110)));
       cellW = cellH * 0.6;
       cols = Math.max(1, Math.ceil(width / cellW));
       rows = Math.max(1, Math.ceil(height / cellH));
       sample.width = cols;
       sample.height = rows;
+      colFade = new Float32Array(cols);
       lastColorRead = -1;
+      atlasColor = "";
     }
 
     function blinkClosedAt(t: number) {
@@ -259,6 +296,7 @@ export function AsciiCoach({
         color = getComputedStyle(canvas!).color || color;
         lastColorRead = t;
       }
+      if (color !== atlasColor) buildAtlas();
       const src = source.canvas;
       const sw = src.width;
       const sh = src.height;
@@ -353,7 +391,7 @@ export function AsciiCoach({
       const scanWidth = isIcon ? 1.5 : 4;
 
       // Dissolve as bordas laterais da imagem para os ombros não terminarem num corte reto
-      const colFade = new Float32Array(cols).fill(1);
+      colFade.fill(1);
       if (!isIcon) {
         for (let x = 0; x < cols; x++) {
           const u = (x + 0.5 - ox) / dw;
@@ -362,12 +400,11 @@ export function AsciiCoach({
       }
 
       // 4) Luminância → caracteres
-      ctx!.clearRect(0, 0, width, height);
-      ctx!.fillStyle = color;
-      ctx!.font = `${cellH}px ui-monospace, SFMono-Regular, Menlo, monospace`;
-      ctx!.textBaseline = "top";
-      let alpha = -1;
+      ctx!.clearRect(0, 0, canvas!.width, canvas!.height);
+      const stepX = cellW * dpr;
+      const stepY = cellH * dpr;
       for (let y = 0; y < rows; y++) {
+        const py = Math.round(y * stepY);
         const shift = glitching && y >= glitchRow && y < glitchRow + glitchSize ? glitchShift : 0;
         const scanBoost = Math.max(0, 1 - Math.abs(y - scanY) / scanWidth) * 0.45;
         for (let x = 0; x < cols; x++) {
@@ -377,24 +414,27 @@ export function AsciiCoach({
           // Cintilação esparsa de caracteres (aspecto "digital")
           if (!reducedMotion && Math.random() < 0.004) l = Math.min(1, l + 0.35);
           const idx = Math.min(RAMP.length - 1, Math.floor(l * RAMP.length));
-          const a = 0.3 + 0.7 * (idx / (RAMP.length - 1));
-          if (a !== alpha) {
-            ctx!.globalAlpha = a;
-            alpha = a;
-          }
-          ctx!.fillText(RAMP[idx], (x + shift) * cellW, y * cellH);
+          if (idx === 0) continue;
+          ctx!.drawImage(atlas, idx * glyphW, 0, glyphW, glyphH, Math.round((x + shift) * stepX), py, glyphW, glyphH);
         }
       }
-      ctx!.globalAlpha = 1;
     }
 
     let raf = 0;
     let disposed = false;
     const start = performance.now();
     let last = 0;
+    let lastVisibilityCheck = -Infinity;
     const loop = (now: number) => {
       raf = requestAnimationFrame(loop);
-      if (now - last < 1000 / FPS) return;
+      // Fora da tela (ex.: landing page rolada) não desenha. Checagem direta da posição a cada
+      // 0,5s: mais confiável que IntersectionObserver enquanto o layout ainda está assentando.
+      if (now - lastVisibilityCheck > 500) {
+        const r = canvas!.getBoundingClientRect();
+        visible = r.bottom > 0 && r.top < window.innerHeight && r.width > 0;
+        lastVisibilityCheck = now;
+      }
+      if (!visible || now - last < 1000 / fps) return;
       last = now;
       render((now - start) / 1000);
     };
