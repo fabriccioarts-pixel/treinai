@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import { PageHeader } from "@/components/shared/page-header";
 import { PrsView } from "@/components/pr/prs-view";
 import { auth } from "@/auth";
@@ -6,7 +7,8 @@ import type { MuscleGroup } from "@/lib/types";
 
 export default async function PrsPage() {
   const session = await auth();
-  const { personalRecords } = await workerApi.listPersonalRecords(session!.user.id);
+  if (!session?.user?.id) redirect("/login");
+  const { personalRecords } = await workerApi.listPersonalRecords(session.user.id);
 
   return (
     <div>

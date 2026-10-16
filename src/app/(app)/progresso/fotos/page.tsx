@@ -1,5 +1,7 @@
+import { redirect } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Camera } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
+import { PhotoIcon } from "@/components/ui/app-icon";
 import { EmptyState } from "@/components/shared/empty-state";
 import { buttonVariants } from "@/components/ui/button";
 import { auth } from "@/auth";
@@ -8,7 +10,8 @@ import { formatDate } from "@/lib/format";
 
 export default async function FotosDosTreinosPage() {
   const session = await auth();
-  const { sessions } = await workerApi.listSessions(session!.user.id, {
+  if (!session?.user?.id) redirect("/login");
+  const { sessions } = await workerApi.listSessions(session.user.id, {
     limit: 200,
     withPhoto: true,
   });
@@ -35,7 +38,7 @@ export default async function FotosDosTreinosPage() {
 
       {sessions.length === 0 ? (
         <EmptyState
-          icon={Camera}
+          icon={PhotoIcon}
           title="Nenhuma foto ainda"
           description="Ao finalizar um treino, você pode registrar uma foto — elas aparecem aqui."
         />

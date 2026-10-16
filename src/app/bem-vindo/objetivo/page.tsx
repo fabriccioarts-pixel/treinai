@@ -3,18 +3,19 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { Dumbbell, Flame, TrendingUp, Crosshair, ArrowRight } from "lucide-react";
+import { ArrowRight } from "lucide-react";
+import { WorkoutIcon, StreakIcon, TrendIcon, FocusIcon } from "@/components/ui/app-icon";
 import { Button } from "@/components/ui/button";
 import { MUSCLE_GROUP_LABEL } from "@/lib/muscle-groups";
 import type { MuscleGroup } from "@/lib/types";
 
 type Objetivo = "hipertrofia" | "emagrecimento" | "ganho-massa" | "enfase";
 
-const OBJETIVOS: { value: Objetivo; label: string; description: string; icon: typeof Dumbbell }[] = [
-  { value: "hipertrofia", label: "Hipertrofia", description: "Crescer massa muscular de forma geral", icon: Dumbbell },
-  { value: "emagrecimento", label: "Emagrecimento", description: "Perder gordura e definir o corpo", icon: Flame },
-  { value: "ganho-massa", label: "Ganho de massa", description: "Ganhar força e volume corporal", icon: TrendingUp },
-  { value: "enfase", label: "Ênfase específica", description: "Focar mais em um grupo muscular", icon: Crosshair },
+const OBJETIVOS: { value: Objetivo; label: string; description: string; icon: typeof WorkoutIcon }[] = [
+  { value: "hipertrofia", label: "Hipertrofia", description: "Crescer massa muscular de forma geral", icon: WorkoutIcon },
+  { value: "emagrecimento", label: "Emagrecimento", description: "Perder gordura e definir o corpo", icon: StreakIcon },
+  { value: "ganho-massa", label: "Ganho de massa", description: "Ganhar força e volume corporal", icon: TrendIcon },
+  { value: "enfase", label: "Ênfase específica", description: "Focar mais em um grupo muscular", icon: FocusIcon },
 ];
 
 const ENFASE_GROUPS: MuscleGroup[] = ["peito", "costas", "pernas", "ombros", "biceps", "triceps"];

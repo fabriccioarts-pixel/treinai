@@ -2,7 +2,8 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { Dumbbell, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
+import { WorkoutIcon } from "@/components/ui/app-icon";
 import { WorkoutCard } from "./workout-card";
 import { buttonVariants } from "@/components/ui/button";
 import { MUSCLE_GROUP_LABEL } from "@/lib/muscle-groups";
@@ -30,7 +31,7 @@ export function WorkoutsBrowser({ workouts }: { workouts: WorkoutSummary[] }) {
       <div className="rounded-3xl bg-gradient-to-br from-primary/10 via-card to-card p-8 text-center ring-1 ring-foreground/10">
         <div className="relative mx-auto mb-5 h-16 w-16">
           <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary/15 ring-1 ring-primary/25">
-            <Dumbbell className="h-7 w-7 text-primary" strokeWidth={1.75} />
+            <WorkoutIcon className="h-7 w-7 text-primary" strokeWidth={1.75} />
           </div>
           <div className="absolute -right-1 -top-1 flex h-[22px] w-[22px] items-center justify-center rounded-full bg-gold ring-4 ring-background">
             <Plus className="h-3 w-3 text-gold-foreground" strokeWidth={3} />

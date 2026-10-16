@@ -2,15 +2,17 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Dumbbell, LineChart, Bot, User } from "lucide-react";
+import { Bot } from "lucide-react";
+import { HomeIcon, WorkoutIcon, ProgressIcon, ProfileIcon } from "@/components/ui/app-icon";
 import { cn } from "@/lib/utils";
+import { AsciiCoach } from "@/components/workout/ascii-coach";
 
 const NAV_ITEMS = [
-  { href: "/", label: "Início", icon: Home },
-  { href: "/treinos", label: "Treinos", icon: Dumbbell },
+  { href: "/", label: "Início", icon: HomeIcon },
+  { href: "/treinos", label: "Treinos", icon: WorkoutIcon },
   { href: "/theo", label: "Théo", icon: Bot },
-  { href: "/progresso", label: "Progresso", icon: LineChart },
-  { href: "/perfil", label: "Perfil", icon: User },
+  { href: "/progresso", label: "Progresso", icon: ProgressIcon },
+  { href: "/perfil", label: "Perfil", icon: ProfileIcon },
 ] as const;
 
 export function BottomNav() {
@@ -38,10 +40,20 @@ export function BottomNav() {
                     : "text-muted-foreground"
                 )}
               >
-                <Icon
-                  className="h-5 w-5"
-                  strokeWidth={isActive ? 2.4 : 2}
-                />
+                {href === "/theo" ? (
+                  <AsciiCoach
+                    variant="icon"
+                    className={cn(
+                      "h-8 w-8 rounded-full ring-1 transition-[box-shadow,color]",
+                      isActive ? "ring-primary/60 text-primary" : "ring-border text-muted-foreground"
+                    )}
+                  />
+                ) : (
+                  <Icon
+                    className="h-5 w-5"
+                    strokeWidth={isActive ? 2.4 : 2}
+                  />
+                )}
               </span>
               <span
                 className={cn(

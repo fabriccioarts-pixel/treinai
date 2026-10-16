@@ -1,7 +1,8 @@
 "use client";
 
 import { useRef, useState, useTransition } from "react";
-import { Camera, Loader2, X } from "lucide-react";
+import { Loader2, X } from "lucide-react";
+import { PhotoIcon } from "@/components/ui/app-icon";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { uploadAvatarAction, removeAvatarAction } from "@/app/actions/profile-actions";
 import { cn } from "@/lib/utils";
@@ -77,7 +78,7 @@ export function ProfileAvatarEditor({
           {pending ? (
             <Loader2 className="h-3.5 w-3.5 animate-spin" />
           ) : (
-            <Camera className="h-3.5 w-3.5" />
+            <PhotoIcon className="h-3.5 w-3.5" />
           )}
           <input
             ref={inputRef}

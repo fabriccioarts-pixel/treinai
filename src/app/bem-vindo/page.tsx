@@ -1,27 +1,28 @@
 import Link from "next/link";
 import Image from "next/image";
-import { Sparkles, Target, Trophy, Dumbbell, ArrowRight } from "lucide-react";
+import { ArrowRight } from "lucide-react";
+import { AiIcon, GoalIcon, PrIcon, WorkoutIcon } from "@/components/ui/app-icon";
 import { buttonVariants } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 
 const FEATURES = [
   {
-    icon: Sparkles,
+    icon: AiIcon,
     title: "Personal trainer de IA",
     description: "O Théo conhece seu treino real e te ajuda a qualquer hora — tira dúvida, ajusta carga ou adapta exercício por dor/lesão, na hora.",
   },
   {
-    icon: Target,
+    icon: GoalIcon,
     title: "Metas de carga com progresso",
     description: "Defina quanto quer levantar e acompanhe o progresso até chegar lá, com celebração quando bater a meta.",
   },
   {
-    icon: Trophy,
+    icon: PrIcon,
     title: "PRs detectados sozinhos",
     description: "Todo recorde pessoal — carga, repetições, 1RM, volume — é identificado automaticamente enquanto você treina.",
   },
   {
-    icon: Dumbbell,
+    icon: WorkoutIcon,
     title: "Conquistas e nível",
     description: "Sequência de treinos, badges e XP para manter o hábito — sem virar rede social, só você contra sua própria evolução.",
   },

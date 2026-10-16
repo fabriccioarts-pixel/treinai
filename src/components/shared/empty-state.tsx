@@ -1,8 +1,8 @@
-import type { LucideIcon } from "lucide-react";
+import type { IconComponent } from "@/components/ui/app-icon";
 import type { ReactNode } from "react";
 
 interface EmptyStateProps {
-  icon: LucideIcon;
+  icon: IconComponent;
   title: string;
   description: string;
   action?: ReactNode;
@@ -10,22 +10,13 @@ interface EmptyStateProps {
 
 export function EmptyState({ icon: Icon, title, description, action }: EmptyStateProps) {
   return (
-    <div className="relative flex flex-col items-center gap-4 overflow-hidden rounded-2xl border border-border/50 bg-gradient-to-b from-muted/30 to-transparent py-14 text-center">
-      {/* Subtle radial glow behind icon */}
-      <div className="pointer-events-none absolute top-8 h-24 w-24 rounded-full bg-primary/5 blur-2xl" />
-
-      <div
-        className="relative flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-primary/15 to-accent/15 ring-1 ring-primary/10"
-        style={{ animation: "float 3s ease-in-out infinite" }}
-      >
-        <Icon className="h-6 w-6 text-primary/70" strokeWidth={1.75} />
-      </div>
-
-      <div className="relative space-y-1.5 px-6">
+    <div className="flex gap-3 rounded-xl border border-dashed border-border px-4 py-4">
+      <Icon className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground" />
+      <div className="min-w-0 flex-1">
         <p className="text-sm font-semibold text-foreground">{title}</p>
-        <p className="text-sm leading-relaxed text-muted-foreground">{description}</p>
+        <p className="mt-0.5 text-sm leading-relaxed text-muted-foreground">{description}</p>
+        {action && <div className="mt-3 [&>*]:mt-0">{action}</div>}
       </div>
-      {action}
     </div>
   );
 }

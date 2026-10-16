@@ -1,5 +1,6 @@
+import { redirect } from "next/navigation";
 import Link from "next/link";
-import { CalendarCheck, Camera, Trophy, TrendingUp } from "lucide-react";
+import { FrequencyIcon, PhotoIcon, PrIcon, TrendIcon } from "@/components/ui/app-icon";
 import { PageHeader } from "@/components/shared/page-header";
 import { SectionHeader } from "@/components/shared/section-header";
 import { StatCard } from "@/components/shared/stat-card";
@@ -27,7 +28,8 @@ const DEFAULT_STATS = {
 
 export default async function ProgressoPage() {
   const session = await auth();
-  const userId = session!.user.id;
+  if (!session?.user?.id) redirect("/login");
+  const userId = session.user.id;
   const [stats, recentPhotosResult, goalsResult, exercisesResult] = await Promise.all([
     workerApi.getStats(userId).catch((err) => {
       console.error("Erro ao carregar stats em /progresso:", err);
@@ -56,13 +58,13 @@ export default async function ProgressoPage() {
       {/* Stat Cards */}
       <div className="grid grid-cols-2 gap-3">
         <StatCard
-          icon={CalendarCheck}
+          icon={FrequencyIcon}
           label="Frequência (mês)"
           value={`${stats.frequencyThisMonth} treinos`}
           accentColor="var(--chart-1)"
         />
         <StatCard
-          icon={Trophy}
+          icon={PrIcon}
           label="Novos PRs (mês)"
           value={String(stats.newPRsThisMonth)}
           accentColor="var(--chart-3)"
@@ -86,7 +88,7 @@ export default async function ProgressoPage() {
           </div>
         ) : (
           <EmptyState
-            icon={Trophy}
+            icon={PrIcon}
             title="Nenhum PR ainda"
             description="Complete séries nos seus treinos para conquistar seu primeiro recorde."
           />
@@ -104,7 +106,7 @@ export default async function ProgressoPage() {
           </Card>
         ) : (
           <EmptyState
-            icon={TrendingUp}
+            icon={TrendIcon}
             title="Sem volume registrado ainda"
             description="Complete treinos para ver seu volume semanal aqui."
           />
@@ -134,7 +136,7 @@ export default async function ProgressoPage() {
           </div>
         ) : (
           <EmptyState
-            icon={Camera}
+            icon={PhotoIcon}
             title="Nenhuma foto ainda"
             description="Ao finalizar um treino, você pode registrar uma foto."
           />
@@ -153,14 +155,14 @@ export default async function ProgressoPage() {
               >
                 <span className="text-sm font-medium text-foreground">{mover.label}</span>
                 <span className="flex items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary">
-                  <TrendingUp className="h-3.5 w-3.5" />+{mover.changePct}%
+                  <TrendIcon className="h-3.5 w-3.5" />+{mover.changePct}%
                 </span>
               </div>
             ))}
           </Card>
         ) : (
           <EmptyState
-            icon={TrendingUp}
+            icon={TrendIcon}
             title="Ainda sem histórico suficiente"
             description="Registre séries em mais de um treino no mesmo exercício para ver sua evolução de força."
           />

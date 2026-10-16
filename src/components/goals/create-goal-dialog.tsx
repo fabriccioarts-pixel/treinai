@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Plus, Target } from "lucide-react";
+import { Plus } from "lucide-react";
+import { GoalIcon } from "@/components/ui/app-icon";
 import {
   Dialog,
   DialogContent,
@@ -47,8 +48,8 @@ const MUSCLE_GROUP_ORDER: MuscleGroup[] = [
 export function CreateGoalDialog({ exercises }: { exercises: ExerciseOption[] }) {
   const [open, setOpen] = useState(false);
   const [exerciseId, setExerciseId] = useState(exercises[0]?.id ?? "");
-  const [targetWeight, setTargetWeight] = useState("");
-  const [targetReps, setTargetReps] = useState("1");
+  const [targetWeight, setGoalIconWeight] = useState("");
+  const [targetReps, setGoalIconReps] = useState("1");
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -74,7 +75,7 @@ export function CreateGoalDialog({ exercises }: { exercises: ExerciseOption[] })
         setError(result.error);
         return;
       }
-      setTargetWeight("");
+      setGoalIconWeight("");
       setOpen(false);
     });
   }
@@ -92,7 +93,7 @@ export function CreateGoalDialog({ exercises }: { exercises: ExerciseOption[] })
       <DialogContent>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Target className="h-4 w-4 text-primary" />
+            <GoalIcon className="h-4 w-4 text-primary" />
             Nova meta de carga
           </DialogTitle>
           <DialogDescription>
@@ -129,7 +130,7 @@ export function CreateGoalDialog({ exercises }: { exercises: ExerciseOption[] })
                 inputMode="decimal"
                 placeholder="Ex.: 100"
                 value={targetWeight}
-                onChange={(e) => setTargetWeight(e.target.value)}
+                onChange={(e) => setGoalIconWeight(e.target.value)}
               />
             </div>
             <div className="space-y-1.5">
@@ -138,7 +139,7 @@ export function CreateGoalDialog({ exercises }: { exercises: ExerciseOption[] })
                 type="number"
                 min={1}
                 value={targetReps}
-                onChange={(e) => setTargetReps(e.target.value)}
+                onChange={(e) => setGoalIconReps(e.target.value)}
               />
             </div>
           </div>

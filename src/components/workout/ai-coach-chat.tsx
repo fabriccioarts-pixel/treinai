@@ -2,12 +2,14 @@
 
 import { useState, useTransition, useRef, useEffect } from "react";
 import Link from "next/link";
-import { Send, CheckCircle2, User, Sparkles, ArrowRight } from "lucide-react";
+import { Send, CheckCircle2, ArrowRight } from "lucide-react";
+import { ProfileIcon, AiIcon } from "@/components/ui/app-icon";
 import { motion, AnimatePresence } from "framer-motion";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { askCoachAction } from "@/app/actions/ai-actions";
 import { AiMessageRenderer, parseAiMessage } from "./ai-message-renderer";
+import { AsciiCoach } from "./ascii-coach";
 
 function CoachAvatar({ pulse = false }: { pulse?: boolean }) {
   return (
@@ -71,24 +73,42 @@ export function AiCoachChat({ autoGreetMessage }: { autoGreetMessage?: string } 
   const [pending, startTransition] = useTransition();
   const bottomRef = useRef<HTMLDivElement>(null);
   const greetedRef = useRef(false);
+  // Mantém o busto "falando" (apagado) por um tempo proporcional ao tamanho da resposta
+  const [speaking, setSpeaking] = useState(false);
+  const speakingTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [turns, pending]);
 
+  useEffect(() => () => clearTimeout(speakingTimerRef.current), []);
+
+  function pushAssistant(result: Awaited<ReturnType<typeof askCoachAction>>) {
+    const text = result.error ?? result.reply ?? "";
+    setTurns((prev) => [
+      ...prev,
+      result.error
+        ? { role: "assistant", text, error: true }
+        : { role: "assistant", text, actions: result.actions },
+    ]);
+    setSpeaking(true);
+    clearTimeout(speakingTimerRef.current);
+    speakingTimerRef.current = setTimeout(
+      () => setSpeaking(false),
+      Math.min(8000, Math.max(2500, text.length * 30)),
+    );
+  }
+
   useEffect(() => {
     if (!autoGreetMessage || greetedRef.current) return;
     greetedRef.current = true;
     startTransition(async () => {
-      const result = await askCoachAction(autoGreetMessage, []);
-      setTurns((prev) => [
-        ...prev,
-        result.error
-          ? { role: "assistant", text: result.error, error: true }
-          : { role: "assistant", text: result.reply ?? "", actions: result.actions },
-      ]);
+      pushAssistant(await askCoachAction(autoGreetMessage, []));
     });
   }, [autoGreetMessage]);
+
+  const coachTalking = pending || speaking;
+  const bustOpacity = coachTalking ? 0.07 : turns.length === 0 ? 1 : 0.3;
 
   function send(message: string) {
     if (!message.trim() || pending) return;
@@ -104,13 +124,7 @@ export function AiCoachChat({ autoGreetMessage }: { autoGreetMessage?: string } 
     setTurns((prev) => [...prev, { role: "user", text: userText }]);
     setInput("");
     startTransition(async () => {
-      const result = await askCoachAction(userText, history);
-      setTurns((prev) => [
-        ...prev,
-        result.error
-          ? { role: "assistant", text: result.error, error: true }
-          : { role: "assistant", text: result.reply ?? "", actions: result.actions },
-      ]);
+      pushAssistant(await askCoachAction(userText, history));
     });
   }
 
@@ -127,7 +141,7 @@ export function AiCoachChat({ autoGreetMessage }: { autoGreetMessage?: string } 
             className="mb-4 space-y-4"
           >
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Sparkles className="h-4 w-4 text-primary/60" />
+              <AiIcon className="h-4 w-4 text-primary/60" />
               <p>
                 Pergunte sobre sua evolução, peça ajustes de carga ou diga se precisa adaptar um
                 exercício — eu edito ou crio o treino direto no seu app.
@@ -163,8 +177,17 @@ export function AiCoachChat({ autoGreetMessage }: { autoGreetMessage?: string } 
         )}
       </AnimatePresence>
 
-      {/* Chat messages */}
-      <div className="flex-1 space-y-3 overflow-y-auto no-scrollbar">
+      {/* Chat messages, com o busto ASCII do personal ao fundo */}
+      <div className="relative min-h-0 flex-1">
+      <motion.div
+        className="pointer-events-none absolute inset-y-0 -inset-x-4 lg:-inset-x-6"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: bustOpacity }}
+        transition={{ duration: 0.6, ease: "easeOut" }}
+      >
+        <AsciiCoach speaking={coachTalking} className="h-full w-full" />
+      </motion.div>
+      <div className="relative h-full space-y-3 overflow-y-auto no-scrollbar">
         <AnimatePresence mode="popLayout">
           {turns.map((turn, i) => (
             <motion.div
@@ -264,6 +287,7 @@ export function AiCoachChat({ autoGreetMessage }: { autoGreetMessage?: string } 
 
         <div ref={bottomRef} />
       </div>
+      </div>
 
       {/* Input bar — glass with glow on focus */}
       <form
@@ -274,7 +298,7 @@ export function AiCoachChat({ autoGreetMessage }: { autoGreetMessage?: string } 
         className="mt-4 flex items-center gap-2.5"
       >
         <div className="group/input relative flex h-12 flex-1 items-center gap-2.5 rounded-2xl border border-border/50 bg-secondary/40 px-4 transition-all duration-300 focus-within:border-primary/40 focus-within:bg-secondary/60 focus-within:shadow-lg focus-within:shadow-primary/5">
-          <User className="h-4 w-4 shrink-0 text-muted-foreground transition-colors group-focus-within/input:text-primary/60" />
+          <ProfileIcon className="h-4 w-4 shrink-0 text-muted-foreground transition-colors group-focus-within/input:text-primary/60" />
           <input
             value={input}
             onChange={(e) => setInput(e.target.value)}

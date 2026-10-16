@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { Layers, ListChecks, Clock } from "lucide-react";
+import { ListChecks } from "lucide-react";
+import { SetsIcon, RestIcon } from "@/components/ui/app-icon";
 import { Card } from "@/components/ui/card";
 import { buttonVariants } from "@/components/ui/button";
 import { startWorkoutAction } from "@/app/actions/session-actions";
@@ -30,7 +31,7 @@ export function WorkoutTodayCard({
 
       <div className="flex items-center gap-4 text-sm text-muted-foreground">
         <span className="flex items-center gap-1.5">
-          <Layers className="h-4 w-4" />
+          <SetsIcon className="h-4 w-4" />
           {exerciseCount} exercícios
         </span>
         <span className="flex items-center gap-1.5">
@@ -38,7 +39,7 @@ export function WorkoutTodayCard({
           {estimatedSets} séries
         </span>
         <span className="flex items-center gap-1.5">
-          <Clock className="h-4 w-4" />
+          <RestIcon className="h-4 w-4" />
           {estimatedTime}
         </span>
       </div>

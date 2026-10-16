@@ -10,10 +10,7 @@ interface SectionHeaderProps {
 export function SectionHeader({ title, href, linkLabel = "Ver tudo" }: SectionHeaderProps) {
   return (
     <div className="mb-3 flex items-center justify-between">
-      <div className="flex items-center gap-2.5">
-        <div className="h-5 w-0.5 rounded-full bg-gradient-to-b from-primary to-accent/60" />
-        <h2 className="text-base font-semibold text-foreground">{title}</h2>
-      </div>
+      <h2 className="text-lg font-semibold tracking-tight text-foreground">{title}</h2>
       {href && (
         <Link
           href={href}

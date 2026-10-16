@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronDown, ChevronUp, Clock, Layers, Play } from "lucide-react";
+import { ChevronDown, ChevronUp } from "lucide-react";
+import { RestIcon, SetsIcon, StartIcon } from "@/components/ui/app-icon";
 import { Card } from "@/components/ui/card";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -72,11 +73,11 @@ export function WorkoutExerciseGroups({
                         <p className="font-medium text-foreground">{exercise.exercise_name}</p>
                         <div className="mt-1.5 flex flex-wrap items-center gap-2.5">
                           <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                            <Layers className="h-3.5 w-3.5" />
+                            <SetsIcon className="h-3.5 w-3.5" />
                             {exercise.target_sets}x {exercise.target_reps_min}–{exercise.target_reps_max}
                           </span>
                           <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                            <Clock className="h-3.5 w-3.5" />
+                            <RestIcon className="h-3.5 w-3.5" />
                             {exercise.rest_time}s
                           </span>
                           <span
@@ -134,7 +135,7 @@ export function WorkoutExerciseGroups({
             className: "h-12 w-full gap-2 text-base font-semibold",
           })}
         >
-          <Play className="h-4 w-4 fill-current" />
+          <StartIcon className="h-4 w-4" />
           {isResuming ? "Retomar treino" : "Iniciar treino"}
         </button>
       </form>

@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { ChevronRight, Dumbbell, Layers, Clock } from "lucide-react";
+import { ChevronRight } from "lucide-react";
+import { WorkoutIcon, SetsIcon, RestIcon } from "@/components/ui/app-icon";
 import { Card } from "@/components/ui/card";
 import { MUSCLE_GROUP_LABEL } from "@/lib/muscle-groups";
 import { MUSCLE_GROUP_COLOR } from "@/lib/muscle-colors";
@@ -29,7 +30,7 @@ export function WorkoutCard({ id, name, exerciseCount, muscleGroups }: WorkoutCa
             className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md"
             style={{ background: `color-mix(in oklch, ${primaryColor}, transparent 84%)` }}
           >
-            <Dumbbell className="h-3.5 w-3.5" style={{ color: primaryColor }} />
+            <WorkoutIcon className="h-3.5 w-3.5" style={{ color: primaryColor }} />
           </div>
           <div className="min-w-0 flex-1">
             <p className="font-medium text-foreground">{name}</p>
@@ -54,11 +55,11 @@ export function WorkoutCard({ id, name, exerciseCount, muscleGroups }: WorkoutCa
         <div className="flex items-center justify-between border-t border-border pt-3">
           <div className="flex items-center gap-4 text-xs text-muted-foreground">
             <span className="flex items-center gap-1.5">
-              <Layers className="h-3.5 w-3.5" />
+              <SetsIcon className="h-3.5 w-3.5" />
               {exerciseCount} exercícios
             </span>
             <span className="flex items-center gap-1.5">
-              <Clock className="h-3.5 w-3.5" />
+              <RestIcon className="h-3.5 w-3.5" />
               ~{estimatedMinutes} min
             </span>
           </div>

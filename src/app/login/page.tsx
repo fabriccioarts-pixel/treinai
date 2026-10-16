@@ -5,7 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
-import { Sparkles } from "lucide-react";
+import { AiIcon } from "@/components/ui/app-icon";
 import { AuthShell } from "@/components/auth/auth-shell";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -103,7 +103,7 @@ function LoginForm() {
 
         {lastProvider === "google" && (
           <span className="pointer-events-none absolute -top-2.5 right-3 inline-flex items-center gap-1 rounded-full bg-primary px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-primary-foreground shadow-md shadow-primary/25">
-            <Sparkles className="h-3 w-3" />
+            <AiIcon className="h-3 w-3" />
             Último login realizado
           </span>
         )}

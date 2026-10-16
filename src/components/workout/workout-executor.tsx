@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
-import { Award, Camera, Check, ChevronLeft, ChevronRight, Play, Target, Trophy, X } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, X } from "lucide-react";
+import { PhotoIcon, StartIcon, GoalIcon, PrIcon } from "@/components/ui/app-icon";
 import { Card } from "@/components/ui/card";
+import { BadgeIcon } from "@/components/profile/badge-icon";
 import { Button } from "@/components/ui/button";
 import { MUSCLE_GROUP_LABEL } from "@/lib/muscle-groups";
 import { MUSCLE_GROUP_COLOR } from "@/lib/muscle-colors";
@@ -113,7 +115,7 @@ export function WorkoutExecutor({
   const [prBanner, setPrBanner] = useState<string[] | null>(null);
   const [totalPRs, setTotalPRs] = useState(0);
   const [goalBanner, setGoalBanner] = useState<string[] | null>(null);
-  const [badgeBanner, setBadgeBanner] = useState<{ label: string; description: string }[] | null>(null);
+  const [badgeBanner, setBadgeBanner] = useState<{ key: string; label: string; description: string }[] | null>(null);
   const [finishing, setFinishing] = useState(false);
   const [restRemaining, setRestRemaining] = useState<number | null>(null);
   const [pending, startTransition] = useTransition();
@@ -213,7 +215,7 @@ export function WorkoutExecutor({
         );
       }
       if (result.newBadges && result.newBadges.length > 0) {
-        setBadgeBanner(result.newBadges.map((b) => ({ label: b.label, description: b.description })));
+        setBadgeBanner(result.newBadges.map((b) => ({ key: b.key, label: b.label, description: b.description })));
       }
     });
   }
@@ -329,7 +331,7 @@ export function WorkoutExecutor({
           className="mb-4 flex items-start gap-2 rounded-2xl p-3 text-sm"
           style={{ background: "color-mix(in oklch, var(--gold), transparent 85%)", boxShadow: "inset 0 0 0 1px color-mix(in oklch, var(--gold), transparent 65%)" }}
         >
-          <Trophy className="mt-0.5 h-4 w-4 shrink-0 text-gold" />
+          <PrIcon className="mt-0.5 h-4 w-4 shrink-0 text-gold" />
           <div className="space-y-0.5">
             <p className="font-bold text-gold">Novo recorde pessoal!</p>
             {prBanner.map((line) => (
@@ -344,7 +346,7 @@ export function WorkoutExecutor({
           className="mb-4 flex items-start gap-2 rounded-2xl p-3 text-sm"
           style={{ background: "color-mix(in oklch, var(--primary), transparent 85%)", boxShadow: "inset 0 0 0 1px color-mix(in oklch, var(--primary), transparent 65%)" }}
         >
-          <Target className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+          <GoalIcon className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
           <div className="space-y-0.5">
             <p className="font-bold text-primary">Meta batida! 🎯</p>
             {goalBanner.map((line) => (
@@ -356,10 +358,10 @@ export function WorkoutExecutor({
 
       {badgeBanner && (
         <div
-          className="mb-4 flex items-start gap-2 rounded-2xl p-3 text-sm"
+          className="mb-4 flex items-center gap-3 rounded-2xl p-3 text-sm"
           style={{ background: "color-mix(in oklch, var(--accent), transparent 85%)", boxShadow: "inset 0 0 0 1px color-mix(in oklch, var(--accent), transparent 65%)" }}
         >
-          <Award className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
+          <BadgeIcon badgeKey={badgeBanner[0].key} unlocked size={52} />
           <div className="space-y-0.5">
             <p className="font-bold text-accent">Conquista desbloqueada!</p>
             {badgeBanner.map((b) => (
@@ -540,7 +542,7 @@ function FinishPanel({
         <div className="mx-2 w-px bg-border" />
         <div className="flex flex-1 flex-col items-center text-center">
           <span className="flex items-center gap-1">
-            <Trophy className="h-4 w-4 text-gold" />
+            <PrIcon className="h-4 w-4 text-gold" />
             <span className="tabular text-[19px] font-bold text-gold">{totalPRs}</span>
           </span>
           <p className="mt-0.5 text-[11px] text-muted-foreground">Novo PR</p>
@@ -579,7 +581,7 @@ function FinishPanel({
               className="flex h-12 w-12 items-center justify-center rounded-full"
               style={{ background: "color-mix(in oklch, var(--primary), transparent 85%)" }}
             >
-              <Camera className="h-[22px] w-[22px] text-primary" strokeWidth={1.75} />
+              <PhotoIcon className="h-[22px] w-[22px] text-primary" strokeWidth={1.75} />
             </div>
             <span className="text-sm font-semibold text-foreground">Tirar ou escolher uma foto</span>
             <span className="text-xs text-muted-foreground">JPEG, PNG ou WebP · até 8MB</span>
@@ -602,7 +604,7 @@ function FinishPanel({
           onClick={handleFinish}
           disabled={pending}
         >
-          <Play className="h-4 w-4 fill-current" />
+          <StartIcon className="h-4 w-4" />
           {pending ? "Salvando…" : "Concluir treino"}
         </Button>
       </Card>

@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import Link from "next/link";
 import { Plus } from "lucide-react";
 import { WorkoutsBrowser } from "@/components/workout/workouts-browser";
@@ -8,7 +9,8 @@ import type { MuscleGroup } from "@/lib/types";
 
 export default async function TreinosPage() {
   const session = await auth();
-  const { workouts: raw } = await workerApi.listWorkouts(session!.user.id);
+  if (!session?.user?.id) redirect("/login");
+  const { workouts: raw } = await workerApi.listWorkouts(session.user.id);
 
   const workouts = raw.map((w) => ({
     id: w.id,

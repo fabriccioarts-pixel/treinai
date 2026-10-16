@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Dumbbell } from "lucide-react";
+import { WorkoutIcon } from "@/components/ui/app-icon";
 import { Card } from "@/components/ui/card";
 import { buttonVariants } from "@/components/ui/button";
 import {
@@ -37,7 +37,7 @@ export function ResumeWorkoutBanner({
   return (
     <Card className="mb-5 flex-row items-center gap-3 border-none bg-gradient-to-br from-primary/15 via-card to-card p-3.5 ring-1 ring-primary/20">
       <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary">
-        <Dumbbell className="h-5 w-5" />
+        <WorkoutIcon className="h-5 w-5" />
       </span>
       <div className="min-w-0 flex-1">
         <p className="text-xs font-medium tracking-wide text-primary uppercase">Treino em andamento</p>

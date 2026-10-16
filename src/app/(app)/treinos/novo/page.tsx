@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
@@ -8,12 +9,14 @@ import { workerApi } from "@/lib/worker-api";
 
 export default async function NovoTreinoPage() {
   const session = await auth();
-  const { exercises } = await workerApi.listExercises(session!.user.id);
+  if (!session?.user?.id) redirect("/login");
+  const { exercises } = await workerApi.listExercises(session.user.id);
 
   return (
     <div>
       <PageHeader
         title="Novo treino"
+        subtitle="Escolha os exercícios e ajuste séries, reps e descanso."
         action={
           <Link
             href="/treinos"

@@ -1,5 +1,7 @@
+import { redirect } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Zap } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
+import { XpIcon } from "@/components/ui/app-icon";
 import { buttonVariants } from "@/components/ui/button";
 import { BadgeList } from "@/components/profile/badge-list";
 import { ShareButton } from "@/components/shared/share-button";
@@ -8,7 +10,8 @@ import { workerApi } from "@/lib/worker-api";
 
 export default async function ConquistasPage() {
   const session = await auth();
-  const userId = session!.user.id;
+  if (!session?.user?.id) redirect("/login");
+  const userId = session.user.id;
 
   const { badges, level, xp } = await workerApi.getBadges(userId).catch(() => ({
     badges: [],
@@ -43,7 +46,7 @@ export default async function ConquistasPage() {
       </div>
 
       <div className="mb-5 flex items-center gap-2 rounded-2xl bg-primary/10 px-4 py-3 text-sm text-primary">
-        <Zap className="h-4 w-4 shrink-0" />
+        <XpIcon className="h-4 w-4 shrink-0" />
         <span>{xp} XP acumulados no total</span>
       </div>
 

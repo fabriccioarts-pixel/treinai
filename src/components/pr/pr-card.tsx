@@ -1,4 +1,4 @@
-import { Trophy } from "lucide-react";
+import { PrIcon } from "@/components/ui/app-icon";
 import { Card } from "@/components/ui/card";
 
 interface PrCardProps {
@@ -12,7 +12,7 @@ export function PrCard({ exerciseName, weight, reps, date }: PrCardProps) {
   return (
     <Card className="flex-row items-center gap-3 p-4">
       <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gold/15 text-gold">
-        <Trophy className="h-5 w-5" strokeWidth={2} />
+        <PrIcon className="h-5 w-5" strokeWidth={2} />
       </div>
       <div className="flex-1">
         <p className="font-medium text-foreground">{exerciseName}</p>

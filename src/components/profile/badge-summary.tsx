@@ -1,8 +1,7 @@
 import Link from "next/link";
-import { Flag, Trophy, Flame, Medal, Star, Dumbbell, Target, ChevronRight, type LucideIcon } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import { Card } from "@/components/ui/card";
-
-const ICONS: Record<string, LucideIcon> = { Flag, Trophy, Flame, Medal, Star, Dumbbell, Target };
+import { BadgeIcon } from "./badge-icon";
 
 interface BadgeVM {
   key: string;
@@ -18,20 +17,16 @@ export function BadgeSummary({ badges }: { badges: BadgeVM[] }) {
   return (
     <Link href="/perfil/conquistas">
       <Card className="flex-row items-center gap-3 p-4 transition-colors hover:bg-muted/30">
-        <div className="flex -space-x-2">
-          {preview.map((badge) => {
-            const Icon = ICONS[badge.icon] ?? Trophy;
-            return (
-              <div
-                key={badge.key}
-                className={`flex h-8 w-8 items-center justify-center rounded-full ring-2 ring-card ${
-                  badge.unlocked ? "bg-gold/20 text-gold" : "bg-muted text-muted-foreground/40"
-                }`}
-              >
-                <Icon className="h-3.5 w-3.5" />
-              </div>
-            );
-          })}
+        <div className="flex -space-x-1.5">
+          {preview.map((badge) => (
+            <BadgeIcon
+              key={badge.key}
+              badgeKey={badge.key}
+              unlocked={badge.unlocked}
+              size={34}
+              showLock={false}
+            />
+          ))}
         </div>
         <div className="min-w-0 flex-1">
           <p className="text-sm font-semibold text-foreground">Conquistas</p>

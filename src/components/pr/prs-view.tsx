@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Trophy } from "lucide-react";
+import { PrIcon } from "@/components/ui/app-icon";
 import { EmptyState } from "@/components/shared/empty-state";
 import { PrCard } from "@/components/pr/pr-card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -56,7 +56,7 @@ export function PrsView({ personalRecords }: { personalRecords: PrEntry[] }) {
         </div>
       ) : (
         <EmptyState
-          icon={Trophy}
+          icon={PrIcon}
           title="Nenhum PR neste grupo ainda"
           description="Continue treinando para conquistar seu primeiro recorde por aqui."
         />

@@ -1,11 +1,5 @@
-import {
-  Dumbbell,
-  SlidersHorizontal,
-  Download,
-  Info,
-  ChevronRight,
-  Zap,
-} from "lucide-react";
+import { SlidersHorizontal, Download, Info, ChevronRight } from "lucide-react";
+import { WorkoutIcon, XpIcon } from "@/components/ui/app-icon";
 import { PageHeader } from "@/components/shared/page-header";
 import { Card } from "@/components/ui/card";
 import { SignOutButton } from "@/components/auth/sign-out-button";
@@ -15,7 +9,7 @@ import { auth } from "@/auth";
 import { workerApi } from "@/lib/worker-api";
 
 const SETTINGS_ITEMS = [
-  { label: "Biblioteca de exercícios", icon: Dumbbell },
+  { label: "Biblioteca de exercícios", icon: WorkoutIcon },
   { label: "Preferências", icon: SlidersHorizontal },
   { label: "Exportar dados", icon: Download },
   { label: "Sobre o Treinai", icon: Info },
@@ -54,7 +48,7 @@ export default async function PerfilPage() {
                 {name}
               </p>
               <span className="inline-flex items-center gap-1 rounded-full border border-primary/20 bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary tracking-wide shrink-0">
-                <Zap className="h-2.5 w-2.5" />
+                <XpIcon className="h-2.5 w-2.5" />
                 Nível {badgesResult.level}
               </span>
             </div>

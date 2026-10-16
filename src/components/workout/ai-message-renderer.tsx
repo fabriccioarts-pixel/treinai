@@ -3,7 +3,8 @@
 import React, { useMemo } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { Sparkles, ArrowRight, CornerDownLeft } from "lucide-react";
+import { ArrowRight, CornerDownLeft } from "lucide-react";
+import { AiIcon } from "@/components/ui/app-icon";
 import { motion } from "framer-motion";
 
 interface AiMessageRendererProps {
@@ -207,7 +208,7 @@ export function AiMessageRenderer({
       {options.length > 0 && onSelectOption && (
         <div className="space-y-1.5 border-t border-border/40 pt-2.5">
           <div className="flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground">
-            <Sparkles className="h-3 w-3 text-primary" />
+            <AiIcon className="h-3 w-3 text-primary" />
             <span>Opções sugeridas:</span>
           </div>
 

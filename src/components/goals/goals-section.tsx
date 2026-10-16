@@ -1,4 +1,4 @@
-import { Target } from "lucide-react";
+import { GoalIcon } from "@/components/ui/app-icon";
 import { SectionHeader } from "@/components/shared/section-header";
 import { EmptyState } from "@/components/shared/empty-state";
 import { GoalProgressCard, type GoalVM } from "@/components/goals/goal-progress-card";
@@ -30,7 +30,7 @@ export function GoalsSection({ goals, exercises }: { goals: GoalVM[]; exercises:
         </div>
       ) : (
         <EmptyState
-          icon={Target}
+          icon={GoalIcon}
           title="Nenhuma meta definida"
           description="Crie uma meta de carga para um exercício e acompanhe o progresso até chegar lá."
         />
