@@ -180,7 +180,7 @@ export function AsciiCoach({
     if (!ctx || !sctx || !wctx) return;
 
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    // Tela de toque ou poucos núcleos: menos densidade de pixels, células maiores e menos quadros
+    // Tela de toque ou poucos núcleos: anima com menos quadros por segundo (a definição não muda)
     const lowPower =
       window.matchMedia("(pointer: coarse)").matches || (navigator.hardwareConcurrency ?? 8) <= 4;
     const fps = isIcon ? (lowPower ? FPS.iconLowPower : FPS.icon) : lowPower ? FPS.bustLowPower : FPS.bust;
@@ -241,16 +241,15 @@ export function AsciiCoach({
     function resize() {
       const rect = canvas!.getBoundingClientRect();
       // No ícone os caracteres são minúsculos, então vale usar toda a densidade da tela
-      dpr = Math.min(window.devicePixelRatio || 1, isIcon ? (lowPower ? 2 : 3) : lowPower ? 1.5 : 2);
+      // Mesma definição em qualquer aparelho; o ganho de desempenho vem do atlas e dos quadros por segundo
+      dpr = Math.min(window.devicePixelRatio || 1, isIcon ? 3 : 2);
       width = rect.width;
       height = rect.height;
       canvas!.width = Math.max(1, Math.round(width * dpr));
       canvas!.height = Math.max(1, Math.round(height * dpr));
       ctx!.setTransform(1, 0, 0, 1, 0, 0);
 
-      cellH = isIcon
-        ? Math.max(1.8, height / 14)
-        : Math.min(8, Math.max(lowPower ? 6 : 5, height / (lowPower ? 92 : 110)));
+      cellH = isIcon ? Math.max(1.8, height / 14) : Math.min(8, Math.max(5, height / 110));
       cellW = cellH * 0.6;
       cols = Math.max(1, Math.ceil(width / cellW));
       rows = Math.max(1, Math.ceil(height / cellH));
