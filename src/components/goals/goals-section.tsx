@@ -16,7 +16,7 @@ export function GoalsSection({ goals, exercises }: { goals: GoalVM[]; exercises:
   const ordered = [...active, ...achieved];
 
   return (
-    <section>
+    <section id="metas" className="scroll-mt-6">
       <div className="mb-3 flex items-center justify-between">
         <SectionHeader title="Metas de carga" />
         <CreateGoalDialog exercises={exercises} />

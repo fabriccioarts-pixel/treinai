@@ -8,7 +8,7 @@ interface Metric {
 
 export function MetricStrip({ metrics }: { metrics: Metric[] }) {
   return (
-    <div className="grid grid-cols-3 divide-x divide-border rounded-2xl border border-border bg-card shadow-[inset_0_1px_0_oklch(1_0_0/0.05)]">
+    <div style={{ gridTemplateColumns: `repeat(${metrics.length}, minmax(0, 1fr))` }} className="grid divide-x divide-border rounded-2xl border border-border bg-card shadow-[inset_0_1px_0_oklch(1_0_0/0.05)]">
       {metrics.map((m) => (
         <div key={m.label} className="min-w-0 px-4 py-3.5">
           <p className="flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground">

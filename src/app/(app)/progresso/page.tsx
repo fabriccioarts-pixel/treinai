@@ -1,9 +1,9 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { FrequencyIcon, PhotoIcon, PrIcon, TrendIcon } from "@/components/ui/app-icon";
+import { PhotoIcon, PrIcon, TrendIcon } from "@/components/ui/app-icon";
 import { PageHeader } from "@/components/shared/page-header";
 import { SectionHeader } from "@/components/shared/section-header";
-import { StatCard } from "@/components/shared/stat-card";
+import { StreakCard } from "@/components/streak/streak-card";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Card } from "@/components/ui/card";
 import { WeeklyVolumeChart } from "@/components/charts/weekly-volume-chart";
@@ -18,6 +18,9 @@ const DEFAULT_STATS = {
   weeklyVolumeKg: 0,
   recentPRsCount: 0,
   streakDays: 0,
+  trainedToday: false,
+  lostStreakDays: 0,
+  last7Days: [],
   frequencyThisMonth: 0,
   newPRsThisMonth: 0,
   recentPRs: [],
@@ -53,23 +56,19 @@ export default async function ProgressoPage() {
 
   return (
     <div className="space-y-8">
-      <PageHeader title="Progresso" subtitle="Sua evolução ao longo do tempo" />
+      <PageHeader title="Progresso" subtitle="Sua evolução ao longo do tempo" illustration="progress" />
 
-      {/* Stat Cards */}
-      <div className="grid grid-cols-2 gap-3">
-        <StatCard
-          icon={FrequencyIcon}
-          label="Frequência (mês)"
-          value={`${stats.frequencyThisMonth} treinos`}
-          accentColor="var(--chart-1)"
-        />
-        <StatCard
-          icon={PrIcon}
-          label="Novos PRs (mês)"
-          value={String(stats.newPRsThisMonth)}
-          accentColor="var(--chart-3)"
-        />
-      </div>
+      <StreakCard
+        data={stats}
+        footer={
+          <>
+            <span className="font-semibold text-foreground">{stats.frequencyThisMonth}</span>{" "}
+            {stats.frequencyThisMonth === 1 ? "treino" : "treinos"} nos últimos 30 dias ·{" "}
+            <span className="font-semibold text-gold">{stats.newPRsThisMonth}</span>{" "}
+            {stats.newPRsThisMonth === 1 ? "PR novo" : "PRs novos"}
+          </>
+        }
+      />
 
       {/* PRs */}
       <section>

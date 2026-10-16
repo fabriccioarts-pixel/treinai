@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 import { AiCoachChat } from "@/components/workout/ai-coach-chat";
+import { Illustration } from "@/components/ui/illustration";
 
 export default function TheoPage() {
   return (
@@ -17,9 +18,9 @@ export default function TheoPage() {
         </Link>
 
         <div className="relative shrink-0">
-          <div className="relative flex h-10 w-10 items-center justify-center rounded-xl border border-primary/25 bg-gradient-to-b from-primary/15 to-primary/5 text-primary shadow-xs">
-            <span className="text-base font-bold text-primary">T</span>
-            <span className="absolute -bottom-0.5 -right-0.5 flex h-2.5 w-2.5">
+          <div className="relative flex h-12 w-12 items-center justify-center">
+            <Illustration name="theo" size={56} priority className="-m-1" />
+            <span className="absolute bottom-0.5 right-0.5 flex h-2.5 w-2.5">
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60 duration-1000" />
               <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-background" />
             </span>

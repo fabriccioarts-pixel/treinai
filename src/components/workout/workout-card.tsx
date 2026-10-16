@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ChevronRight } from "lucide-react";
 import { WorkoutIcon, SetsIcon, RestIcon } from "@/components/ui/app-icon";
 import { Card } from "@/components/ui/card";
+import { Illustration, MUSCLE_ILLUSTRATION } from "@/components/ui/illustration";
 import { MUSCLE_GROUP_LABEL } from "@/lib/muscle-groups";
 import { MUSCLE_GROUP_COLOR } from "@/lib/muscle-colors";
 import { cn } from "@/lib/utils";
@@ -25,13 +26,17 @@ export function WorkoutCard({ id, name, exerciseCount, muscleGroups }: WorkoutCa
   return (
     <Link href={`/treinos/${id}`}>
       <Card className="gap-3 p-4 transition-colors hover:bg-muted/40">
-        <div className="flex items-start gap-3">
-          <div
-            className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md"
-            style={{ background: `color-mix(in oklch, ${primaryColor}, transparent 84%)` }}
-          >
-            <WorkoutIcon className="h-3.5 w-3.5" style={{ color: primaryColor }} />
-          </div>
+        <div className="flex items-center gap-3">
+          {muscleGroups[0] ? (
+            <Illustration name={MUSCLE_ILLUSTRATION[muscleGroups[0]]} size={60} className="-my-2 -ml-1" />
+          ) : (
+            <div
+              className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md"
+              style={{ background: `color-mix(in oklch, ${primaryColor}, transparent 84%)` }}
+            >
+              <WorkoutIcon className="h-3.5 w-3.5" style={{ color: primaryColor }} />
+            </div>
+          )}
           <div className="min-w-0 flex-1">
             <p className="font-medium text-foreground">{name}</p>
             <div className="mt-1.5 flex flex-wrap gap-1.5">
@@ -49,7 +54,7 @@ export function WorkoutCard({ id, name, exerciseCount, muscleGroups }: WorkoutCa
               ))}
             </div>
           </div>
-          <ChevronRight className="mt-1 h-5 w-5 shrink-0 text-muted-foreground" />
+          <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground" />
         </div>
 
         <div className="flex items-center justify-between border-t border-border pt-3">

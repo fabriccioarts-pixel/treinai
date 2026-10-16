@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { Plus } from "lucide-react";
-import { WorkoutIcon } from "@/components/ui/app-icon";
+import { Illustration } from "@/components/ui/illustration";
 import { WorkoutCard } from "./workout-card";
 import { buttonVariants } from "@/components/ui/button";
 import { MUSCLE_GROUP_LABEL } from "@/lib/muscle-groups";
@@ -28,15 +28,8 @@ export function WorkoutsBrowser({ workouts }: { workouts: WorkoutSummary[] }) {
 
   if (workouts.length === 0) {
     return (
-      <div className="rounded-3xl bg-gradient-to-br from-primary/10 via-card to-card p-8 text-center ring-1 ring-foreground/10">
-        <div className="relative mx-auto mb-5 h-16 w-16">
-          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary/15 ring-1 ring-primary/25">
-            <WorkoutIcon className="h-7 w-7 text-primary" strokeWidth={1.75} />
-          </div>
-          <div className="absolute -right-1 -top-1 flex h-[22px] w-[22px] items-center justify-center rounded-full bg-gold ring-4 ring-background">
-            <Plus className="h-3 w-3 text-gold-foreground" strokeWidth={3} />
-          </div>
-        </div>
+      <div className="rounded-3xl border border-border bg-card px-6 pt-4 pb-7 text-center shadow-[inset_0_1px_0_oklch(1_0_0/0.06)]">
+        <Illustration name="first-workout" size={168} priority className="mx-auto" />
         <p className="text-[17px] font-semibold text-foreground">Monte seu primeiro treino</p>
         <p className="mx-auto mt-2 max-w-[27ch] text-sm text-muted-foreground">
           Escolha um modelo pronto ou comece do zero — leva menos de 2 minutos.

@@ -75,17 +75,31 @@ statsRoutes.get("/", async (c) => {
     .filter((s) => sessionIdsThisWeek.has(s.session_id))
     .reduce((sum, s) => sum + s.weight * s.reps, 0);
 
-  // --- Sequência de treinos (dias consecutivos com treino concluído) ---
-  const finishedDates = new Set(
-    sessions.map((s) => new Date(s.finished_at ?? s.started_at).toISOString().slice(0, 10))
-  );
-  let streakDays = 0;
-  for (let d = 0; d < 60; d++) {
-    const day = new Date(now - d * DAY_MS).toISOString().slice(0, 10);
-    if (finishedDates.has(day)) streakDays++;
-    else if (d > 0) break;
-    else continue; // hoje pode ainda não ter treino sem quebrar a sequência de ontem
-  }
+  // --- Ofensiva (dias consecutivos com treino concluído, sem folga) ---
+  // Consulta própria só com as datas: a lista de sessões acima cobre apenas 6 semanas.
+  const { results: trainedDays } = await c.env.DB.prepare(
+    `SELECT DISTINCT substr(finished_at, 1, 10) AS day FROM workout_sessions
+     WHERE user_id = ? AND finished_at IS NOT NULL AND finished_at >= ?`
+  )
+    .bind(userId, new Date(now - 400 * DAY_MS).toISOString())
+    .all<{ day: string }>();
+  const finishedDates = new Set(trainedDays.map((r) => r.day));
+  const dayKey = (daysBack: number) => new Date(now - daysBack * DAY_MS).toISOString().slice(0, 10);
+  const runLength = (fromDaysBack: number) => {
+    let n = 0;
+    while (n < 400 && finishedDates.has(dayKey(fromDaysBack + n))) n++;
+    return n;
+  };
+
+  const trainedToday = finishedDates.has(dayKey(0));
+  // Hoje ainda sem treino não quebra a sequência de ontem (fica "em risco")
+  const streakDays = trainedToday ? runLength(0) : runLength(1);
+  // Sequência que quebrou ontem (treinou anteontem, não treinou ontem nem hoje)
+  const lostStreakDays = !trainedToday && streakDays === 0 ? runLength(2) : 0;
+  const last7Days = Array.from({ length: 7 }, (_, i) => {
+    const date = dayKey(6 - i);
+    return { date, trained: finishedDates.has(date) };
+  });
 
   // --- PRs (contamos apenas o tipo "carga" como um PR de destaque) ---
   const loadPRs = prs.filter((p) => p.type === "carga");
@@ -168,6 +182,9 @@ statsRoutes.get("/", async (c) => {
     weeklyVolumeKg,
     recentPRsCount,
     streakDays,
+    trainedToday,
+    lostStreakDays,
+    last7Days,
     frequencyThisMonth,
     newPRsThisMonth,
     recentPRs,

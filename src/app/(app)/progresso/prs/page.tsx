@@ -12,7 +12,7 @@ export default async function PrsPage() {
 
   return (
     <div>
-      <PageHeader title="Seus PRs 🏆" subtitle="Seus melhores resultados por exercício" />
+      <PageHeader title="Seus PRs" subtitle="Seus melhores resultados por exercício" illustration="pr" />
       <PrsView
         personalRecords={personalRecords.map((pr) => ({
           id: pr.id,

@@ -6,6 +6,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { auth } from "@/auth";
 import { workerApi } from "@/lib/worker-api";
 import type { MuscleGroup } from "@/lib/types";
+import { Illustration } from "@/components/ui/illustration";
 
 export default async function TreinosPage() {
   const session = await auth();
@@ -32,6 +33,8 @@ export default async function TreinosPage() {
             {workouts.length === 1 ? "" : "s"}
           </p>
         </div>
+        <div className="flex shrink-0 items-center gap-2">
+        {workouts.length > 0 && <Illustration name="workouts" size={84} priority className="-my-4" />}
         <Link
           href="/treinos/novo"
           aria-label="Criar novo treino"
@@ -39,6 +42,7 @@ export default async function TreinosPage() {
         >
           <Plus className="h-5 w-5" />
         </Link>
+        </div>
       </header>
 
       {workouts.length > 0 && (

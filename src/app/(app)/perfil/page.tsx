@@ -35,7 +35,7 @@ export default async function PerfilPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Perfil" plainTitle />
+      <PageHeader title="Perfil" illustration="profile" />
 
       {/* User profile card */}
       <Card className="relative p-5">

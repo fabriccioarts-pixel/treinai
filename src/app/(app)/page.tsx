@@ -9,6 +9,8 @@ import { WeekVolumeHero } from "@/components/home/week-volume-hero";
 import { MetricStrip } from "@/components/home/metric-strip";
 import { NextWorkout } from "@/components/home/next-workout";
 import { RecentPrs } from "@/components/home/recent-prs";
+import { ShortcutGrid } from "@/components/home/shortcut-grid";
+import { StreakCard } from "@/components/streak/streak-card";
 import { buttonVariants } from "@/components/ui/button";
 import { formatDate } from "@/lib/format";
 import { auth } from "@/auth";
@@ -19,6 +21,9 @@ const DEFAULT_STATS = {
   weeklyVolumeKg: 0,
   recentPRsCount: 0,
   streakDays: 0,
+  trainedToday: false,
+  lostStreakDays: 0,
+  last7Days: [],
   frequencyThisMonth: 0,
   newPRsThisMonth: 0,
   recentPRs: [],
@@ -104,7 +109,10 @@ export default async function InicioPage() {
         plainTitle
         title={`${greeting()}${firstName ? `, ${firstName}` : ""}`}
         subtitle={todayLabel()}
+        illustration="home"
       />
+
+      <ShortcutGrid />
 
       <WeekVolumeHero series={stats.weeklyVolumeSeries} />
 
@@ -131,14 +139,10 @@ export default async function InicioPage() {
         )}
       </Section>
 
+      <StreakCard compact data={stats} />
+
       <MetricStrip
         metrics={[
-          {
-            label: "Sequência",
-            value: String(stats.streakDays),
-            unit: stats.streakDays === 1 ? "dia" : "dias",
-            color: "var(--primary)",
-          },
           {
             label: "Na semana",
             value: String(stats.workoutsThisWeek),

@@ -7,6 +7,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { auth } from "@/auth";
 import { workerApi } from "@/lib/worker-api";
 import { formatDate } from "@/lib/format";
+import { Illustration } from "@/components/ui/illustration";
 
 export default async function FotosDosTreinosPage() {
   const session = await auth();
@@ -34,6 +35,7 @@ export default async function FotosDosTreinosPage() {
             {sessions.length} foto{sessions.length === 1 ? "" : "s"}
           </p>
         </div>
+        <Illustration name="photos" size={72} priority className="-my-3 ml-auto" />
       </div>
 
       {sessions.length === 0 ? (

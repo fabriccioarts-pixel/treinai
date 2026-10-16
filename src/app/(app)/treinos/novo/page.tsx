@@ -17,6 +17,7 @@ export default async function NovoTreinoPage() {
       <PageHeader
         title="Novo treino"
         subtitle="Escolha os exercícios e ajuste séries, reps e descanso."
+        illustration="new-workout"
         action={
           <Link
             href="/treinos"

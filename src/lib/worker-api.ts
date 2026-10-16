@@ -317,6 +317,9 @@ export const workerApi = {
       weeklyVolumeKg: number;
       recentPRsCount: number;
       streakDays: number;
+      trainedToday: boolean;
+      lostStreakDays: number;
+      last7Days: { date: string; trained: boolean }[];
       frequencyThisMonth: number;
       newPRsThisMonth: number;
       recentPRs: {

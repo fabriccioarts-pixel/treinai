@@ -7,6 +7,7 @@ import { BadgeList } from "@/components/profile/badge-list";
 import { ShareButton } from "@/components/shared/share-button";
 import { auth } from "@/auth";
 import { workerApi } from "@/lib/worker-api";
+import { Illustration } from "@/components/ui/illustration";
 
 export default async function ConquistasPage() {
   const session = await auth();
@@ -37,6 +38,7 @@ export default async function ConquistasPage() {
             {unlockedCount} de {badges.length} desbloqueadas · Nível {level}
           </p>
         </div>
+        <Illustration name="achievements" size={72} priority className="-my-3" />
         <ShareButton
           iconOnly
           title="Minhas conquistas no Treinai"
