@@ -67,7 +67,8 @@ export function Illustration({
       width={size}
       height={size}
       priority={priority}
-      className={cn("shrink-0 select-none mix-blend-screen", className)}
+      // max-w-none: o reset do Tailwind (max-width: 100%) encolhia só a largura dentro de caixas menores
+      className={cn("max-w-none shrink-0 select-none mix-blend-screen", className)}
       style={{ width: size, height: size }}
       draggable={false}
     />
