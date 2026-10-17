@@ -32,13 +32,13 @@ export default async function ConquistasPage() {
         >
           <ArrowLeft className="h-5 w-5" />
         </Link>
+        <Illustration name="achievements" size={48} priority className="-my-2 -mx-1" />
         <div className="flex-1">
           <h1 className="text-xl font-semibold tracking-tight text-foreground">Conquistas</h1>
           <p className="text-sm text-muted-foreground">
             {unlockedCount} de {badges.length} desbloqueadas · Nível {level}
           </p>
         </div>
-        <Illustration name="achievements" size={72} priority className="-my-3" />
         <ShareButton
           iconOnly
           title="Minhas conquistas no Treinai"

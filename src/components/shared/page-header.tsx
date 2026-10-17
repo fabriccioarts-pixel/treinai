@@ -6,7 +6,7 @@ interface PageHeaderProps {
   title: string;
   subtitle?: string;
   action?: ReactNode;
-  /** Ilustração 3D exibida à direita do título */
+  /** Ilustração 3D exibida à esquerda, colada ao título */
   illustration?: IllustrationName;
   className?: string;
   titleClassName?: string;
@@ -22,16 +22,14 @@ export function PageHeader({ title, subtitle, action, illustration, className, t
         className
       )}
     >
-      <div className="min-w-0">
-        <h1 className={cn("text-2xl font-bold tracking-tight text-foreground", titleClassName)}>{title}</h1>
-        {subtitle && <p className="mt-1.5 text-sm text-muted-foreground">{subtitle}</p>}
-      </div>
-      {(illustration || action) && (
-        <div className="flex shrink-0 items-center gap-2">
-          {illustration && <Illustration name={illustration} size={84} priority className="-my-4" />}
-          {action}
+      <div className="flex min-w-0 items-center gap-3">
+        {illustration && <Illustration name={illustration} size={56} priority className="-my-2 -ml-2 shrink-0" />}
+        <div className="min-w-0">
+          <h1 className={cn("text-2xl font-bold tracking-tight text-foreground", titleClassName)}>{title}</h1>
+          {subtitle && <p className="mt-1.5 text-sm text-muted-foreground">{subtitle}</p>}
         </div>
-      )}
+      </div>
+      {action && <div className="flex shrink-0 items-center gap-2">{action}</div>}
     </header>
   );
 }

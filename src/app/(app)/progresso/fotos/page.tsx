@@ -27,6 +27,7 @@ export default async function FotosDosTreinosPage() {
         >
           <ArrowLeft className="h-5 w-5" />
         </Link>
+        <Illustration name="photos" size={48} priority className="-my-2 -mx-1" />
         <div>
           <h1 className="text-xl font-semibold tracking-tight text-foreground">
             Fotos dos treinos
@@ -35,7 +36,6 @@ export default async function FotosDosTreinosPage() {
             {sessions.length} foto{sessions.length === 1 ? "" : "s"}
           </p>
         </div>
-        <Illustration name="photos" size={72} priority className="-my-3 ml-auto" />
       </div>
 
       {sessions.length === 0 ? (

@@ -25,16 +25,17 @@ export default async function TreinosPage() {
 
   return (
     <div>
-      <header className="mb-6 flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-[2rem] font-semibold tracking-tight text-foreground">Treinos</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {workouts.length} treino{workouts.length === 1 ? "" : "s"} criado
-            {workouts.length === 1 ? "" : "s"}
-          </p>
+      <header className="mb-6 flex items-center justify-between gap-4">
+        <div className="flex min-w-0 items-center gap-3">
+          {workouts.length > 0 && <Illustration name="workouts" size={56} priority className="-my-2 -ml-2" />}
+          <div className="min-w-0">
+            <h1 className="text-[2rem] font-semibold tracking-tight text-foreground">Treinos</h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {workouts.length} treino{workouts.length === 1 ? "" : "s"} criado
+              {workouts.length === 1 ? "" : "s"}
+            </p>
+          </div>
         </div>
-        <div className="flex shrink-0 items-center gap-2">
-        {workouts.length > 0 && <Illustration name="workouts" size={84} priority className="-my-4" />}
         <Link
           href="/treinos/novo"
           aria-label="Criar novo treino"
@@ -42,7 +43,6 @@ export default async function TreinosPage() {
         >
           <Plus className="h-5 w-5" />
         </Link>
-        </div>
       </header>
 
       {workouts.length > 0 && (
