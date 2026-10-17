@@ -11,6 +11,7 @@ import { NextWorkout } from "@/components/home/next-workout";
 import { RecentPrs } from "@/components/home/recent-prs";
 import { ShortcutGrid } from "@/components/home/shortcut-grid";
 import { StreakCard } from "@/components/streak/streak-card";
+import { NutritionToday } from "@/components/nutrition/nutrition-today";
 import { buttonVariants } from "@/components/ui/button";
 import { formatDate } from "@/lib/format";
 import { auth } from "@/auth";
@@ -90,7 +91,7 @@ export default async function InicioPage() {
   if (!session?.user?.id) redirect("/login");
   const userId = session.user.id;
   const firstName = session?.user?.name?.split(" ")[0];
-  const [workoutsResult, stats] = await Promise.all([
+  const [workoutsResult, stats, profileResult, water] = await Promise.all([
     workerApi.listWorkouts(userId).catch((err) => {
       console.error("Erro ao carregar treinos em /:", err);
       return { workouts: [] };
@@ -99,7 +100,11 @@ export default async function InicioPage() {
       console.error("Erro ao carregar stats em /:", err);
       return DEFAULT_STATS;
     }),
+    // Nutrição é opcional: worker antigo ou erro não derrubam a home
+    workerApi.getProfile(userId).catch(() => null),
+    workerApi.getWater(userId).catch(() => null),
   ]);
+  const plan = profileResult?.profile ? profileResult : null;
   const workouts = workoutsResult?.workouts ?? [];
   const todayWorkout = workouts[0];
 
@@ -140,6 +145,8 @@ export default async function InicioPage() {
       </Section>
 
       <StreakCard compact data={stats} />
+
+      <NutritionToday plan={plan} water={water} />
 
       <MetricStrip
         metrics={[

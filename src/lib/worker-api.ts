@@ -3,6 +3,7 @@
  * este arquivo de um Client Component — usa o segredo compartilhado.
  */
 import "server-only";
+import type { ProfileInput, ProfilePlan } from "@/lib/nutrition";
 
 const BASE_URL = process.env.WORKER_API_URL;
 const SECRET = process.env.WORKER_API_SECRET;
@@ -395,4 +396,35 @@ export const workerApi = {
       xpIntoLevel: number;
       xpForNextLevel: number;
     }>(`/badges?userId=${encodeURIComponent(userId)}`),
+
+  getProfile: (userId: string) =>
+    workerFetch<ProfilePlan | { profile: null }>(`/profile?userId=${encodeURIComponent(userId)}`),
+
+  saveProfile: (userId: string, input: ProfileInput & { healthConsent: true }) =>
+    workerFetch<ProfilePlan>("/profile", {
+      method: "PUT",
+      body: JSON.stringify({ userId, ...input }),
+    }),
+
+  deleteProfile: (userId: string) =>
+    workerFetch<{ ok: true }>(`/profile?userId=${encodeURIComponent(userId)}`, { method: "DELETE" }),
+
+  getWater: (userId: string) =>
+    workerFetch<{
+      date: string;
+      totalMl: number;
+      targetMl: number;
+      entries: { id: string; amountMl: number; loggedAt: string }[];
+    }>(`/water?userId=${encodeURIComponent(userId)}`),
+
+  logWater: (userId: string, amountMl: number) =>
+    workerFetch<{ id: string }>("/water", {
+      method: "POST",
+      body: JSON.stringify({ userId, amountMl }),
+    }),
+
+  deleteWater: (userId: string, id: string) =>
+    workerFetch<{ ok: true }>(`/water/${encodeURIComponent(id)}?userId=${encodeURIComponent(userId)}`, {
+      method: "DELETE",
+    }),
 };

@@ -1,4 +1,6 @@
-import { SlidersHorizontal, Download, Info, ChevronRight } from "lucide-react";
+import Link from "next/link";
+import { SlidersHorizontal, Download, Info, ChevronRight, Scale } from "lucide-react";
+import { formatKcal } from "@/lib/nutrition";
 import { WorkoutIcon, XpIcon } from "@/components/ui/app-icon";
 import { PageHeader } from "@/components/shared/page-header";
 import { Card } from "@/components/ui/card";
@@ -21,11 +23,12 @@ export default async function PerfilPage() {
   const email = session?.user?.email ?? "";
   const userId = session?.user?.id;
 
-  const [{ user }, badgesResult] = await Promise.all([
+  const [{ user }, badgesResult, plan] = await Promise.all([
     userId ? workerApi.getUser(userId).catch(() => ({ user: null })) : Promise.resolve({ user: null }),
     userId
       ? workerApi.getBadges(userId).catch(() => ({ badges: [], xp: 0, level: 1, xpIntoLevel: 0, xpForNextLevel: 100 }))
       : Promise.resolve({ badges: [], xp: 0, level: 1, xpIntoLevel: 0, xpForNextLevel: 100 }),
+    userId ? workerApi.getProfile(userId).catch(() => null) : Promise.resolve(null),
   ]);
 
   const levelProgressPct = Math.min(
@@ -70,6 +73,24 @@ export default async function PerfilPage() {
       </Card>
 
       <BadgeSummary badges={badgesResult.badges} />
+
+      <Link
+        href="/perfil/plano"
+        className="group flex items-center gap-3.5 rounded-xl bg-card px-4 py-3.5 ring-1 ring-foreground/10 transition-colors hover:bg-muted/30"
+      >
+        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-primary/30 bg-primary/10 text-primary">
+          <Scale className="h-4 w-4" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-medium text-foreground/90">Corpo e plano</p>
+          <p className="truncate text-xs text-muted-foreground">
+            {plan?.profile
+              ? `${plan.profile.weightKg.toLocaleString("pt-BR")} kg · ${formatKcal(plan.targets.targetKcal)} kcal/dia`
+              : "Calorias, macros e água sob medida"}
+          </p>
+        </div>
+        <ChevronRight className="h-4 w-4 text-muted-foreground/40 transition-transform group-hover:translate-x-0.5 group-hover:text-muted-foreground" />
+      </Link>
 
       {/* Menu / Settings List */}
       <Card className="divide-y divide-border/50 p-0">

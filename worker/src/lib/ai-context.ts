@@ -1,3 +1,40 @@
+import { loadProfileWithTargets, type ProfileWithTargets } from "./profile";
+
+const GOAL_LABEL: Record<string, string> = {
+  hipertrofia: "hipertrofia",
+  emagrecimento: "emagrecimento",
+  "ganho-massa": "ganho de massa",
+  enfase: "ênfase em um grupo muscular",
+};
+
+const ACTIVITY_LABEL: Record<string, string> = {
+  sedentario: "sedentária (fica sentado a maior parte do dia)",
+  leve: "leve (anda e fica em pé parte do dia)",
+  moderado: "moderada (em pé/andando a maior parte do dia)",
+  intenso: "intensa (trabalho físico pesado)",
+};
+
+function formatProfile(plan: ProfileWithTargets | null): string {
+  if (!plan) {
+    return "O usuário ainda não preencheu o perfil corporal (sem peso, altura, metas de calorias e de água).";
+  }
+  const { profile: p, targets: t } = plan;
+  const lines = [
+    `- Objetivo: ${GOAL_LABEL[p.goal] ?? p.goal}${p.emphasis ? ` (${p.emphasis})` : ""}; treina ${p.trainingDays} dias por semana`,
+    `- ${p.ageYears} anos, ${p.heightCm} cm, ${p.weightKg} kg${p.bodyFatPct !== null ? `, ${p.bodyFatPct}% de gordura` : ""}${p.targetWeightKg ? `; peso desejado ${p.targetWeightKg} kg` : ""}`,
+    `- Rotina fora da academia: ${ACTIVITY_LABEL[p.activityLevel] ?? p.activityLevel}`,
+    `- TMB ${t.bmr} kcal; gasto diário estimado ${t.tdee} kcal (treino ≈ ${t.exerciseKcalPerDay} kcal/dia, ${t.exerciseSource === "real" ? "medido pelos treinos registrados" : "estimado pelos dias informados"})`,
+    `- Meta diária: ${t.targetKcal} kcal (${t.adjustmentKcal >= 0 ? "+" : ""}${t.adjustmentKcal} kcal em relação ao gasto), proteína ${t.proteinG} g, carboidrato ${t.carbsG} g, gordura ${t.fatG} g`,
+    `- Água hoje: ${(plan.waterTodayMl / 1000).toFixed(1)} L`,
+  ];
+  if (t.deficitBlockedReason) {
+    lines.push(
+      "- ATENÇÃO: a meta de calorias ficou em manutenção, sem déficit, por segurança (menor de idade ou restrição de saúde informada). Não sugira dieta restritiva e recomende acompanhamento com nutricionista ou médico.",
+    );
+  }
+  return lines.join("\n");
+}
+
 export async function buildCoachContext(db: D1Database, userId: string): Promise<string> {
   const { results: exercises } = await db
     .prepare(
@@ -57,6 +94,8 @@ export async function buildCoachContext(db: D1Database, userId: string): Promise
     .bind(userId)
     .all<{ started_at: string; finished_at: string; workout_name: string }>();
 
+  const plan = await loadProfileWithTargets(db, userId);
+
   const catalogText = exercises
     .map((e) => `- ${e.id} | ${e.name} | ${e.muscle_group} | ${e.equipment}`)
     .join("\n");
@@ -84,7 +123,10 @@ export async function buildCoachContext(db: D1Database, userId: string): Promise
         .join("\n")
     : "Nenhum treino concluído ainda.";
 
-  return `CATÁLOGO DE EXERCÍCIOS DISPONÍVEIS (use somente estes ids):
+  return `PERFIL E PLANO NUTRICIONAL (calculado pelo app — use estes números, não recalcule):
+${formatProfile(plan)}
+
+CATÁLOGO DE EXERCÍCIOS DISPONÍVEIS (use somente estes ids):
 ${catalogText}
 
 TREINOS ATUAIS DO USUÁRIO:
