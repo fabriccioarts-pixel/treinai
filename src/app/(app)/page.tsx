@@ -91,7 +91,7 @@ export default async function InicioPage() {
   if (!session?.user?.id) redirect("/login");
   const userId = session.user.id;
   const firstName = session?.user?.name?.split(" ")[0];
-  const [workoutsResult, stats, profileResult, water] = await Promise.all([
+  const [workoutsResult, stats, profileResult, water, meals] = await Promise.all([
     workerApi.listWorkouts(userId).catch((err) => {
       console.error("Erro ao carregar treinos em /:", err);
       return { workouts: [] };
@@ -103,6 +103,7 @@ export default async function InicioPage() {
     // Nutrição é opcional: worker antigo ou erro não derrubam a home
     workerApi.getProfile(userId).catch(() => null),
     workerApi.getWater(userId).catch(() => null),
+    workerApi.getMealsToday(userId).catch(() => null),
   ]);
   const plan = profileResult?.profile ? profileResult : null;
   const workouts = workoutsResult?.workouts ?? [];
@@ -116,6 +117,9 @@ export default async function InicioPage() {
         subtitle={todayLabel()}
         illustration="home"
       />
+
+      {/* Registro rápido primeiro: refeição e água sem precisar navegar */}
+      <NutritionToday plan={plan} meals={meals} water={water} />
 
       <ShortcutGrid />
 
@@ -145,8 +149,6 @@ export default async function InicioPage() {
       </Section>
 
       <StreakCard compact data={stats} />
-
-      <NutritionToday plan={plan} water={water} />
 
       <MetricStrip
         metrics={[

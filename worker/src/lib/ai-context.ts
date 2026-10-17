@@ -95,6 +95,15 @@ export async function buildCoachContext(db: D1Database, userId: string): Promise
     .all<{ started_at: string; finished_at: string; workout_name: string }>();
 
   const plan = await loadProfileWithTargets(db, userId);
+  const eatenToday = plan
+    ? await db
+        .prepare(
+          `SELECT COUNT(*) AS meals, COALESCE(SUM(kcal), 0) AS kcal, COALESCE(SUM(protein_g), 0) AS protein
+           FROM meals WHERE user_id = ? AND local_date = ?`
+        )
+        .bind(userId, plan.today)
+        .first<{ meals: number; kcal: number; protein: number }>()
+    : null;
 
   const catalogText = exercises
     .map((e) => `- ${e.id} | ${e.name} | ${e.muscle_group} | ${e.equipment}`)
@@ -124,7 +133,11 @@ export async function buildCoachContext(db: D1Database, userId: string): Promise
     : "Nenhum treino concluído ainda.";
 
   return `PERFIL E PLANO NUTRICIONAL (calculado pelo app — use estes números, não recalcule):
-${formatProfile(plan)}
+${formatProfile(plan)}${
+    eatenToday?.meals
+      ? `\n- Registrado hoje: ${eatenToday.meals} refeição(ões), ${Math.round(eatenToday.kcal)} kcal e ${Math.round(eatenToday.protein)} g de proteína (estimativas)`
+      : ""
+  }
 
 CATÁLOGO DE EXERCÍCIOS DISPONÍVEIS (use somente estes ids):
 ${catalogText}

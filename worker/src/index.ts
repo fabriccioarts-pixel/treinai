@@ -13,6 +13,7 @@ import { goalRoutes } from "./routes/goals";
 import { badgeRoutes } from "./routes/badges";
 import { profileRoutes } from "./routes/profile";
 import { waterRoutes } from "./routes/water";
+import { mealRoutes } from "./routes/meals";
 
 const app = new Hono<{ Bindings: Env }>();
 
@@ -33,5 +34,6 @@ app.route("/goals", goalRoutes);
 app.route("/badges", badgeRoutes);
 app.route("/profile", profileRoutes);
 app.route("/water", waterRoutes);
+app.route("/meals", mealRoutes);
 
 export default app;

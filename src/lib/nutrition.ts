@@ -80,3 +80,49 @@ export function formatLiters(ml: number): string {
 export function formatKcal(kcal: number): string {
   return kcal.toLocaleString("pt-BR");
 }
+
+export type MealType = "cafe" | "almoco" | "lanche" | "jantar";
+
+export const MEAL_TYPE_LABEL: Record<MealType, string> = {
+  cafe: "Café da manhã",
+  almoco: "Almoço",
+  lanche: "Lanche",
+  jantar: "Jantar",
+};
+
+/** Sugestão pelo horário local: o usuário pode trocar antes de salvar */
+export function mealTypeForNow(date = new Date()): MealType {
+  const minutes = date.getHours() * 60 + date.getMinutes();
+  if (minutes < 10 * 60 + 30) return "cafe";
+  if (minutes < 15 * 60) return "almoco";
+  if (minutes < 18 * 60 + 30) return "lanche";
+  return "jantar";
+}
+
+export interface MealItem {
+  name: string;
+  grams: number;
+  kcal: number;
+  protein_g: number;
+  carbs_g: number;
+  fat_g: number;
+}
+
+export interface MealEstimate {
+  items: MealItem[];
+  confidence: "alta" | "media" | "baixa";
+  note: string;
+}
+
+export interface MealsToday {
+  date: string;
+  totals: { kcal: number; proteinG: number; carbsG: number; fatG: number };
+  meals: {
+    id: string;
+    mealType: MealType;
+    source: "foto" | "texto";
+    kcal: number;
+    loggedAt: string;
+    items: { name: string; grams: number; kcal: number }[];
+  }[];
+}

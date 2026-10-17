@@ -108,12 +108,14 @@ profileRoutes.put("/", async (c) => {
   return c.json((await loadProfileWithTargets(c.env.DB, p.userId))!);
 });
 
-/** LGPD: apaga todos os dados de saúde do usuário (perfil, pesos e água) */
+/** LGPD: apaga todos os dados de saúde do usuário (perfil, pesos, água e refeições) */
 profileRoutes.delete("/", async (c) => {
   const userId = c.req.query("userId");
   if (!userId) return c.json({ error: "missing_userId" }, 400);
 
   await c.env.DB.batch([
+    c.env.DB.prepare("DELETE FROM meal_items WHERE meal_id IN (SELECT id FROM meals WHERE user_id = ?)").bind(userId),
+    c.env.DB.prepare("DELETE FROM meals WHERE user_id = ?").bind(userId),
     c.env.DB.prepare("DELETE FROM water_logs WHERE user_id = ?").bind(userId),
     c.env.DB.prepare("DELETE FROM weight_logs WHERE user_id = ?").bind(userId),
     c.env.DB.prepare("DELETE FROM user_profiles WHERE user_id = ?").bind(userId),

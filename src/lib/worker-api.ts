@@ -3,7 +3,7 @@
  * este arquivo de um Client Component — usa o segredo compartilhado.
  */
 import "server-only";
-import type { ProfileInput, ProfilePlan } from "@/lib/nutrition";
+import type { MealEstimate, MealItem, MealType, MealsToday, ProfileInput, ProfilePlan } from "@/lib/nutrition";
 
 const BASE_URL = process.env.WORKER_API_URL;
 const SECRET = process.env.WORKER_API_SECRET;
@@ -421,6 +421,28 @@ export const workerApi = {
     workerFetch<{ id: string }>("/water", {
       method: "POST",
       body: JSON.stringify({ userId, amountMl }),
+    }),
+
+  analyzeMeal: (
+    userId: string,
+    input: { photo: { base64: string; mediaType: "image/jpeg" | "image/png" | "image/webp" } } | { text: string },
+  ) =>
+    workerFetch<MealEstimate>("/meals/analyze", {
+      method: "POST",
+      body: JSON.stringify({ userId, ...input }),
+    }),
+
+  saveMeal: (userId: string, input: { mealType: MealType; source: "foto" | "texto"; items: MealItem[] }) =>
+    workerFetch<{ id: string }>("/meals", {
+      method: "POST",
+      body: JSON.stringify({ userId, ...input }),
+    }),
+
+  getMealsToday: (userId: string) => workerFetch<MealsToday>(`/meals?userId=${encodeURIComponent(userId)}`),
+
+  deleteMeal: (userId: string, id: string) =>
+    workerFetch<{ ok: true }>(`/meals/${encodeURIComponent(id)}?userId=${encodeURIComponent(userId)}`, {
+      method: "DELETE",
     }),
 
   deleteWater: (userId: string, id: string) =>

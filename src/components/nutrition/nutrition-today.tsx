@@ -1,62 +1,109 @@
 import Link from "next/link";
 import { ChevronRight } from "lucide-react";
+import { MealLogger } from "@/components/nutrition/meal-logger";
+import { MealList } from "@/components/nutrition/meal-list";
 import { WaterTracker } from "@/components/nutrition/water-tracker";
-import { formatKcal, type ProfilePlan } from "@/lib/nutrition";
+import { formatKcal, type MealsToday, type ProfilePlan } from "@/lib/nutrition";
 
 interface WaterToday {
   targetMl: number;
   entries: { id: string; amountMl: number }[];
 }
 
-/** Bloco da home: meta de calorias/macros + água, ou convite para montar o plano */
-export function NutritionToday({ plan, water }: { plan: ProfilePlan | null; water: WaterToday | null }) {
-  if (!plan) {
-    return (
-      <Link
-        href="/perfil/plano"
-        className="group flex items-center gap-4 rounded-2xl border border-primary/25 bg-primary/5 p-4 transition-colors hover:bg-primary/10"
-      >
-        <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold text-foreground">Monte seu plano de nutrição</p>
-          <p className="mt-0.5 text-xs text-muted-foreground">
-            Peso, altura e rotina — e o Théo calcula suas calorias, macros e meta de água.
-          </p>
-        </div>
-        <ChevronRight className="h-5 w-5 shrink-0 text-primary transition-transform group-hover:translate-x-0.5" />
-      </Link>
-    );
-  }
+const MACROS = [
+  { key: "proteinG", label: "Proteína", color: "var(--chart-1)" },
+  { key: "carbsG", label: "Carbo", color: "var(--chart-2)" },
+  { key: "fatG", label: "Gordura", color: "var(--chart-4)" },
+] as const;
 
-  const { targets: t } = plan;
+/**
+ * Primeiro bloco da home: registrar refeição (foto ou texto) e água em um toque,
+ * com o quanto já foi consumido em relação à meta do dia.
+ */
+export function NutritionToday({
+  plan,
+  meals,
+  water,
+}: {
+  plan: ProfilePlan | null;
+  meals: MealsToday | null;
+  water: WaterToday | null;
+}) {
+  const eaten = meals?.totals ?? { kcal: 0, proteinG: 0, carbsG: 0, fatG: 0 };
+  const target = plan?.targets;
+  const kcalPct = target ? Math.min(100, (eaten.kcal / target.targetKcal) * 100) : 0;
+  const remaining = target ? target.targetKcal - eaten.kcal : null;
 
   return (
-    <div className="space-y-3">
-      <Link
-        href="/perfil/plano"
-        className="group flex items-center justify-between gap-4 rounded-2xl border border-border bg-card px-4 py-3.5 shadow-[inset_0_1px_0_oklch(1_0_0/0.05)] transition-colors hover:bg-muted/30"
-      >
-        <div>
-          <p className="text-[11px] font-medium text-muted-foreground">Meta de hoje</p>
+    <section aria-label="Registro de hoje" className="space-y-3">
+      <div className="rounded-2xl border border-border bg-card p-4 shadow-[inset_0_1px_0_oklch(1_0_0/0.05)]">
+        <div className="flex items-baseline justify-between gap-3">
           <p className="tabular text-2xl font-bold tracking-tight text-foreground">
-            {formatKcal(t.targetKcal)}
-            <span className="ml-1 text-xs font-medium text-muted-foreground">kcal</span>
+            {formatKcal(eaten.kcal)}
+            {target && (
+              <span className="ml-1 text-sm font-medium text-muted-foreground">/ {formatKcal(target.targetKcal)} kcal</span>
+            )}
+            {!target && <span className="ml-1 text-sm font-medium text-muted-foreground">kcal hoje</span>}
           </p>
+          {remaining !== null && (
+            <p className="tabular shrink-0 text-xs text-muted-foreground">
+              {remaining >= 0 ? `faltam ${formatKcal(remaining)}` : `${formatKcal(-remaining)} acima`}
+            </p>
+          )}
         </div>
-        <dl className="tabular flex gap-3 text-right text-xs">
-          {[
-            ["P", t.proteinG],
-            ["C", t.carbsG],
-            ["G", t.fatG],
-          ].map(([label, grams]) => (
-            <div key={label}>
-              <dt className="text-muted-foreground">{label}</dt>
-              <dd className="font-semibold text-foreground">{grams}g</dd>
-            </div>
-          ))}
-        </dl>
-      </Link>
 
-      <WaterTracker entries={water?.entries ?? []} targetMl={water?.targetMl ?? plan.waterTodayMl} />
-    </div>
+        {target && (
+          <>
+            <div className="mt-2 h-2 overflow-hidden rounded-full bg-muted" aria-hidden>
+              <div
+                className={remaining !== null && remaining < 0 ? "h-full rounded-full bg-gold" : "h-full rounded-full bg-primary"}
+                style={{ width: `${kcalPct}%` }}
+              />
+            </div>
+            <dl className="mt-3 grid grid-cols-3 gap-2 text-xs">
+              {MACROS.map((m) => (
+                <div key={m.key}>
+                  <dt className="flex items-center gap-1.5 text-muted-foreground">
+                    <span className="h-1.5 w-1.5 rounded-full" style={{ background: m.color }} />
+                    {m.label}
+                  </dt>
+                  <dd className="tabular mt-0.5 font-semibold text-foreground">
+                    {eaten[m.key]}
+                    <span className="font-normal text-muted-foreground">/{target[m.key]}g</span>
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          </>
+        )}
+
+        <div className="mt-4">
+          <MealLogger />
+        </div>
+
+        {meals && meals.meals.length > 0 && (
+          <div className="mt-2">
+            <MealList meals={meals.meals} />
+          </div>
+        )}
+      </div>
+
+      <WaterTracker entries={water?.entries ?? []} targetMl={water?.targetMl ?? plan?.waterTodayMl ?? 2000} />
+
+      {!plan && (
+        <Link
+          href="/perfil/plano"
+          className="group flex items-center gap-4 rounded-2xl border border-primary/25 bg-primary/5 p-4 transition-colors hover:bg-primary/10"
+        >
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold text-foreground">Monte seu plano de nutrição</p>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              Peso, altura e rotina — e o Théo calcula suas metas de calorias, macros e água.
+            </p>
+          </div>
+          <ChevronRight className="h-5 w-5 shrink-0 text-primary transition-transform group-hover:translate-x-0.5" />
+        </Link>
+      )}
+    </section>
   );
 }
