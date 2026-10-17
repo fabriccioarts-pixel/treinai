@@ -3,6 +3,7 @@
 import { useActionState } from "react";
 import Link from "next/link";
 import { AuthShell } from "@/components/auth/auth-shell";
+import { GoogleSignInButton } from "@/components/auth/google-sign-in-button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -26,6 +27,14 @@ export default function CadastroPage() {
         </>
       }
     >
+      <GoogleSignInButton label="Cadastrar com Google" callbackUrl="/bem-vindo/objetivo" />
+
+      <div className="my-5 flex items-center gap-3">
+        <div className="h-px flex-1 bg-border" />
+        <span className="text-xs text-muted-foreground">ou com e-mail</span>
+        <div className="h-px flex-1 bg-border" />
+      </div>
+
       <form action={formAction} className="space-y-4">
         <div className="space-y-1.5">
           <Label htmlFor="name">Nome</Label>
