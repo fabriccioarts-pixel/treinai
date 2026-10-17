@@ -21,7 +21,7 @@ import { cn } from "@/lib/utils";
 export const metadata: Metadata = {
   title: "Treinai — Seu personal trainer de IA",
   description:
-    "Conheça o Théo: ele monta seus treinos, acompanha cada série e ajusta a carga com base nos seus dados reais. Ofensiva, PRs automáticos e conquistas para manter o hábito.",
+    "Conheça o Théo: ele monta seus treinos, acompanha cada série e ajusta a carga com base nos seus dados reais. Constância, PRs automáticos e conquistas para manter o hábito.",
 };
 
 const STREAK_STAGES = [
@@ -129,7 +129,7 @@ export default function BemVindoPage() {
                   stagger={0.1}
                   className="mt-8 flex flex-wrap gap-x-5 gap-y-2 text-sm text-muted-foreground"
                 >
-                  {["Treinos montados pela IA", "PRs detectados sozinhos", "Ofensiva e conquistas"].map((item) => (
+                  {["Treinos montados pela IA", "PRs detectados sozinhos", "Constância e conquistas"].map((item) => (
                     <StaggerItem as="li" key={item} className="flex items-center gap-1.5">
                       <CheckCircle2 className="h-4 w-4 text-primary" />
                       {item}
@@ -195,13 +195,13 @@ export default function BemVindoPage() {
             </div>
           </section>
 
-          {/* Ofensiva: faixa de destaque */}
+          {/* Constância: faixa de destaque */}
           <section className="border-y border-border/60 bg-card/40 py-20 sm:py-24">
             <div className="mx-auto grid max-w-6xl gap-12 px-4 sm:px-6 lg:grid-cols-2 lg:items-center">
               <div>
-                <SectionCopy title="Mantenha a ofensiva. O Théo percebe.">
+                <SectionCopy title="Mantenha a constância. O Théo percebe.">
                   <p>
-                    Cada dia de treino aumenta sua ofensiva — e o Théo reage. Se você sumir, ele fica preocupado. Passou
+                    Cada dia de treino aumenta sua constância — e o Théo reage. Se você sumir, ele fica preocupado. Passou
                     de 30 dias, vira lenda.
                   </p>
                 </SectionCopy>

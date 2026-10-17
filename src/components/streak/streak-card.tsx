@@ -2,7 +2,7 @@ import Image from "next/image";
 import { cn } from "@/lib/utils";
 
 /*
- * Ofensiva: dias consecutivos com treino concluído (sem folga).
+ * Constância: dias consecutivos com treino concluído (sem folga).
  * O Théo muda de expressão conforme o estado — arte em /public/theo/<estado>.jpg (fundo preto,
  * mesclada com `mix-blend-screen` para o fundo sumir e o contorno holográfico brilhar no card).
  */
@@ -30,7 +30,7 @@ function normalizeStreak(input: StreakInput): StreakData {
   const streakDays = input.streakDays ?? 0;
   return {
     streakDays,
-    // Sem a informação, não acusa "em risco" à toa: assume que a ofensiva está em dia
+    // Sem a informação, não acusa "em risco" à toa: assume que a constância está em dia
     trainedToday: input.trainedToday ?? streakDays > 0,
     lostStreakDays: input.lostStreakDays ?? 0,
     last7Days: Array.isArray(input.last7Days) ? input.last7Days : [],
@@ -48,14 +48,14 @@ export function getStreakState({ streakDays, trainedToday, lostStreakDays }: Str
 }
 
 const STATE_COPY: Record<StreakState, (d: StreakData) => string> = {
-  sleeping: () => "Bora acordar esse monstro? Um treino hoje e a ofensiva começa.",
-  "at-risk": (d) => `Ofensiva de ${d.streakDays} ${d.streakDays === 1 ? "dia" : "dias"} em risco! Treina hoje que ainda dá tempo.`,
-  lost: (d) => `Perdemos uma ofensiva de ${d.lostStreakDays} dias… Bora começar outra hoje?`,
+  sleeping: () => "Bora acordar esse monstro? Um treino hoje e a constância começa.",
+  "at-risk": (d) => `Sua constância de ${d.streakDays} ${d.streakDays === 1 ? "dia" : "dias"} está em risco! Treina hoje que ainda dá tempo.`,
+  lost: (d) => `Quebramos uma constância de ${d.lostStreakDays} dias… Bora recomeçar hoje?`,
   starting: () => "Começou! Amanhã tem mais, parceiro.",
   warming: () => "Tá aquecendo. Não para agora!",
   "on-fire": () => "Pegando fogo! O ferro não mente.",
   beast: () => "Modo monstro ativado. Tá saindo da jaula!",
-  legendary: () => "Lendário. Nem em 2091 eu vi uma ofensiva dessas.",
+  legendary: () => "Lendário. Nem em 2091 eu vi uma constância dessas.",
 };
 
 const WEEKDAY_INITIAL = ["D", "S", "T", "Q", "Q", "S", "S"];
@@ -78,7 +78,7 @@ export function StreakCard({
 
   return (
     <section
-      aria-label="Ofensiva de treinos"
+      aria-label="Constância de treinos"
       className={cn(
         "relative overflow-hidden rounded-3xl border bg-card shadow-[inset_0_1px_0_oklch(1_0_0/0.06)]",
         isGold ? "border-gold/40" : state === "at-risk" ? "border-gold/25" : "border-border",
@@ -113,7 +113,7 @@ export function StreakCard({
               {shownDays}
             </span>
             <span className="text-sm font-semibold text-muted-foreground">
-              {shownDays === 1 ? "dia de ofensiva" : "dias de ofensiva"}
+              {shownDays === 1 ? "dia de constância" : "dias de constância"}
             </span>
           </p>
           <p className={cn("mt-1.5 text-sm leading-snug text-foreground/90", compact && "line-clamp-2")}>

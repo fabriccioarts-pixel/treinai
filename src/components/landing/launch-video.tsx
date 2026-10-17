@@ -86,7 +86,7 @@ export function LaunchVideo({ className }: { className?: string }) {
         preload="metadata"
         onPlay={() => setPlaying(true)}
         onPause={() => setPlaying(false)}
-        aria-label="Vídeo de apresentação do Treinai: o Théo monta treinos, adapta exercícios, detecta recordes e acompanha sua ofensiva."
+        aria-label="Vídeo de apresentação do Treinai: o Théo monta treinos, adapta exercícios, detecta recordes e acompanha sua constância."
       >
         <source src={SRC} type="video/mp4" />
         <track kind="captions" src={CAPTIONS} srcLang="pt-BR" label="Português" />

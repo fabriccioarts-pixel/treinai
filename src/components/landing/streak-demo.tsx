@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 import { EASE_OUT, PhoneFrame, useScenario, useVisible } from "./phone-sim";
 
 /*
- * Simulação da ofensiva na tela inicial: o contador sobe 1 → 3 → 7 → 14 → 30 dias,
+ * Simulação da constância na tela inicial: o contador sobe 1 → 3 → 7 → 14 → 30 dias,
  * as bolinhas da semana acendem e o Théo evolui de expressão até ficar lendário.
  */
 
@@ -18,7 +18,7 @@ const STAGES = [
   { days: 3, img: "warming", phrase: "Tá aquecendo. Não para agora!" },
   { days: 7, img: "on-fire", phrase: "Pegando fogo! O ferro não mente." },
   { days: 14, img: "beast", phrase: "Modo monstro ativado. Tá saindo da jaula!" },
-  { days: 30, img: "legendary", phrase: "Lendário. Nem em 2091 eu vi uma ofensiva dessas." },
+  { days: 30, img: "legendary", phrase: "Lendário. Nem em 2091 eu vi uma constância dessas." },
 ];
 const WEEK = ["S", "T", "Q", "Q", "S", "S", "D"];
 const LAST = STAGES.length - 1;
@@ -61,7 +61,7 @@ export function StreakDemo() {
           <p className="text-xs text-muted-foreground">Domingo, 18 de outubro</p>
         </div>
 
-        {/* Card de ofensiva, como na home do app */}
+        {/* Card de constância, como na home do app */}
         <div
           className={cn(
             "overflow-hidden rounded-2xl border bg-card transition-[border-color,box-shadow] duration-700",
@@ -104,7 +104,7 @@ export function StreakDemo() {
                 {count}
               </span>
               <span className="text-sm font-semibold text-muted-foreground">
-                {count === 1 ? "dia de ofensiva" : "dias de ofensiva"}
+                {count === 1 ? "dia de constância" : "dias de constância"}
               </span>
             </p>
             <AnimatePresence mode="wait" initial={false}>
@@ -122,7 +122,7 @@ export function StreakDemo() {
 
             <ol className="mt-3 flex gap-2">
               {WEEK.map((d, i) => {
-                // Acende da direita (hoje) para a esquerda conforme a ofensiva cresce
+                // Acende da direita (hoje) para a esquerda conforme a constância cresce
                 const lit = i >= WEEK.length - litDays;
                 return (
                   <li key={i} className="flex flex-col items-center gap-1">

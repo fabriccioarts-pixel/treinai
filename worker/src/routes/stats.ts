@@ -75,7 +75,7 @@ statsRoutes.get("/", async (c) => {
     .filter((s) => sessionIdsThisWeek.has(s.session_id))
     .reduce((sum, s) => sum + s.weight * s.reps, 0);
 
-  // --- Ofensiva (dias consecutivos com treino concluído, sem folga) ---
+  // --- Constância (dias consecutivos com treino concluído, sem folga) ---
   // Consulta própria só com as datas: a lista de sessões acima cobre apenas 6 semanas.
   const { results: trainedDays } = await c.env.DB.prepare(
     `SELECT DISTINCT substr(finished_at, 1, 10) AS day FROM workout_sessions
