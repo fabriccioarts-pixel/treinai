@@ -15,14 +15,14 @@ interface NextWorkoutProps {
 export function NextWorkout({ id, name, exerciseCount, estimatedSets, estimatedTime }: NextWorkoutProps) {
   return (
     <div className="rounded-3xl border border-primary/25 bg-card p-5 shadow-[inset_0_1px_0_color-mix(in_oklch,var(--primary)_25%,transparent)]">
-      <Link href={`/treinos/${id}`} className="group flex items-center justify-between gap-3">
+      <Link href={`/treinos/${id}`} className="group flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <h3 className="truncate text-xl font-bold tracking-tight text-foreground">{name}</h3>
-          <p className="tabular mt-1 text-sm text-muted-foreground">
+          <h3 className="line-clamp-2 text-xl font-bold tracking-tight text-foreground">{name}</h3>
+          <p className="tabular mt-1.5 text-sm text-muted-foreground">
             {exerciseCount} exercícios · {estimatedSets} séries · {estimatedTime}
           </p>
         </div>
-        <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-foreground" />
+        <ChevronRight className="mt-1 h-5 w-5 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-foreground" />
       </Link>
 
       <form action={startWorkoutAction.bind(null, id)} className="mt-5">
