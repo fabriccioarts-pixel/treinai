@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { ArrowLeft, ArrowRight } from "lucide-react";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { ArrowLeft, ArrowRight, Check, ChevronRight } from "lucide-react";
 import { Illustration, type IllustrationName } from "@/components/ui/illustration";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,6 +22,12 @@ import {
 } from "@/lib/nutrition";
 import { cn } from "@/lib/utils";
 
+/*
+ * Quiz do perfil: uma pergunta por tela, com avanço automático nas escolhas únicas.
+ * Mesmo componente no onboarding (tela cheia) e em Perfil → Corpo e plano (edição).
+ * Quem já tem perfil começa no resumo e toca só no que quer mudar.
+ */
+
 const GOAL_ART: Record<Goal, IllustrationName> = {
   hipertrofia: "hypertrophy",
   emagrecimento: "fat-loss",
@@ -30,6 +37,30 @@ const GOAL_ART: Record<Goal, IllustrationName> = {
 
 const ENFASE_GROUPS: MuscleGroup[] = ["peito", "costas", "pernas", "ombros", "biceps", "triceps"];
 const DIAS_OPTIONS = [2, 3, 4, 5, 6];
+/** Tempo para a pessoa ver a opção marcada antes de passar para a próxima pergunta */
+const AUTO_ADVANCE_MS = 280;
+
+const STEPS = ["goal", "days", "sex", "birth", "measures", "extras", "activity", "schedule", "health", "review"] as const;
+type StepId = (typeof STEPS)[number];
+
+const QUESTION: Record<StepId, { title: string; hint?: string }> = {
+  goal: { title: "Qual é o seu objetivo principal?" },
+  days: { title: "Quantos dias por semana você consegue treinar?", hint: "Seja realista — constância vale mais que volume." },
+  sex: { title: "Qual seu sexo biológico?", hint: "Só para a fórmula do metabolismo. Sem essa informação, usamos uma média." },
+  birth: { title: "Quando você nasceu?", hint: "O metabolismo muda com a idade." },
+  measures: { title: "Qual sua altura e seu peso?" },
+  extras: {
+    title: "Quer deixar o cálculo mais preciso?",
+    hint: "Opcional. % de gordura (bioimpedância, dobras) e o peso que você quer chegar.",
+  },
+  activity: { title: "Fora da academia, seu dia é…", hint: "Trabalho, estudo e deslocamento contam muito no gasto." },
+  schedule: { title: "Que horas você acorda e dorme?", hint: "Para espalhar os lembretes de água ao longo do seu dia." },
+  health: {
+    title: "Alguma destas situações vale para você?",
+    hint: "Gestação ou amamentação, transtorno alimentar (atual ou passado) ou dieta com orientação médica.",
+  },
+  review: { title: "Tudo certo?", hint: "Toque em qualquer resposta para mudar." },
+};
 
 /** Aceita "72,5" ou "72.5"; vazio vira null */
 function parseNumber(value: string): number | null {
@@ -37,28 +68,35 @@ function parseNumber(value: string): number | null {
   return value.trim() === "" || Number.isNaN(n) ? null : n;
 }
 
-function FieldLabel({ children, htmlFor }: { children: React.ReactNode; htmlFor?: string }) {
-  return (
-    <label
-      htmlFor={htmlFor}
-      className="mb-2.5 block text-xs font-semibold tracking-wide text-muted-foreground uppercase"
-    >
-      {children}
-    </label>
-  );
+const toInput = (n: number | null | undefined) => (n ? String(n).replace(".", ",") : "");
+
+function formatBirthDate(iso: string) {
+  const [y, m, d] = iso.split("-");
+  return y && m && d ? `${d}/${m}/${y}` : iso;
 }
 
-function Chip({ selected, onClick, children }: { selected: boolean; onClick: () => void; children: React.ReactNode }) {
+function OptionCard({
+  selected,
+  onClick,
+  children,
+  className,
+}: {
+  selected: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+  className?: string;
+}) {
   return (
     <button
       type="button"
       aria-pressed={selected}
       onClick={onClick}
       className={cn(
-        "rounded-full border px-3.5 py-2 text-sm font-medium transition-all",
+        "flex items-center gap-3 rounded-2xl border p-4 text-left transition-all active:scale-[0.98]",
         selected
-          ? "border-primary/50 bg-primary/10 text-primary"
-          : "border-border/60 bg-card text-muted-foreground hover:bg-muted/40",
+          ? "border-primary/60 bg-primary/10 ring-1 ring-primary/40"
+          : "border-border/60 bg-card hover:border-border hover:bg-muted/40",
+        className,
       )}
     >
       {children}
@@ -73,7 +111,7 @@ function NumberField({
   value,
   onChange,
   placeholder,
-  optional,
+  autoFocus,
 }: {
   id: string;
   label: string;
@@ -81,24 +119,24 @@ function NumberField({
   value: string;
   onChange: (v: string) => void;
   placeholder?: string;
-  optional?: boolean;
+  autoFocus?: boolean;
 }) {
   return (
     <div>
-      <FieldLabel htmlFor={id}>
+      <label htmlFor={id} className="mb-2 block text-sm font-medium text-muted-foreground">
         {label}
-        {optional && <span className="ml-1 font-normal normal-case tracking-normal">(opcional)</span>}
-      </FieldLabel>
+      </label>
       <div className="relative">
         <Input
           id={id}
           inputMode="decimal"
+          autoFocus={autoFocus}
           value={value}
           placeholder={placeholder}
           onChange={(e) => onChange(e.target.value)}
-          className="h-11 pr-10 text-base"
+          className="tabular h-16 pr-14 text-center text-3xl font-bold md:text-3xl"
         />
-        <span className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-sm text-muted-foreground">
+        <span className="pointer-events-none absolute top-1/2 right-4 -translate-y-1/2 text-base text-muted-foreground">
           {unit}
         </span>
       </div>
@@ -114,10 +152,19 @@ export function ProfileForm({
   initial?: Partial<ProfileInput>;
 }) {
   const router = useRouter();
-  const [step, setStep] = useState<1 | 2>(1);
-  const [pending, startTransition] = useTransition();
+  const reduceMotion = useReducedMotion();
+  const hasInitial = !!initial?.goal;
+  const needsConsent = mode === "onboarding" || !hasInitial;
+
+  // Quem já tem perfil começa no resumo; quem está preenchendo, na primeira pergunta
+  const [stepIndex, setStepIndex] = useState(hasInitial ? STEPS.indexOf("review") : 0);
+  const [direction, setDirection] = useState<1 | -1>(1);
+  /** Veio do resumo para mudar uma resposta: ao confirmar, volta direto ao resumo */
+  const [returnToReview, setReturnToReview] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  const [pending, startTransition] = useTransition();
+  const advanceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [goal, setGoal] = useState<Goal | null>(initial?.goal ?? null);
   const [emphasis, setEmphasis] = useState<string | null>(initial?.emphasis ?? null);
@@ -125,61 +172,140 @@ export function ProfileForm({
   const [sex, setSex] = useState<Sex | null>(initial?.sex ?? null);
   const [birthDate, setBirthDate] = useState(initial?.birthDate ?? "");
   const [height, setHeight] = useState(initial?.heightCm ? String(initial.heightCm) : "");
-  const [weight, setWeight] = useState(initial?.weightKg ? String(initial.weightKg).replace(".", ",") : "");
-  const [bodyFat, setBodyFat] = useState(initial?.bodyFatPct ? String(initial.bodyFatPct).replace(".", ",") : "");
-  const [targetWeight, setTargetWeight] = useState(
-    initial?.targetWeightKg ? String(initial.targetWeightKg).replace(".", ",") : "",
-  );
+  const [weight, setWeight] = useState(toInput(initial?.weightKg));
+  const [bodyFat, setBodyFat] = useState(toInput(initial?.bodyFatPct));
+  const [targetWeight, setTargetWeight] = useState(toInput(initial?.targetWeightKg));
   const [activity, setActivity] = useState<ActivityLevel | null>(initial?.activityLevel ?? null);
   const [wakeTime, setWakeTime] = useState(initial?.wakeTime ?? "07:00");
   const [sleepTime, setSleepTime] = useState(initial?.sleepTime ?? "23:00");
-  const [healthRestriction, setHealthRestriction] = useState<boolean | null>(
-    initial?.healthRestriction ?? null,
-  );
-  // Quem já tem perfil consentiu antes; quem preenche pela primeira vez (onboarding ou Perfil) precisa marcar
-  const needsConsent = mode === "onboarding" || !initial;
+  const [healthRestriction, setHealthRestriction] = useState<boolean | null>(initial?.healthRestriction ?? null);
   const [consent, setConsent] = useState(!needsConsent);
 
-  const goalReady = !!goal && !!trainingDays && (goal !== "enfase" || !!emphasis);
+  const step = STEPS[stepIndex];
+  const isReview = step === "review";
+
+  useEffect(() => () => {
+    if (advanceTimer.current) clearTimeout(advanceTimer.current);
+  }, []);
+
+  /** Mensagem de erro da etapa, ou null se pode avançar */
+  function validate(id: StepId): string | null {
+    switch (id) {
+      case "goal":
+        if (!goal) return "Escolha um objetivo.";
+        if (goal === "enfase" && !emphasis) return "Escolha o grupo muscular.";
+        return null;
+      case "days":
+        return trainingDays ? null : "Escolha quantos dias.";
+      case "sex":
+        return sex ? null : "Escolha uma opção.";
+      case "birth":
+        return birthDate ? null : "Informe sua data de nascimento.";
+      case "measures": {
+        const h = parseNumber(height);
+        const w = parseNumber(weight);
+        if (!h || h < 120 || h > 230) return "Informe sua altura em centímetros (ex.: 172).";
+        if (!w || w < 30 || w > 300) return "Informe seu peso em kg (ex.: 74,5).";
+        return null;
+      }
+      case "extras": {
+        const bf = parseNumber(bodyFat);
+        const tw = parseNumber(targetWeight);
+        if (bf !== null && (bf < 3 || bf > 60)) return "O % de gordura precisa ficar entre 3 e 60.";
+        if (tw !== null && (tw < 30 || tw > 300)) return "Confira o peso desejado.";
+        return null;
+      }
+      case "activity":
+        return activity ? null : "Escolha a opção mais parecida com seu dia.";
+      case "schedule":
+        return wakeTime && sleepTime ? null : "Informe os dois horários.";
+      case "health":
+        return healthRestriction === null ? "Responda sim ou não." : null;
+      case "review":
+        return null;
+    }
+  }
+
+  function goTo(index: number) {
+    setError(null);
+    setSaved(false);
+    setDirection(index > stepIndex ? 1 : -1);
+    setStepIndex(index);
+  }
+
+  function next() {
+    const problem = validate(step);
+    if (problem) {
+      setError(problem);
+      return;
+    }
+    if (returnToReview) {
+      setReturnToReview(false);
+      goTo(STEPS.indexOf("review"));
+      return;
+    }
+    goTo(Math.min(stepIndex + 1, STEPS.length - 1));
+  }
+
+  function back() {
+    if (returnToReview) {
+      setReturnToReview(false);
+      goTo(STEPS.indexOf("review"));
+      return;
+    }
+    goTo(Math.max(stepIndex - 1, 0));
+  }
+
+  /** Escolha única: marca e avança sozinho depois de um instante */
+  function choose(apply: () => void, canAdvance = true) {
+    apply();
+    setError(null);
+    if (!canAdvance) return;
+    if (advanceTimer.current) clearTimeout(advanceTimer.current);
+    advanceTimer.current = setTimeout(() => {
+      if (returnToReview) {
+        setReturnToReview(false);
+        goTo(STEPS.indexOf("review"));
+      } else {
+        goTo(stepIndex + 1);
+      }
+    }, AUTO_ADVANCE_MS);
+  }
+
+  function editFromReview(id: StepId) {
+    setReturnToReview(true);
+    goTo(STEPS.indexOf(id));
+  }
 
   function handleSubmit() {
     setError(null);
     setSaved(false);
-    const heightCm = parseNumber(height);
-    const weightKg = parseNumber(weight);
-    const bodyFatPct = parseNumber(bodyFat);
-    const targetWeightKg = parseNumber(targetWeight);
-
-    if (!goalReady) return setError("Escolha seu objetivo e quantos dias por semana você treina.");
-    if (!sex) return setError("Escolha uma opção de sexo para o cálculo.");
-    if (!birthDate) return setError("Informe sua data de nascimento.");
-    if (!heightCm || heightCm < 120 || heightCm > 230) return setError("Informe sua altura em centímetros (ex.: 172).");
-    if (!weightKg || weightKg < 30 || weightKg > 300) return setError("Informe seu peso em kg (ex.: 74,5).");
-    if (bodyFatPct !== null && (bodyFatPct < 3 || bodyFatPct > 60)) {
-      return setError("O % de gordura precisa ficar entre 3 e 60, ou deixe em branco.");
+    const firstInvalid = STEPS.find((id) => validate(id) !== null);
+    if (firstInvalid) {
+      editFromReview(firstInvalid);
+      setError(validate(firstInvalid));
+      return;
     }
-    if (targetWeightKg !== null && (targetWeightKg < 30 || targetWeightKg > 300)) {
-      return setError("Confira o peso desejado, ou deixe em branco.");
+    if (!consent) {
+      setError("Marque a autorização para calcularmos seu plano.");
+      return;
     }
-    if (!activity) return setError("Conte como é sua rotina fora da academia.");
-    if (healthRestriction === null) return setError("Responda a pergunta sobre saúde.");
-    if (!consent) return setError("Marque a autorização para calcularmos seu plano.");
 
     const input = {
       goal: goal!,
       emphasis: goal === "enfase" ? emphasis : null,
       trainingDays: trainingDays!,
-      sex,
+      sex: sex!,
       birthDate,
-      heightCm,
-      weightKg,
-      bodyFatPct,
-      targetWeightKg,
-      activityLevel: activity,
+      heightCm: parseNumber(height)!,
+      weightKg: parseNumber(weight)!,
+      bodyFatPct: parseNumber(bodyFat),
+      targetWeightKg: parseNumber(targetWeight),
+      activityLevel: activity!,
       wakeTime,
       sleepTime,
       timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "America/Sao_Paulo",
-      healthRestriction,
+      healthRestriction: healthRestriction!,
       healthConsent: consent,
     };
 
@@ -194,215 +320,316 @@ export function ProfileForm({
     });
   }
 
-  const goalSection = (
-    <div className="space-y-6">
-      <div>
-        <FieldLabel>Qual seu objetivo principal?</FieldLabel>
-        <div className="grid grid-cols-2 gap-2.5">
-          {GOAL_OPTIONS.map((o) => {
-            const selected = goal === o.value;
-            return (
+  const reviewRows: { id: StepId; label: string; value: string }[] = [
+    {
+      id: "goal",
+      label: "Objetivo",
+      value: `${GOAL_OPTIONS.find((o) => o.value === goal)?.label ?? "—"}${
+        goal === "enfase" && emphasis ? ` · ${MUSCLE_GROUP_LABEL[emphasis as MuscleGroup] ?? emphasis}` : ""
+      }`,
+    },
+    { id: "days", label: "Treinos por semana", value: trainingDays ? `${trainingDays} dias` : "—" },
+    { id: "sex", label: "Sexo", value: SEX_OPTIONS.find((o) => o.value === sex)?.label ?? "—" },
+    { id: "birth", label: "Nascimento", value: birthDate ? formatBirthDate(birthDate) : "—" },
+    { id: "measures", label: "Altura e peso", value: height && weight ? `${height} cm · ${weight} kg` : "—" },
+    {
+      id: "extras",
+      label: "Gordura e peso desejado",
+      value: [bodyFat && `${bodyFat}%`, targetWeight && `${targetWeight} kg`].filter(Boolean).join(" · ") || "Não informado",
+    },
+    { id: "activity", label: "Rotina", value: ACTIVITY_OPTIONS.find((o) => o.value === activity)?.label ?? "—" },
+    { id: "schedule", label: "Acorda e dorme", value: `${wakeTime} – ${sleepTime}` },
+    {
+      id: "health",
+      label: "Situação de saúde",
+      value: healthRestriction === null ? "—" : healthRestriction ? "Sim" : "Nenhuma",
+    },
+  ];
+
+  const body = (() => {
+    switch (step) {
+      case "goal":
+        return (
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-2.5">
+              {GOAL_OPTIONS.map((o) => (
+                <OptionCard
+                  key={o.value}
+                  selected={goal === o.value}
+                  onClick={() => choose(() => setGoal(o.value), o.value !== "enfase")}
+                  className="flex-col items-start gap-1.5 p-3.5"
+                >
+                  <Illustration name={GOAL_ART[o.value]} size={64} className="-mt-1 -ml-1" />
+                  <span className="text-sm font-semibold text-foreground">{o.label}</span>
+                  <span className="text-xs text-muted-foreground">{o.description}</span>
+                </OptionCard>
+              ))}
+            </div>
+            {goal === "enfase" && (
+              <div className="flex flex-wrap gap-2">
+                {ENFASE_GROUPS.map((group) => (
+                  <button
+                    key={group}
+                    type="button"
+                    aria-pressed={emphasis === group}
+                    onClick={() => choose(() => setEmphasis(group))}
+                    className={cn(
+                      "rounded-full border px-4 py-2.5 text-sm font-medium transition-all active:scale-95",
+                      emphasis === group
+                        ? "border-primary/50 bg-primary/10 text-primary"
+                        : "border-border/60 bg-card text-muted-foreground hover:bg-muted/40",
+                    )}
+                  >
+                    {MUSCLE_GROUP_LABEL[group]}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+
+      case "days":
+        return (
+          <div className="grid grid-cols-5 gap-2">
+            {DIAS_OPTIONS.map((d) => (
               <button
-                key={o.value}
+                key={d}
                 type="button"
-                aria-pressed={selected}
-                onClick={() => setGoal(o.value)}
+                aria-pressed={trainingDays === d}
+                onClick={() => choose(() => setTrainingDays(d))}
                 className={cn(
-                  "flex flex-col items-start gap-1.5 rounded-2xl border p-3.5 text-left transition-all",
-                  selected
-                    ? "border-primary/50 bg-primary/10 ring-1 ring-primary/30"
-                    : "border-border/60 bg-card hover:bg-muted/40",
+                  "tabular flex aspect-square flex-col items-center justify-center rounded-2xl border text-2xl font-bold transition-all active:scale-95",
+                  trainingDays === d
+                    ? "border-primary/60 bg-primary/10 text-primary ring-1 ring-primary/40"
+                    : "border-border/60 bg-card text-foreground hover:bg-muted/40",
                 )}
               >
-                <Illustration name={GOAL_ART[o.value]} size={64} className="-mt-1 -ml-1" />
-                <span className="text-sm font-semibold text-foreground">{o.label}</span>
-                <span className="text-xs text-muted-foreground">{o.description}</span>
+                {d}
+                <span className="text-[10px] font-medium text-muted-foreground">dias</span>
               </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {goal === "enfase" && (
-        <div>
-          <FieldLabel>Em qual grupo muscular?</FieldLabel>
-          <div className="flex flex-wrap gap-2">
-            {ENFASE_GROUPS.map((group) => (
-              <Chip key={group} selected={emphasis === group} onClick={() => setEmphasis(group)}>
-                {MUSCLE_GROUP_LABEL[group]}
-              </Chip>
             ))}
           </div>
-        </div>
-      )}
+        );
 
-      <div>
-        <FieldLabel>Quantos dias por semana você consegue treinar?</FieldLabel>
-        <div className="flex flex-wrap gap-2">
-          {DIAS_OPTIONS.map((d) => (
-            <button
-              key={d}
-              type="button"
-              aria-pressed={trainingDays === d}
-              onClick={() => setTrainingDays(d)}
-              className={cn(
-                "flex h-11 w-11 items-center justify-center rounded-full border text-sm font-bold transition-all",
-                trainingDays === d
-                  ? "border-primary/50 bg-primary/10 text-primary"
-                  : "border-border/60 bg-card text-muted-foreground hover:bg-muted/40",
-              )}
-            >
-              {d}
-            </button>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
+      case "sex":
+        return (
+          <div className="grid gap-2.5">
+            {SEX_OPTIONS.map((o) => (
+              <OptionCard key={o.value} selected={sex === o.value} onClick={() => choose(() => setSex(o.value))}>
+                <span className="flex-1 text-base font-semibold text-foreground">{o.label}</span>
+                {sex === o.value && <Check className="h-5 w-5 text-primary" />}
+              </OptionCard>
+            ))}
+          </div>
+        );
 
-  const bodySection = (
-    <div className="space-y-6">
-      <div>
-        <FieldLabel>Sexo biológico</FieldLabel>
-        <div className="flex flex-wrap gap-2">
-          {SEX_OPTIONS.map((o) => (
-            <Chip key={o.value} selected={sex === o.value} onClick={() => setSex(o.value)}>
-              {o.label}
-            </Chip>
-          ))}
-        </div>
-        <p className="mt-2 text-xs text-muted-foreground">
-          Usado só na fórmula do metabolismo. Sem essa informação, usamos uma média.
-        </p>
-      </div>
-
-      <div>
-        <FieldLabel htmlFor="birthDate">Data de nascimento</FieldLabel>
-        <Input
-          id="birthDate"
-          type="date"
-          value={birthDate}
-          max={new Date().toISOString().slice(0, 10)}
-          onChange={(e) => setBirthDate(e.target.value)}
-          className="h-11 text-base"
-        />
-      </div>
-
-      <div className="grid grid-cols-2 gap-3">
-        <NumberField id="height" label="Altura" unit="cm" value={height} onChange={setHeight} placeholder="172" />
-        <NumberField id="weight" label="Peso" unit="kg" value={weight} onChange={setWeight} placeholder="74,5" />
-        <NumberField
-          id="bodyFat"
-          label="% de gordura"
-          unit="%"
-          value={bodyFat}
-          onChange={setBodyFat}
-          placeholder="18"
-          optional
-        />
-        <NumberField
-          id="targetWeight"
-          label="Peso desejado"
-          unit="kg"
-          value={targetWeight}
-          onChange={setTargetWeight}
-          optional
-        />
-      </div>
-      <p className="-mt-3 text-xs text-muted-foreground">
-        Sabe seu % de gordura (bioimpedância, dobras)? Ele deixa o cálculo mais preciso.
-      </p>
-    </div>
-  );
-
-  const routineSection = (
-    <div className="space-y-6">
-      <div>
-        <FieldLabel>Fora da academia, seu dia é…</FieldLabel>
-        <div className="grid gap-2">
-          {ACTIVITY_OPTIONS.map((o) => (
-            <button
-              key={o.value}
-              type="button"
-              aria-pressed={activity === o.value}
-              onClick={() => setActivity(o.value)}
-              className={cn(
-                "flex flex-col rounded-xl border px-3.5 py-2.5 text-left transition-all",
-                activity === o.value
-                  ? "border-primary/50 bg-primary/10 ring-1 ring-primary/30"
-                  : "border-border/60 bg-card hover:bg-muted/40",
-              )}
-            >
-              <span className="text-sm font-semibold text-foreground">{o.label}</span>
-              <span className="text-xs text-muted-foreground">{o.description}</span>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <FieldLabel htmlFor="wakeTime">Acordo às</FieldLabel>
+      case "birth":
+        return (
           <Input
-            id="wakeTime"
-            type="time"
-            value={wakeTime}
-            onChange={(e) => setWakeTime(e.target.value)}
-            className="h-11 text-base"
+            type="date"
+            aria-label="Data de nascimento"
+            value={birthDate}
+            max={new Date().toISOString().slice(0, 10)}
+            onChange={(e) => setBirthDate(e.target.value)}
+            className="h-16 text-center text-xl font-semibold md:text-xl"
+          />
+        );
+
+      case "measures":
+        return (
+          <div className="grid grid-cols-2 gap-3">
+            <NumberField id="height" label="Altura" unit="cm" value={height} onChange={setHeight} placeholder="172" autoFocus />
+            <NumberField id="weight" label="Peso" unit="kg" value={weight} onChange={setWeight} placeholder="74,5" />
+          </div>
+        );
+
+      case "extras":
+        return (
+          <div className="grid grid-cols-2 gap-3">
+            <NumberField id="bodyFat" label="% de gordura" unit="%" value={bodyFat} onChange={setBodyFat} placeholder="18" />
+            <NumberField
+              id="targetWeight"
+              label="Peso desejado"
+              unit="kg"
+              value={targetWeight}
+              onChange={setTargetWeight}
+              placeholder="70"
+            />
+          </div>
+        );
+
+      case "activity":
+        return (
+          <div className="grid gap-2.5">
+            {ACTIVITY_OPTIONS.map((o) => (
+              <OptionCard key={o.value} selected={activity === o.value} onClick={() => choose(() => setActivity(o.value))}>
+                <div className="min-w-0 flex-1">
+                  <p className="text-base font-semibold text-foreground">{o.label}</p>
+                  <p className="text-sm text-muted-foreground">{o.description}</p>
+                </div>
+                {activity === o.value && <Check className="h-5 w-5 shrink-0 text-primary" />}
+              </OptionCard>
+            ))}
+          </div>
+        );
+
+      case "schedule":
+        return (
+          <div className="grid grid-cols-2 gap-3">
+            {[
+              { id: "wakeTime", label: "Acordo às", value: wakeTime, set: setWakeTime },
+              { id: "sleepTime", label: "Durmo às", value: sleepTime, set: setSleepTime },
+            ].map((f) => (
+              <div key={f.id}>
+                <label htmlFor={f.id} className="mb-2 block text-sm font-medium text-muted-foreground">
+                  {f.label}
+                </label>
+                <Input
+                  id={f.id}
+                  type="time"
+                  value={f.value}
+                  onChange={(e) => f.set(e.target.value)}
+                  className="tabular h-16 text-center text-2xl font-bold md:text-2xl"
+                />
+              </div>
+            ))}
+          </div>
+        );
+
+      case "health":
+        return (
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-2.5">
+              <OptionCard
+                selected={healthRestriction === false}
+                onClick={() => choose(() => setHealthRestriction(false))}
+                className="justify-center py-5"
+              >
+                <span className="text-base font-semibold text-foreground">Não</span>
+              </OptionCard>
+              <OptionCard
+                selected={healthRestriction === true}
+                onClick={() => choose(() => setHealthRestriction(true))}
+                className="justify-center py-5"
+              >
+                <span className="text-base font-semibold text-foreground">Sim</span>
+              </OptionCard>
+            </div>
+            {healthRestriction && (
+              <p className="text-sm text-muted-foreground">
+                Tudo bem. Vamos manter suas calorias em manutenção, sem déficit — ajuste o plano com seu nutricionista ou
+                médico.
+              </p>
+            )}
+          </div>
+        );
+
+      case "review":
+        return (
+          <div className="space-y-4">
+            <ul className="divide-y divide-border/60 overflow-hidden rounded-2xl border border-border/60 bg-card">
+              {reviewRows.map((row) => (
+                <li key={row.id}>
+                  <button
+                    type="button"
+                    onClick={() => editFromReview(row.id)}
+                    className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/30"
+                  >
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-xs text-muted-foreground">{row.label}</span>
+                      <span className="block truncate text-sm font-semibold text-foreground">{row.value}</span>
+                    </span>
+                    <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/60" />
+                  </button>
+                </li>
+              ))}
+            </ul>
+
+            {needsConsent && (
+              <label className="flex items-start gap-3 rounded-2xl border border-border/60 bg-card p-4 text-sm">
+                <input
+                  type="checkbox"
+                  checked={consent}
+                  onChange={(e) => setConsent(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 shrink-0 accent-[var(--primary)]"
+                />
+                <span className="text-foreground/90">
+                  Autorizo o Treinai a usar meus dados de corpo e saúde para calcular meu plano. Posso apagá-los quando
+                  quiser, no Perfil.
+                </span>
+              </label>
+            )}
+          </div>
+        );
+    }
+  })();
+
+  // Escolhas únicas avançam sozinhas; as demais etapas precisam do botão
+  const autoAdvances = step === "days" || step === "sex" || step === "activity" || step === "health" || (step === "goal" && goal !== "enfase");
+  const showContinue = !isReview && (!autoAdvances || returnToReview || validate(step) === null);
+  const progress = ((stepIndex + 1) / STEPS.length) * 100;
+  const question = QUESTION[step];
+  const offset = reduceMotion ? 0 : 40;
+
+  const quiz = (
+    <div className="flex flex-col">
+      <div className="mb-6 flex items-center gap-3">
+        <button
+          type="button"
+          onClick={back}
+          disabled={stepIndex === 0 || pending}
+          aria-label="Pergunta anterior"
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground disabled:invisible"
+        >
+          <ArrowLeft className="h-5 w-5" />
+        </button>
+        <div
+          className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted"
+          role="progressbar"
+          aria-valuemin={1}
+          aria-valuemax={STEPS.length}
+          aria-valuenow={stepIndex + 1}
+          aria-label={`Pergunta ${stepIndex + 1} de ${STEPS.length}`}
+        >
+          <motion.div
+            className="h-full rounded-full bg-primary"
+            initial={false}
+            animate={{ width: `${progress}%` }}
+            transition={{ duration: reduceMotion ? 0 : 0.35, ease: "easeOut" }}
           />
         </div>
-        <div>
-          <FieldLabel htmlFor="sleepTime">Durmo às</FieldLabel>
-          <Input
-            id="sleepTime"
-            type="time"
-            value={sleepTime}
-            onChange={(e) => setSleepTime(e.target.value)}
-            className="h-11 text-base"
-          />
-        </div>
+        <span className="tabular w-10 shrink-0 text-right text-xs text-muted-foreground">
+          {stepIndex + 1}/{STEPS.length}
+        </span>
       </div>
 
-      <div>
-        <FieldLabel>Alguma destas situações vale para você?</FieldLabel>
-        <p className="mb-2.5 text-sm text-foreground/90">
-          Gestação ou amamentação, transtorno alimentar (atual ou passado) ou dieta com orientação médica.
-        </p>
-        <div className="flex gap-2">
-          <Chip selected={healthRestriction === false} onClick={() => setHealthRestriction(false)}>
-            Não
-          </Chip>
-          <Chip selected={healthRestriction === true} onClick={() => setHealthRestriction(true)}>
-            Sim
-          </Chip>
-        </div>
-        {healthRestriction && (
-          <p className="mt-2 text-xs text-muted-foreground">
-            Tudo bem. Vamos manter suas calorias em manutenção, sem déficit, e recomendamos ajustar o plano com seu
-            nutricionista ou médico.
-          </p>
-        )}
-      </div>
+      <AnimatePresence mode="wait" initial={false} custom={direction}>
+        <motion.div
+          key={step}
+          custom={direction}
+          initial={{ opacity: 0, x: direction * offset }}
+          animate={{ opacity: 1, x: 0 }}
+          exit={{ opacity: 0, x: direction * -offset }}
+          transition={{ duration: reduceMotion ? 0.1 : 0.22, ease: "easeOut" }}
+        >
+          <div className="mb-5 flex items-start gap-3">
+            <Image
+              src="/ai-coach-avatar.png"
+              alt=""
+              width={36}
+              height={36}
+              className="h-9 w-9 shrink-0 rounded-full ring-1 ring-primary/30"
+            />
+            <div className="min-w-0">
+              <h2 className="text-xl leading-snug font-bold text-foreground">{question.title}</h2>
+              {question.hint && <p className="mt-1 text-sm text-muted-foreground">{question.hint}</p>}
+            </div>
+          </div>
 
-      {needsConsent && (
-        <label className="flex items-start gap-3 rounded-xl border border-border/60 bg-card p-3.5 text-sm">
-          <input
-            type="checkbox"
-            checked={consent}
-            onChange={(e) => setConsent(e.target.checked)}
-            className="mt-0.5 h-4 w-4 shrink-0 accent-[var(--primary)]"
-          />
-          <span className="text-foreground/90">
-            Autorizo o Treinai a usar meus dados de corpo e saúde para calcular meu plano. Posso apagá-los quando
-            quiser, no Perfil.
-          </span>
-        </label>
-      )}
-    </div>
-  );
+          {body}
+        </motion.div>
+      </AnimatePresence>
 
-  const feedback = (
-    <>
       {error && (
         <p role="alert" className="mt-4 text-sm text-destructive">
           {error}
@@ -413,96 +640,45 @@ export function ProfileForm({
           Plano recalculado.
         </p>
       )}
-    </>
-  );
 
-  if (mode === "edit") {
-    return (
-      <div className="space-y-8">
-        {goalSection}
-        {bodySection}
-        {routineSection}
-        {feedback}
-        <Button
-          type="button"
-          size="lg"
-          className="h-12 w-full text-base font-semibold"
-          disabled={pending}
-          onClick={handleSubmit}
-        >
-          {pending ? "Salvando…" : "Salvar e recalcular"}
-        </Button>
-      </div>
-    );
-  }
-
-  return (
-    <div className="mx-auto flex min-h-full w-full max-w-md flex-col px-4 py-8 sm:max-w-lg lg:max-w-2xl">
-      <div className="mb-6 flex flex-col items-center text-center">
-        <Image
-          src="/ai-coach-avatar.png"
-          alt="Théo"
-          width={64}
-          height={64}
-          className="mb-3 h-16 w-16 rounded-full ring-2 ring-primary/30"
-        />
-        <p className="mb-1 text-xs font-semibold tracking-wide text-muted-foreground uppercase">Etapa {step} de 2</p>
-        <h1 className="text-xl font-bold text-foreground">
-          {step === 1 ? "Vamos montar seu plano" : "Agora, sobre você"}
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {step === 1
-            ? "Responda rapidinho e o Théo cria um treino sob medida pra você."
-            : "Com isso o Théo calcula seu metabolismo, suas calorias e sua meta de água."}
-        </p>
-      </div>
-
-      {step === 1 ? (
-        goalSection
-      ) : (
-        <div className="space-y-8">
-          {bodySection}
-          {routineSection}
-        </div>
-      )}
-
-      {feedback}
-
-      <div className="mt-8 flex gap-2">
-        {step === 2 && (
+      <div className="mt-6 space-y-2">
+        {isReview ? (
           <Button
             type="button"
-            variant="outline"
             size="lg"
-            className="h-12 gap-2"
+            className="h-12 w-full gap-2 text-base font-semibold"
             disabled={pending}
-            onClick={() => {
-              setError(null);
-              setStep(1);
-            }}
+            onClick={handleSubmit}
           >
-            <ArrowLeft className="h-4 w-4" />
-            Voltar
+            {pending
+              ? "Calculando…"
+              : mode === "onboarding"
+                ? "Calcular meu plano"
+                : hasInitial
+                  ? "Salvar e recalcular"
+                  : "Calcular meu plano"}
+            {!pending && <ArrowRight className="h-4 w-4" />}
           </Button>
+        ) : (
+          showContinue && (
+            <Button type="button" size="lg" className="h-12 w-full gap-2 text-base font-semibold" onClick={next}>
+              {returnToReview ? "Confirmar" : step === "extras" && !bodyFat && !targetWeight ? "Pular" : "Continuar"}
+              <ArrowRight className="h-4 w-4" />
+            </Button>
+          )
         )}
-        <Button
-          type="button"
-          size="lg"
-          className="h-12 flex-1 gap-2 text-base font-semibold"
-          disabled={(step === 1 && !goalReady) || pending}
-          onClick={() => {
-            if (step === 1) {
-              setStep(2);
-              window.scrollTo({ top: 0 });
-            } else {
-              handleSubmit();
-            }
-          }}
-        >
-          {step === 1 ? "Continuar" : pending ? "Calculando…" : "Calcular meu plano"}
-          <ArrowRight className="h-4 w-4" />
-        </Button>
       </div>
+    </div>
+  );
+
+  if (mode === "edit") return quiz;
+
+  return (
+    <div className="mx-auto flex min-h-full w-full max-w-md flex-col px-4 py-8 sm:max-w-lg">
+      <p className="mb-4 text-center text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+        Vamos montar seu plano
+      </p>
+      {quiz}
     </div>
   );
 }
