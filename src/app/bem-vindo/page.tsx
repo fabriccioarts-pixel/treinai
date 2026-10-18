@@ -15,6 +15,8 @@ import {
 import { TheoChatDemo } from "@/components/landing/theo-chat-demo";
 import { StreakDemo } from "@/components/landing/streak-demo";
 import { PrDemo } from "@/components/landing/pr-demo";
+import { NutritionDemo } from "@/components/landing/nutrition-demo";
+import { ExerciseReel } from "@/components/landing/exercise-reel";
 import { LaunchVideo } from "@/components/landing/launch-video";
 import { cn } from "@/lib/utils";
 
@@ -129,7 +131,12 @@ export default function BemVindoPage() {
                   stagger={0.1}
                   className="mt-8 flex flex-wrap gap-x-5 gap-y-2 text-sm text-muted-foreground"
                 >
-                  {["Treinos montados pela IA", "PRs detectados sozinhos", "Constância e conquistas"].map((item) => (
+                  {[
+                    "Treinos montados pela IA",
+                    "PRs detectados sozinhos",
+                    "Calorias por foto do prato",
+                    "Constância e conquistas",
+                  ].map((item) => (
                     <StaggerItem as="li" key={item} className="flex items-center gap-1.5">
                       <CheckCircle2 className="h-4 w-4 text-primary" />
                       {item}
@@ -195,6 +202,19 @@ export default function BemVindoPage() {
             </div>
           </section>
 
+          {/* Execução dos exercícios */}
+          <section className="border-t border-border/60 py-20 sm:py-24">
+            <div className="mx-auto grid max-w-6xl gap-12 px-4 sm:px-6 lg:grid-cols-[1fr_1.1fr] lg:items-center">
+              <SectionCopy title="Execução certa, não só o nome do exercício.">
+                <p>
+                  Cada exercício da biblioteca tem um vídeo curto mostrando a forma certa, com o músculo
+                  trabalhado em destaque — direto na tela do treino, sem precisar sair do app pra pesquisar.
+                </p>
+              </SectionCopy>
+              <ExerciseReel />
+            </div>
+          </section>
+
           {/* Constância: faixa de destaque */}
           <section className="border-y border-border/60 bg-card/40 py-20 sm:py-24">
             <div className="mx-auto grid max-w-6xl gap-12 px-4 sm:px-6 lg:grid-cols-2 lg:items-center">
@@ -236,6 +256,25 @@ export default function BemVindoPage() {
                 </p>
               </SectionCopy>
               <PrDemo />
+            </div>
+          </section>
+
+          {/* Nutrição e água */}
+          <section className="border-t border-border/60 py-20 sm:py-24">
+            <div className="mx-auto grid max-w-6xl gap-12 px-4 sm:px-6 lg:grid-cols-2 lg:items-center">
+              <div className="order-2 lg:order-1">
+                <NutritionDemo />
+              </div>
+              <div className="order-1 lg:order-2">
+                <SectionCopy title="Tire uma foto do prato. As calorias aparecem sozinhas.">
+                  <p>
+                    O Théo calcula suas metas de calorias, macros e água a partir do seu perfil e rotina. Para
+                    registrar uma refeição, basta uma foto — ou escrever do seu jeito — e ele estima tudo na
+                    hora.
+                  </p>
+                  <p>Água também é um toque: sem formulário, sem fricção.</p>
+                </SectionCopy>
+              </div>
             </div>
           </section>
 
