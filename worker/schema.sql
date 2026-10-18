@@ -38,7 +38,9 @@ CREATE TABLE IF NOT EXISTS workouts (
   user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
   description TEXT,
-  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  -- Treino excluído pelo usuário mas com histórico: some das listas, as sessões continuam
+  archived_at TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_workouts_user ON workouts(user_id);
 
@@ -183,3 +185,34 @@ CREATE TABLE IF NOT EXISTS meal_items (
   fat_g REAL NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_meal_items_meal ON meal_items(meal_id);
+
+CREATE TABLE IF NOT EXISTS coach_conversations (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  title TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_coach_conversations_user ON coach_conversations(user_id, updated_at);
+
+CREATE TABLE IF NOT EXISTS coach_messages (
+  id TEXT PRIMARY KEY,
+  conversation_id TEXT NOT NULL REFERENCES coach_conversations(id) ON DELETE CASCADE,
+  role TEXT NOT NULL, -- user | assistant
+  content TEXT NOT NULL,
+  -- Treinos criados/alterados pelo Théo nessa resposta (JSON), para o card "Ver treino" voltar ao reabrir
+  actions TEXT,
+  -- Instrução enviada pelo app em nome do usuário (ex.: boas-vindas do onboarding): vai para o modelo, não aparece no chat
+  hidden INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_coach_messages_conversation ON coach_messages(conversation_id, created_at);
+CREATE TABLE IF NOT EXISTS push_subscriptions (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  endpoint TEXT NOT NULL UNIQUE,
+  p256dh TEXT NOT NULL,
+  auth TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_push_subscriptions_user ON push_subscriptions(user_id);

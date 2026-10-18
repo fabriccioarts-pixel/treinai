@@ -59,8 +59,8 @@ export function WeekVolumeHero({ series }: WeekVolumeHeroProps) {
                     className={cn(
                       "w-full origin-bottom rounded-md motion-safe:animate-[bar-rise_900ms_cubic-bezier(0.16,1,0.3,1)_both]",
                       isCurrent
-                        ? "bg-primary shadow-[0_8px_20px_-8px_var(--primary)]"
-                        : "bg-foreground/[0.09]",
+                        ? "bg-gradient-to-b from-primary via-primary/80 to-primary/30"
+                        : "bg-gradient-to-b from-foreground/[0.16] to-foreground/[0.03]",
                     )}
                     style={{ height: `${height}%`, animationDelay: `${i * 60}ms` }}
                   />
@@ -75,7 +75,7 @@ export function WeekVolumeHero({ series }: WeekVolumeHeroProps) {
                 <span
                   key={s.week}
                   className={cn(
-                    "tabular flex-1 text-center text-[10px]",
+                    "tabular flex-1 text-center text-[11px]",
                     isCurrent ? "font-semibold text-primary" : "text-muted-foreground",
                   )}
                 >

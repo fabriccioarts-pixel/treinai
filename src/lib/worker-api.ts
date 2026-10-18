@@ -4,6 +4,10 @@
  */
 import "server-only";
 import type { MealEstimate, MealItem, MealType, MealsToday, ProfileInput, ProfilePlan } from "@/lib/nutrition";
+import type { BadgeTier, Gamification, SessionSummary } from "@/lib/gamification";
+
+/** Treino criado ou alterado pelo Théo numa resposta */
+export type CoachAction = { type: "workout_created" | "workout_updated"; workoutId: string; name: string };
 
 const BASE_URL = process.env.WORKER_API_URL;
 const SECRET = process.env.WORKER_API_SECRET;
@@ -172,12 +176,24 @@ export const workerApi = {
       body: JSON.stringify(input),
     }),
 
-  deleteWorkout: (id: string) =>
-    workerFetch<{ ok: true }>(`/workouts/${id}`, { method: "DELETE" }),
+  /** Só apaga treino do próprio usuário; com sessões registradas ele é arquivado (archived: true) */
+  deleteWorkout: (userId: string, id: string) =>
+    workerFetch<{ ok: true; archived?: boolean }>(
+      `/workouts/${encodeURIComponent(id)}?userId=${encodeURIComponent(userId)}`,
+      { method: "DELETE" }
+    ),
 
   listExercises: (userId: string) =>
     workerFetch<{
-      exercises: { id: string; name: string; muscle_group: string; equipment: string; type: string }[];
+      exercises: {
+        id: string;
+        name: string;
+        muscle_group: string;
+        equipment: string;
+        type: string;
+        /** 1 = criado pelo usuário; 0 = catálogo global */
+        is_custom?: number;
+      }[];
     }>(`/exercises?userId=${encodeURIComponent(userId)}`),
 
   listPersonalRecords: (userId: string, muscleGroup?: string) =>
@@ -294,6 +310,24 @@ export const workerApi = {
       }[];
     }>(`/sets?sessionId=${encodeURIComponent(sessionId)}`),
 
+  /** Séries concluídas mais recentes do usuário em um exercício (todas as sessões), da mais nova para a mais antiga */
+  listExerciseSets: (userId: string, exerciseId: string, limit = 20) =>
+    workerFetch<{
+      sets: {
+        id: string;
+        session_id: string;
+        set_number: number;
+        weight: number;
+        reps: number;
+        created_at: string;
+      }[];
+    }>(
+      `/sets?userId=${encodeURIComponent(userId)}&exerciseId=${encodeURIComponent(exerciseId)}&limit=${limit}`
+    ),
+
+  deleteSet: (id: string, sessionId: string) =>
+    workerFetch<{ ok: true }>(`/sets/${id}?sessionId=${encodeURIComponent(sessionId)}`, { method: "DELETE" }),
+
   logSet: (input: {
     sessionId: string;
     exerciseId: string;
@@ -304,6 +338,8 @@ export const workerApi = {
   }) =>
     workerFetch<{
       id: string;
+      /** Número gravado pelo servidor (o setNumber do cliente é ignorado); ausente em worker antigo */
+      setNumber?: number | null;
       newPRs: { type: string; weight: number; reps: number }[];
       newGoals: { id: string; exerciseName: string; targetWeight: number }[];
       newBadges: { key: string; label: string; description: string; icon: string }[];
@@ -319,8 +355,9 @@ export const workerApi = {
       recentPRsCount: number;
       streakDays: number;
       trainedToday: boolean;
+      streakAtRisk: boolean;
       lostStreakDays: number;
-      last7Days: { date: string; trained: boolean }[];
+      last7Days: { date: string; trained: boolean; shielded?: boolean }[];
       frequencyThisMonth: number;
       newPRsThisMonth: number;
       recentPRs: {
@@ -332,6 +369,8 @@ export const workerApi = {
         achievedAt: string;
       }[];
       weeklyVolumeSeries: { week: string; volume: number }[];
+      /** Só os dias com treino (YYYY-MM-DD no fuso do app). Ausente em worker anterior ao mapa de calor. */
+      dailyVolume?: { date: string; volume: number }[];
       topMovers: { exerciseId: string; label: string; changePct: number }[];
       loadTrend: { exerciseName: string; series: { date: string; weight: number }[] } | null;
     }>(`/stats?userId=${encodeURIComponent(userId)}`),
@@ -339,15 +378,69 @@ export const workerApi = {
   askCoach: (
     userId: string,
     message: string,
-    history?: { role: "user" | "assistant"; content: string }[]
+    options: {
+      /** Conversa salva a continuar; o worker lê o histórico do banco */
+      conversationId?: string;
+      /** Mensagem do app em nome do usuário (não aparece no chat) */
+      hidden?: boolean;
+      /** Histórico do cliente, usado só por worker anterior às conversas salvas */
+      history?: { role: "user" | "assistant"; content: string }[];
+    } = {}
   ) =>
     workerFetch<{
       reply: string;
-      actions: { type: "workout_created" | "workout_updated"; workoutId: string; name: string }[];
+      actions: CoachAction[];
+      /** null quando o worker não conseguiu salvar; ausente em worker anterior às conversas salvas */
+      conversationId?: string | null;
     }>("/ai/coach", {
       method: "POST",
-      body: JSON.stringify({ userId, message, history }),
+      body: JSON.stringify({ userId, message, ...options }),
     }),
+
+  /** Token temporário + configuração para o navegador abrir a conversa por voz no Gemini Live */
+  startVoiceSession: (userId: string, conversationId?: string) =>
+    workerFetch<{ token: string; expiresAt: string; setup: Record<string, unknown> }>("/ai/voice/session", {
+      method: "POST",
+      body: JSON.stringify({ userId, conversationId }),
+    }),
+
+  runVoiceTool: (userId: string, name: string, args: unknown) =>
+    workerFetch<{ output: string; actions: CoachAction[] }>("/ai/voice/tool", {
+      method: "POST",
+      body: JSON.stringify({ userId, name, args }),
+    }),
+
+  saveVoiceTurn: (
+    userId: string,
+    turn: { conversationId?: string; userText: string; reply: string; actions: CoachAction[] }
+  ) =>
+    workerFetch<{ conversationId: string }>("/ai/voice/turn", {
+      method: "POST",
+      body: JSON.stringify({ userId, ...turn }),
+    }),
+
+  listCoachConversations: (userId: string) =>
+    workerFetch<{
+      conversations: { id: string; title: string; updated_at: string; preview: string | null }[];
+    }>(`/coach-conversations?userId=${encodeURIComponent(userId)}`),
+
+  getCoachConversation: (userId: string, id: string) =>
+    workerFetch<{
+      conversation: { id: string; title: string; updated_at: string };
+      messages: { id: string; role: "user" | "assistant"; content: string; actions: CoachAction[]; createdAt: string }[];
+    }>(`/coach-conversations/${encodeURIComponent(id)}?userId=${encodeURIComponent(userId)}`),
+
+  renameCoachConversation: (userId: string, id: string, title: string) =>
+    workerFetch<{ ok: true; title: string }>(`/coach-conversations/${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      body: JSON.stringify({ userId, title }),
+    }),
+
+  deleteCoachConversation: (userId: string, id: string) =>
+    workerFetch<{ ok: true }>(
+      `/coach-conversations/${encodeURIComponent(id)}?userId=${encodeURIComponent(userId)}`,
+      { method: "DELETE" }
+    ),
 
   listGoals: (userId: string) =>
     workerFetch<{
@@ -388,6 +481,8 @@ export const workerApi = {
         label: string;
         description: string;
         icon: string;
+        tier?: BadgeTier;
+        hidden?: boolean;
         unlocked: boolean;
         achievedAt: string | null;
       }[];
@@ -396,6 +491,16 @@ export const workerApi = {
       xpIntoLevel: number;
       xpForNextLevel: number;
     }>(`/badges?userId=${encodeURIComponent(userId)}`),
+
+  /** Nível, missões da semana, escudos e XP recente (e concede o que estiver pendente) */
+  getGamification: (userId: string) =>
+    workerFetch<Gamification>(`/gamification?userId=${encodeURIComponent(userId)}`),
+
+  /** Resumo de um treino concluído: XP ganho, nível antes/depois, PRs e conquistas */
+  getSessionSummary: (userId: string, sessionId: string) =>
+    workerFetch<SessionSummary>(
+      `/gamification/session/${encodeURIComponent(sessionId)}?userId=${encodeURIComponent(userId)}`,
+    ),
 
   getProfile: (userId: string) =>
     workerFetch<ProfilePlan | { profile: null }>(`/profile?userId=${encodeURIComponent(userId)}`),
@@ -448,5 +553,24 @@ export const workerApi = {
   deleteWater: (userId: string, id: string) =>
     workerFetch<{ ok: true }>(`/water/${encodeURIComponent(id)}?userId=${encodeURIComponent(userId)}`, {
       method: "DELETE",
+    }),
+
+  /** Lembretes por notificação: inscrição de Web Push de um aparelho */
+  subscribePush: (userId: string, sub: { endpoint: string; p256dh: string; auth: string }) =>
+    workerFetch<{ ok: true }>("/push/subscribe", {
+      method: "POST",
+      body: JSON.stringify({ userId, ...sub }),
+    }),
+
+  unsubscribePush: (userId: string, endpoint: string) =>
+    workerFetch<{ ok: true }>("/push/unsubscribe", {
+      method: "POST",
+      body: JSON.stringify({ userId, endpoint }),
+    }),
+
+  sendTestPush: (userId: string) =>
+    workerFetch<{ sent: number }>("/push/test", {
+      method: "POST",
+      body: JSON.stringify({ userId }),
     }),
 };

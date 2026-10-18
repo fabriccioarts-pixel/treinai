@@ -53,15 +53,20 @@ setRoutes.post("/", async (c) => {
 
   const id = newId();
   const createdAt = nowIso();
+  // O número da série vem do que já está gravado, não do cliente: uma tela recarregada ou aberta
+  // em dois aparelhos chegava a mandar 1, 2, 1, 2, 3 na mesma sessão. body.setNumber fica ignorado.
   await c.env.DB.prepare(
     `INSERT INTO sets (id, session_id, exercise_id, set_number, weight, reps, rpe, completed, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+     VALUES (?, ?, ?,
+       (SELECT COALESCE(MAX(set_number), 0) + 1 FROM sets WHERE session_id = ? AND exercise_id = ?),
+       ?, ?, ?, ?, ?)`
   )
     .bind(
       id,
       body.sessionId,
       body.exerciseId,
-      body.setNumber,
+      body.sessionId,
+      body.exerciseId,
       body.weight,
       body.reps,
       body.rpe ?? null,
@@ -85,7 +90,45 @@ setRoutes.post("/", async (c) => {
     newBadges = await evaluateBadges(c.env.DB, session.user_id);
   }
 
-  return c.json({ id, newPRs, newGoals, newBadges }, 201);
+  const saved = await c.env.DB.prepare("SELECT set_number FROM sets WHERE id = ?").bind(id).first<{ set_number: number }>();
+
+  return c.json({ id, setNumber: saved?.set_number ?? null, newPRs, newGoals, newBadges }, 201);
+});
+
+// Desfaz uma série registrada por engano. Só a última série do exercício na sessão pode ser
+// desfeita: assim os PRs gravados a partir dela (mesmo exercício, depois do seu registro)
+// são exatamente os que ela gerou, e a numeração das séries continua sem buracos.
+setRoutes.delete("/:id", async (c) => {
+  const id = c.req.param("id");
+  const sessionId = c.req.query("sessionId");
+  if (!sessionId) return c.json({ error: "missing_sessionId" }, 400);
+
+  const set = await c.env.DB.prepare(
+    `SELECT st.id, st.exercise_id, st.created_at, ws.user_id FROM sets st
+     JOIN workout_sessions ws ON ws.id = st.session_id
+     WHERE st.id = ? AND st.session_id = ?`
+  )
+    .bind(id, sessionId)
+    .first<{ id: string; exercise_id: string; created_at: string; user_id: string }>();
+  if (!set) return c.json({ error: "not_found" }, 404);
+
+  const later = await c.env.DB.prepare(
+    `SELECT st.id FROM sets st
+     JOIN workout_sessions ws ON ws.id = st.session_id
+     WHERE ws.user_id = ? AND st.exercise_id = ? AND st.created_at > ? LIMIT 1`
+  )
+    .bind(set.user_id, set.exercise_id, set.created_at)
+    .first();
+  if (later) return c.json({ error: "not_last_set" }, 409);
+
+  await c.env.DB.batch([
+    c.env.DB.prepare(
+      "DELETE FROM personal_records WHERE user_id = ? AND exercise_id = ? AND achieved_at >= ?"
+    ).bind(set.user_id, set.exercise_id, set.created_at),
+    c.env.DB.prepare("DELETE FROM sets WHERE id = ?").bind(id),
+  ]);
+
+  return c.json({ ok: true });
 });
 
 async function checkGoalAchievements(db: D1Database, userId: string, exerciseId: string, currentWeight: number) {

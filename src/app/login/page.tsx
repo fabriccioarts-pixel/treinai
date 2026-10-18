@@ -102,7 +102,7 @@ function LoginForm() {
         </Button>
 
         {lastProvider === "google" && (
-          <span className="pointer-events-none absolute -top-2.5 right-3 inline-flex items-center gap-1 rounded-full bg-primary px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-primary-foreground shadow-md shadow-primary/25">
+          <span className="pointer-events-none absolute -top-2.5 right-3 inline-flex items-center gap-1 rounded-full bg-primary px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider text-primary-foreground shadow-md shadow-primary/25">
             <AiIcon className="h-3 w-3" />
             Último login realizado
           </span>

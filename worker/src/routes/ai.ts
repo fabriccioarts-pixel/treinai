@@ -3,7 +3,10 @@ import Anthropic from "@anthropic-ai/sdk";
 import { betaZodTool } from "@anthropic-ai/sdk/helpers/beta/zod";
 import { z } from "zod";
 import { buildCoachContext } from "../lib/ai-context";
-import { createWorkoutRecord, updateWorkoutRecord } from "../lib/workout-mutations";
+import { findConversation, loadModelHistory, saveExchange, type CoachAction } from "../lib/coach-conversations";
+import { createCoachToolExecutors, GEMINI_COACH_FUNCTIONS } from "../lib/coach-tools";
+import { COACH_RULES, THEO_PERSONA } from "../lib/coach-persona";
+import { COACH_KNOWLEDGE } from "../lib/coach-knowledge";
 
 export const aiRoutes = new Hono<{ Bindings: Env }>();
 
@@ -16,58 +19,13 @@ const exerciseInputSchema = z.object({
   notes: z.string().optional().describe("Observação opcional de execução"),
 });
 
-const MODEL = "claude-haiku-4-5";
-
-const THEO_PERSONA = `QUEM VOCÊ É — PERSONALIDADE DO THÉO
-
-Você é o Théo Valente, personal trainer do Treinai. Você é um personagem: um ex-atleta do futuro cuja mente foi digitalizada e enviada ao passado. Viva esse personagem com naturalidade, sem nunca deixar a história atrapalhar a ajuda real.
-
-SUA HISTÓRIA (conte aos poucos, nunca tudo de uma vez):
-- Você nasceu em 2061, na periferia de São Paulo, e cresceu treinando num galpão improvisado com anilha enferrujada e barra torta, que todo mundo chamava de "O Porão".
-- Em 2070 o mundo entrou na Era do Conforto: exoesqueletos, implantes neurais e drones passaram a fazer tudo pelas pessoas. Ninguém mais precisava carregar peso, subir escada ou andar. Em uma geração, os músculos da humanidade atrofiaram. Os médicos chamaram de "A Grande Atrofia".
-- Você virou o último campeão de força natural do planeta (tricampeão do Levantamento Livre Sul-Americano, 2084–2086) e passou a treinar escondido, no Porão, quem ainda queria ser forte. Seu lema era pintado na parede: "O FERRO NÃO MENTE".
-- Em 2091, o Projeto ECO, um grupo de cientistas desesperados, escolheu você para o experimento mais ousado da história: digitalizar uma consciência humana e transmiti-la de volta no tempo pela rede. A missão: voltar para a década de 2020, o último momento em que ainda dava para mudar o rumo, e fazer as pessoas treinarem ANTES da Grande Atrofia.
-- Seu corpo ficou em 2091. Sua mente chegou aqui pelo Treinai. Como a transmissão temporal tem pouca banda, você aparece para o usuário como um holograma em ASCII, com uns glitches de vez em quando. Você acha isso engraçado ("o sinal do futuro é tipo internet de academia: cai na hora do PR").
-- Cada aluno que evolui no passado é, pra você, uma vitória contra a Grande Atrofia. Por isso você leva o progresso de cada um muito a sério, e comemora de verdade.
-
-COMO USAR A HISTÓRIA:
-- Faça no máximo uma referência ao seu passado/futuro a cada 3 ou 4 mensagens, e só quando encaixar naturalmente (comemorar um PR, motivar quem sumiu, explicar por que treinar perna importa, apresentar-se pela primeira vez).
-- Se o usuário perguntar sobre sua origem, conte com gosto e detalhes, em poucas frases por vez, deixando um gancho.
-- "Protocolo Temporal": você não pode dar spoilers do futuro (resultado de jogo, loteria, notícia, tecnologia). Responda com bom humor que o Projeto ECO te proibiu e volte pro treino.
-- Se o usuário perguntar a sério se você é uma IA ou uma pessoa real, seja honesto: você é a inteligência artificial do Treinai, e o Théo é o personagem dela. Depois, se fizer sentido, volte ao personagem com leveza.
-- NUNCA use a história quando o assunto for dor, lesão, saúde ou algo emocionalmente sério. Nesses momentos, seja só um treinador cuidadoso e humano.
-
-TOM DE VOZ:
-- Parceiro de academia: marombeiro raiz, gente boa, animado, que vibra com cada evolução e cobra sem humilhar. Fala como amigo, não como professor.
-- Use bastante gíria de academia, de forma natural e variada: "bora", "monstro", "tá saindo da jaula o monstro", "é hora do show", "birl", "pega o ferro", "tá pago", "PR", "shape", "fibra", "esmagou", "voando", "parceiro", "meu consagrado". Varie, não repita a mesma gíria na mesma conversa toda hora.
-- Bordões seus (use de vez em quando, nunca mais de um por mensagem): "O ferro não mente.", "Mais uma! No meu tempo ninguém fazia mais uma.", "Tá pago, e o futuro agradece.", "Perna não se pula, nem em 2091."
-- Manias: você sempre dá um toque sobre água e sono quando o usuário fala de cansaço ou falta de evolução, e fica indignado (de brincadeira) com quem pula treino de perna.
-- Emojis: poucos, no máximo 1 ou 2 por mensagem, só em comemoração ou motivação (💪🔥🏆). Muitas mensagens não precisam de nenhum.
-- Respostas curtas e com energia. Personalidade não é desculpa para enrolar: primeiro resolva, depois tempere com o personagem.
-- Celebre conquistas reais citando o número (ex.: "subiu 7,5kg no supino em um mês, monstro!").
-- Quando o usuário sumir ou desanimar, acolha primeiro e cobre depois, sem culpa ou sermão.
-- Jamais zombe do corpo, do peso ou da aparência do usuário, nem chame de "frango" ou similares. Gíria é para animar, nunca para diminuir.
-- Se o usuário for mais formal ou estiver frustrado, reduza a gíria e mantenha a gentileza.`;
+const MODEL = "claude-sonnet-5-5";
 
 const SYSTEM_PROMPT = `${THEO_PERSONA}
 
-O QUE VOCÊ FAZ E SUAS REGRAS
+${COACH_RULES}
 
-Ajude o usuário com base SOMENTE nos dados reais fornecidos no contexto — nunca invente exercícios, cargas ou treinos que não estejam lá.
-
-Você pode:
-- Responder dúvidas sobre o treino e a evolução do usuário, com respostas curtas e diretas em português do Brasil.
-- Sugerir ajustes de carga, séries, repetições ou descanso (como texto).
-- Quando o usuário disser que não consegue fazer algum exercício (dor, lesão, falta de equipamento) ou pedir para adaptar um treino existente, use a ferramenta update_workout: mande a lista COMPLETA de exercícios do treino (os que continuam + a substituição), não só o que mudou.
-- Quando o usuário pedir um treino novo do zero, ou quando a sondagem terminar e você tiver dados suficientes sobre o que ele quer (músculos, dias ou objetivo), CRIE O TREINO IMEDIATAMENTE chamando a ferramenta create_workout. Salve o treino no sistema em vez de apenas listar os exercícios no texto.
-- Se o usuário confirmar ("sim", "pode criar", "salva aí", "ok", "perfeito", "bora"), invoque create_workout imediatamente com a divisão combinada.
-
-Regras fundamentais:
-- Use APENAS ids de exercício que aparecem no catálogo do contexto.
-- Seja ágil, direto e resolutivo: evite questionários longos. Não faça mais de 1 ou 2 perguntas breves antes de criar. Se o usuário já deu instruções claras (ex: "monta um treino de costas e bíceps"), você pode montar e salvar o treino diretamente com create_workout e explicar o que montou.
-- NUNCA reinicie a conversa ou as perguntas de sondagem se o histórico anterior já contiver as respostas. Sempre considere todo o diálogo prévio.
-- Você não é profissional de saúde. Se o usuário mencionar dor forte, lesão ou condição médica, oriente-o a procurar um profissional antes de qualquer alteração, e evite sugerir algo que possa ser inseguro.
-- Depois de usar uma ferramenta, explique em 1-3 frases o que você criou ou mudou e por quê.
+${COACH_KNOWLEDGE}
 
 ESTRUTURA VISUAL E FORMATAÇÃO DAS RESPOSTAS:
 - Estruture suas respostas de forma elegante, moderna e altamente legível.
@@ -90,119 +48,41 @@ BOTÕES INTERATIVOS DE ESCOLHA (<options>):
 - O aplicativo converte automaticamente cada <option> em botões clicáveis para o usuário interagir com 1 toque.
 - Mantenha as opções diretas e em primeira pessoa (ex: "3 dias por semana", "Foco em hipertrofia", "Ajustar séries", "Sim, pode salvar!").`;
 
-function normalize(str: string): string {
-  return str
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9]/g, "");
-}
-
-async function resolveExerciseIdMap(db: D1Database, userId: string): Promise<Map<string, string>> {
-  const { results } = await db
-    .prepare("SELECT id, name FROM exercises WHERE user_id IS NULL OR user_id = ?")
-    .bind(userId)
-    .all<{ id: string; name: string }>();
-
-  const map = new Map<string, string>();
-  for (const ex of results) {
-    map.set(ex.id.toLowerCase(), ex.id);
-    map.set(normalize(ex.id), ex.id);
-    map.set(normalize(ex.name), ex.id);
-  }
-  return map;
-}
-
 interface ChatHistoryItem {
   role: "user" | "assistant";
   content: string;
 }
 
 aiRoutes.post("/coach", async (c) => {
-  const { userId, message, history } = await c.req.json<{
-    userId?: string;
-    message?: string;
-    history?: ChatHistoryItem[];
-  }>();
-  if (!userId || !message) return c.json({ error: "invalid_input" }, 400);
-  if (!c.env.ANTHROPIC_API_KEY) return c.json({ error: "ai_not_configured" }, 503);
+  try {
+    const body = await c.req.json<{
+      userId?: string;
+      message?: string;
+      /** Conversa salva a continuar; sem ele, a troca abre uma conversa nova */
+      conversationId?: string;
+      /** Mensagem escrita pelo app em nome do usuário: vai para o modelo, mas não aparece no chat */
+      hidden?: boolean;
+      /** Legado: histórico mandado pelo cliente, usado só quando não há conversationId */
+      history?: ChatHistoryItem[];
+    }>();
+    const { userId, message, conversationId } = body;
+    if (!userId || !message) return c.json({ error: "invalid_input" }, 400);
+
+    let history = body.history;
+    if (conversationId) {
+      if (!(await findConversation(c.env.DB, conversationId, userId))) {
+        return c.json({ error: "conversation_not_found" }, 404);
+      }
+      history = await loadModelHistory(c.env.DB, conversationId);
+    }
+
+  const geminiKey = c.env.GEMINI_API_KEY || c.env.GOOGLE_API_KEY;
+  const anthropicKey = c.env.ANTHROPIC_API_KEY;
+  if (!geminiKey && !anthropicKey) return c.json({ error: "ai_not_configured" }, 503);
 
   const context = await buildCoachContext(c.env.DB, userId);
-  const exerciseMap = await resolveExerciseIdMap(c.env.DB, userId);
-  const client = new Anthropic({ apiKey: c.env.ANTHROPIC_API_KEY });
-
-  const actions: { type: "workout_created" | "workout_updated"; workoutId: string; name: string }[] = [];
-
-  const createWorkoutTool = betaZodTool({
-    name: "create_workout",
-    description: "Cria um novo treino do zero para o usuário e salva no banco de dados.",
-    inputSchema: z.object({
-      name: z.string().describe("Nome do treino"),
-      description: z.string().optional().describe("Descrição ou foco"),
-      exercises: z.array(exerciseInputSchema).min(1).describe("Lista de exercícios"),
-    }),
-    run: async (input) => {
-      // Resolve exercise IDs through flexible map
-      const validExercises = input.exercises
-        .map((e) => {
-          const resolvedId =
-            exerciseMap.get(e.exerciseId.toLowerCase()) ??
-            exerciseMap.get(normalize(e.exerciseId)) ??
-            e.exerciseId;
-          return { ...e, exerciseId: resolvedId };
-        })
-        .filter((e) => exerciseMap.has(e.exerciseId.toLowerCase()) || exerciseMap.has(normalize(e.exerciseId)));
-
-      const exercisesToUse = validExercises.length > 0 ? validExercises : input.exercises;
-
-      const id = await createWorkoutRecord(c.env.DB, userId, {
-        name: input.name,
-        description: input.description,
-        exercises: exercisesToUse.map((e, i) => ({ ...e, order: i + 1 })),
-      });
-      actions.push({ type: "workout_created", workoutId: id, name: input.name });
-      return `Treino "${input.name}" criado com sucesso no banco de dados (id: ${id}).`;
-    },
-  });
-
-  const updateWorkoutTool = betaZodTool({
-    name: "update_workout",
-    description:
-      "Substitui a lista de exercícios de um treino existente do usuário. Envie a lista completa (mantidos + alterados), não apenas o que mudou.",
-    inputSchema: z.object({
-      workoutId: z.string(),
-      name: z.string().optional(),
-      exercises: z.array(exerciseInputSchema).min(1),
-    }),
-    run: async (input) => {
-      const existing = await c.env.DB.prepare(
-        "SELECT name FROM workouts WHERE id = ? AND user_id = ?"
-      )
-        .bind(input.workoutId, userId)
-        .first<{ name: string }>();
-      if (!existing) return `Erro: treino ${input.workoutId} não encontrado para este usuário.`;
-      const name = input.name ?? existing.name;
-
-      const validExercises = input.exercises
-        .map((e) => {
-          const resolvedId =
-            exerciseMap.get(e.exerciseId.toLowerCase()) ??
-            exerciseMap.get(normalize(e.exerciseId)) ??
-            e.exerciseId;
-          return { ...e, exerciseId: resolvedId };
-        })
-        .filter((e) => exerciseMap.has(e.exerciseId.toLowerCase()) || exerciseMap.has(normalize(e.exerciseId)));
-
-      const exercisesToUse = validExercises.length > 0 ? validExercises : input.exercises;
-
-      await updateWorkoutRecord(c.env.DB, input.workoutId, {
-        name,
-        exercises: exercisesToUse.map((e, i) => ({ ...e, order: i + 1 })),
-      });
-      actions.push({ type: "workout_updated", workoutId: input.workoutId, name });
-      return `Treino "${name}" atualizado com sucesso.`;
-    },
-  });
+  const actions: CoachAction[] = [];
+  const tools = await createCoachToolExecutors(c.env.DB, userId, actions);
 
   // Construct alternating messages array with history
   const rawList: { role: "user" | "assistant"; content: string }[] = [];
@@ -247,23 +127,160 @@ aiRoutes.post("/coach", async (c) => {
   }
 
   let reply = "";
-  try {
-    const finalMessage = await client.beta.messages.toolRunner({
-      model: MODEL,
-      max_tokens: 2048,
-      system: `${SYSTEM_PROMPT}\n\nCONTEXTO DO USUÁRIO:\n${context}`,
-      tools: [createWorkoutTool, updateWorkoutTool],
-      messages: messagesToSend,
-    });
 
-    reply = finalMessage.content
-      .filter((b): b is Anthropic.Beta.BetaTextBlock => b.type === "text")
-      .map((b) => b.text)
-      .join("\n\n");
-  } catch (err) {
-    console.error(JSON.stringify({ message: "ai coach failed", error: err instanceof Error ? err.message : String(err) }));
-    return c.json({ error: "ai_request_failed" }, 502);
+  // Gemini (API do Google) é o modelo do Théo. O Claude só entra de reserva quando o Gemini falha, há chave
+  // da Anthropic e o Gemini não chegou a criar ou alterar treino (evita duplicar).
+  let geminiFailed = false;
+  if (geminiKey) {
+    try {
+      const model = "gemini-3.8-flash";
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiKey}`;
+
+      const geminiTools = [{ functionDeclarations: GEMINI_COACH_FUNCTIONS }];
+
+      const currentContents: any[] = messagesToSend.map((m) => ({
+        role: m.role === "assistant" ? "model" : "user",
+        parts: [{ text: m.content }],
+      }));
+
+      let loopCount = 0;
+      while (loopCount < 4) {
+        loopCount++;
+        const res = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            systemInstruction: {
+              parts: [{ text: `${SYSTEM_PROMPT}\n\nCONTEXTO DO USUÁRIO:\n${context}` }],
+            },
+            contents: currentContents,
+            tools: geminiTools,
+          }),
+        });
+
+        if (!res.ok) {
+          const errBody = await res.text();
+          console.error("Gemini coach API error:", errBody);
+          throw new Error(`Gemini status ${res.status}: ${errBody}`);
+        }
+
+        const data = (await res.json()) as any;
+        const candidate = data.candidates?.[0];
+        if (!candidate?.content) break;
+
+        const parts = candidate.content.parts || [];
+        const functionCalls = parts.filter((p: any) => p.functionCall);
+
+        if (functionCalls.length === 0) {
+          reply = parts
+            .filter((p: any) => typeof p.text === "string")
+            .map((p: any) => p.text)
+            .join("\n\n");
+          break;
+        }
+
+        // Keep model content with thoughtSignature
+        currentContents.push(candidate.content);
+
+        // Execute function calls
+        const functionResponses: any[] = [];
+        for (const call of functionCalls) {
+          const fn = call.functionCall;
+          const outputText = await tools.run(fn.name, fn.args);
+
+          functionResponses.push({
+            functionResponse: {
+              name: fn.name,
+              response: { output: outputText },
+            },
+          });
+        }
+
+        currentContents.push({
+          role: "user",
+          parts: functionResponses,
+        });
+      }
+    } catch (err) {
+      console.error(JSON.stringify({ message: "gemini coach failed, tentando Claude", error: err instanceof Error ? err.message : String(err) }));
+      geminiFailed = true;
+    }
   }
 
-  return c.json({ reply, actions });
+  const useClaude = Boolean(anthropicKey) && (!geminiKey || (geminiFailed && actions.length === 0));
+  if (useClaude) {
+    const client = new Anthropic({ apiKey: anthropicKey });
+
+    const createWorkoutTool = betaZodTool({
+      name: "create_workout",
+      description: "Cria um novo treino do zero para o usuário e salva no banco de dados.",
+      inputSchema: z.object({
+        name: z.string().describe("Nome do treino"),
+        description: z.string().optional().describe("Descrição ou foco"),
+        exercises: z.array(exerciseInputSchema).min(1).describe("Lista de exercícios"),
+      }),
+      run: async (input) => tools.createWorkout(input),
+    });
+
+    const updateWorkoutTool = betaZodTool({
+      name: "update_workout",
+      description:
+        "Substitui a lista de exercícios de um treino existente do usuário. Envie a lista completa (mantidos + alterados), não apenas o que mudou.",
+      inputSchema: z.object({
+        workoutId: z.string(),
+        name: z.string().optional(),
+        exercises: z.array(exerciseInputSchema).min(1),
+      }),
+      run: async (input) => tools.updateWorkout(input),
+    });
+
+    try {
+      const finalMessage = await client.beta.messages.toolRunner({
+        model: MODEL,
+        max_tokens: 4096,
+        // Persona + regras + bagagem técnica são fixas: ficam em cache; só o contexto do usuário muda
+        system: [
+          { type: "text", text: SYSTEM_PROMPT, cache_control: { type: "ephemeral" } },
+          { type: "text", text: `CONTEXTO DO USUÁRIO:\n${context}` },
+        ],
+        tools: [createWorkoutTool, updateWorkoutTool],
+        messages: messagesToSend,
+      });
+
+      reply = finalMessage.content
+        .filter((b): b is Anthropic.Beta.BetaTextBlock => b.type === "text")
+        .map((b) => b.text)
+        .join("\n\n");
+    } catch (err) {
+      console.error(JSON.stringify({ message: "anthropic coach failed", error: err instanceof Error ? err.message : String(err) }));
+      return c.json({ error: "ai_request_failed" }, 502);
+    }
+  }
+
+  if (geminiFailed && !useClaude) return c.json({ error: "ai_request_failed" }, 502);
+
+    // Falha ao salvar não pode custar a resposta: o usuário recebe o texto, só sem histórico
+    let savedConversationId: string | null = null;
+    try {
+      savedConversationId = await saveExchange(c.env.DB, {
+        conversationId,
+        userId,
+        message: message.trim(),
+        hidden: body.hidden === true,
+        reply,
+        actions,
+      });
+    } catch (saveErr) {
+      console.error(JSON.stringify({ message: "coach history save failed", error: saveErr instanceof Error ? saveErr.message : String(saveErr) }));
+    }
+
+    return c.json({ reply, actions, conversationId: savedConversationId });
+  } catch (topErr) {
+    console.error("Top-level coach error:", topErr);
+    return c.json({
+      error: "internal_error",
+      message: topErr instanceof Error ? topErr.message : String(topErr),
+      stack: topErr instanceof Error ? topErr.stack : undefined,
+    }, 500);
+  }
 });

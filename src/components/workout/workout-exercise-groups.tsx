@@ -82,7 +82,7 @@ export function WorkoutExerciseGroups({
                           </span>
                           <span
                             className={cn(
-                              "rounded-4xl px-2 py-0.5 text-[10px] font-semibold",
+                              "rounded-4xl px-2 py-0.5 text-[11px] font-semibold",
                               intensity.className
                             )}
                           >

@@ -38,9 +38,12 @@ mealRoutes.post("/analyze", async (c) => {
   }
   const { photo, text } = parsed.data;
 
+  const apiKey = c.env.GEMINI_API_KEY || c.env.GOOGLE_API_KEY || c.env.ANTHROPIC_API_KEY;
+  if (!apiKey) return c.json({ error: "ai_not_configured" }, 503);
+
   try {
     const estimate = await analyzeMeal(
-      c.env.ANTHROPIC_API_KEY,
+      apiKey,
       photo ? { kind: "photo", ...photo } : { kind: "text", text: text! },
     );
     return c.json(estimate);

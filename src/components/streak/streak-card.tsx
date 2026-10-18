@@ -1,8 +1,9 @@
 import Image from "next/image";
+import { Shield } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /*
- * Constância: dias consecutivos com treino concluído (sem folga).
+ * Constância: dias com treino concluído, tolerando 1 dia de folga entre treinos (regra no worker).
  * O Théo muda de expressão conforme o estado — arte em /public/theo/<estado>.jpg (fundo preto,
  * mesclada com `mix-blend-screen` para o fundo sumir e o contorno holográfico brilhar no card).
  */
@@ -19,8 +20,10 @@ export type StreakState =
 export interface StreakData {
   streakDays: number;
   trainedToday: boolean;
+  /** Folga já usada: sem treino hoje, a constância quebra */
+  streakAtRisk: boolean;
   lostStreakDays: number;
-  last7Days: { date: string; trained: boolean }[];
+  last7Days: { date: string; trained: boolean; shielded?: boolean }[];
 }
 
 /** Campos novos do worker podem faltar quando o front é publicado antes do worker */
@@ -28,17 +31,20 @@ type StreakInput = { streakDays?: number } & Partial<Omit<StreakData, "streakDay
 
 function normalizeStreak(input: StreakInput): StreakData {
   const streakDays = input.streakDays ?? 0;
+  // Sem a informação, não acusa "em risco" à toa: assume que a constância está em dia
+  const trainedToday = input.trainedToday ?? streakDays > 0;
   return {
     streakDays,
-    // Sem a informação, não acusa "em risco" à toa: assume que a constância está em dia
-    trainedToday: input.trainedToday ?? streakDays > 0,
+    trainedToday,
+    // Worker antigo (sem folga) não manda o campo: qualquer dia sem treino era risco
+    streakAtRisk: input.streakAtRisk ?? (streakDays > 0 && !trainedToday),
     lostStreakDays: input.lostStreakDays ?? 0,
     last7Days: Array.isArray(input.last7Days) ? input.last7Days : [],
   };
 }
 
-export function getStreakState({ streakDays, trainedToday, lostStreakDays }: StreakData): StreakState {
-  if (streakDays > 0 && !trainedToday) return "at-risk";
+export function getStreakState({ streakDays, streakAtRisk, lostStreakDays }: StreakData): StreakState {
+  if (streakDays > 0 && streakAtRisk) return "at-risk";
   if (streakDays === 0) return lostStreakDays >= 2 ? "lost" : "sleeping";
   if (streakDays >= 30) return "legendary";
   if (streakDays >= 14) return "beast";
@@ -49,7 +55,7 @@ export function getStreakState({ streakDays, trainedToday, lostStreakDays }: Str
 
 const STATE_COPY: Record<StreakState, (d: StreakData) => string> = {
   sleeping: () => "Bora acordar esse monstro? Um treino hoje e a constância começa.",
-  "at-risk": (d) => `Sua constância de ${d.streakDays} ${d.streakDays === 1 ? "dia" : "dias"} está em risco! Treina hoje que ainda dá tempo.`,
+  "at-risk": (d) => `Sua constância de ${d.streakDays} ${d.streakDays === 1 ? "dia" : "dias"} está em risco! A folga já foi, treina hoje que ainda dá tempo.`,
   lost: (d) => `Quebramos uma constância de ${d.lostStreakDays} dias… Bora recomeçar hoje?`,
   starting: () => "Começou! Amanhã tem mais, parceiro.",
   warming: () => "Tá aquecendo. Não para agora!",
@@ -64,10 +70,13 @@ export function StreakCard({
   data: input,
   compact = false,
   footer,
+  shields,
 }: {
   data: StreakInput;
   compact?: boolean;
   footer?: React.ReactNode;
+  /** Escudos guardados; ausente quando a gamificação não carregou */
+  shields?: number;
 }) {
   const data = normalizeStreak(input);
   const state = getStreakState(data);
@@ -115,6 +124,15 @@ export function StreakCard({
             <span className="text-sm font-semibold text-muted-foreground">
               {shownDays === 1 ? "dia de constância" : "dias de constância"}
             </span>
+            {shields !== undefined && shields > 0 && (
+              <span
+                className="tabular ml-auto inline-flex items-center gap-1 self-center rounded-full bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary"
+                title={`${shields} ${shields === 1 ? "escudo guardado" : "escudos guardados"}`}
+              >
+                <Shield className="h-3.5 w-3.5 fill-primary/25" aria-hidden />
+                {shields}
+              </span>
+            )}
           </p>
           <p className={cn("mt-1.5 text-sm leading-snug text-foreground/90", compact && "line-clamp-2")}>
             {STATE_COPY[state](data)}
@@ -127,6 +145,12 @@ export function StreakCard({
               const weekday = WEEKDAY_INITIAL[new Date(`${day.date}T12:00:00Z`).getUTCDay()];
               return (
                 <li key={day.date} className="flex flex-col items-center gap-1">
+                  {day.shielded && !day.trained ? (
+                    <Shield
+                      aria-label={`${day.date}: protegido por escudo`}
+                      className="h-2.5 w-2.5 fill-primary/40 text-primary"
+                    />
+                  ) : (
                   <span
                     aria-label={`${day.date}: ${day.trained ? "treinou" : "sem treino"}`}
                     className={cn(
@@ -140,9 +164,10 @@ export function StreakCard({
                           : "bg-muted",
                     )}
                   />
+                  )}
                   <span
                     className={cn(
-                      "text-[10px] leading-none",
+                      "text-[11px] leading-none",
                       isToday ? "font-semibold text-foreground" : "text-muted-foreground",
                     )}
                   >

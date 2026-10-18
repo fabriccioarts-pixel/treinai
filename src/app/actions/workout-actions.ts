@@ -1,8 +1,9 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { refresh } from "next/cache";
 import { auth } from "@/auth";
-import { workerApi } from "@/lib/worker-api";
+import { workerApi, WorkerApiError } from "@/lib/worker-api";
 
 export interface WorkoutExerciseInput {
   exerciseId: string;
@@ -44,7 +45,13 @@ export async function createWorkoutAction(
 
 export async function deleteWorkoutAction(id: string): Promise<void> {
   const session = await auth();
-  if (!session?.user?.id) return;
-  await workerApi.deleteWorkout(id);
+  if (!session?.user?.id) redirect("/login");
+  try {
+    await workerApi.deleteWorkout(session.user.id, id);
+  } catch (err) {
+    // 404: já foi apagado ou não é deste usuário; em ambos os casos não há o que mostrar
+    if (!(err instanceof WorkerApiError && err.status === 404)) throw err;
+  }
+  refresh();
   redirect("/treinos");
 }

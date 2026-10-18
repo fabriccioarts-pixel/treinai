@@ -397,7 +397,7 @@ export function WorkoutBuilder({ exercises }: { exercises: ExerciseOption[] }) {
                         placeholder="Observação: técnica, ajuste do equipamento…"
                         value={row.notes}
                         onChange={(e) => updateRow(row.uid, { notes: e.target.value })}
-                        className="h-10 rounded-xl text-sm"
+                        className="h-11 rounded-xl text-base"
                         autoFocus={row.showNotes && !row.notes}
                       />
                     ) : (
@@ -478,7 +478,7 @@ export function WorkoutBuilder({ exercises }: { exercises: ExerciseOption[] }) {
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Buscar exercício"
-                className="h-full flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground/60"
+                className="h-full flex-1 bg-transparent text-base text-foreground outline-none placeholder:text-muted-foreground/60"
               />
             </div>
             <div className="no-scrollbar -mx-4 flex gap-1.5 overflow-x-auto px-4">

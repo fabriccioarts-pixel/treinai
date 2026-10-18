@@ -3,7 +3,8 @@ import { Illustration, type IllustrationName } from "@/components/ui/illustratio
 
 const SHORTCUTS: { href: string; label: string; art: IllustrationName }[] = [
   { href: "/treinos/novo", label: "Novo treino", art: "new-workout" },
-  { href: "/theo", label: "Théo", art: "theo" },
+  // O Théo já tem aba própria na navegação; aqui entra um destino sem atalho
+  { href: "/progresso/prs", label: "Recordes", art: "pr" },
   { href: "/progresso/fotos", label: "Fotos", art: "photos" },
   { href: "/progresso#metas", label: "Metas", art: "goals" },
 ];

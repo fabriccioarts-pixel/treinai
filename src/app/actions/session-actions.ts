@@ -16,6 +16,7 @@ export async function startWorkoutAction(workoutId: string): Promise<void> {
 
 export interface LogSetResult {
   id?: string;
+  setNumber?: number;
   newPRs?: { type: string; weight: number; reps: number }[];
   newGoals?: { id: string; exerciseName: string; targetWeight: number }[];
   newBadges?: { key: string; label: string; description: string; icon: string }[];
@@ -34,8 +35,8 @@ export async function logSetAction(input: {
   if (input.weight < 0 || input.reps <= 0) return { error: "Valores inválidos." };
 
   try {
-    const { id, newPRs, newGoals, newBadges } = await workerApi.logSet(input);
-    return { id, newPRs, newGoals, newBadges };
+    const { id, setNumber, newPRs, newGoals, newBadges } = await workerApi.logSet(input);
+    return { id, setNumber: setNumber ?? undefined, newPRs, newGoals, newBadges };
   } catch {
     return { error: "Não foi possível salvar a série. Tente novamente." };
   }
@@ -44,6 +45,21 @@ export async function logSetAction(input: {
 async function assertOwnsSession(sessionId: string, userId: string) {
   const { session: workoutSession } = await workerApi.getSession(sessionId).catch(() => ({ session: null }));
   return workoutSession?.user_id === userId ? workoutSession : null;
+}
+
+export async function undoSetAction(sessionId: string, setId: string): Promise<{ error?: string }> {
+  const session = await auth();
+  if (!session?.user?.id) return { error: "Sessão expirada." };
+
+  const owns = await assertOwnsSession(sessionId, session.user.id);
+  if (!owns) return { error: "Sessão de treino não encontrada." };
+
+  try {
+    await workerApi.deleteSet(setId, sessionId);
+    return {};
+  } catch {
+    return { error: "Não foi possível desfazer a série. Tente novamente." };
+  }
 }
 
 export interface UploadPhotoResult {
@@ -99,7 +115,8 @@ export async function finishWorkoutAction(
 
   await workerApi.finishSession(sessionId, durationSeconds);
   refresh();
-  redirect("/");
+  // Resumo com XP, nível e conquistas; sem a rota no worker, a própria página volta para a home
+  redirect(`/treinos/resumo/${sessionId}`);
 }
 
 export async function discardSessionAction(sessionId: string): Promise<void> {

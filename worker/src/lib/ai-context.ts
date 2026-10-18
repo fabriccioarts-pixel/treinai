@@ -1,4 +1,8 @@
 import { loadProfileWithTargets, type ProfileWithTargets } from "./profile";
+import { computeLevel } from "./badges";
+import { loadWeeklyMissions } from "./missions";
+import { loadStreak } from "./streak-shields";
+import { loadTotalXp } from "./xp";
 
 const GOAL_LABEL: Record<string, string> = {
   hipertrofia: "hipertrofia",
@@ -25,7 +29,7 @@ function formatProfile(plan: ProfileWithTargets | null): string {
     `- Rotina fora da academia: ${ACTIVITY_LABEL[p.activityLevel] ?? p.activityLevel}`,
     `- TMB ${t.bmr} kcal; gasto diário estimado ${t.tdee} kcal (treino ≈ ${t.exerciseKcalPerDay} kcal/dia, ${t.exerciseSource === "real" ? "medido pelos treinos registrados" : "estimado pelos dias informados"})`,
     `- Meta diária: ${t.targetKcal} kcal (${t.adjustmentKcal >= 0 ? "+" : ""}${t.adjustmentKcal} kcal em relação ao gasto), proteína ${t.proteinG} g, carboidrato ${t.carbsG} g, gordura ${t.fatG} g`,
-    `- Água hoje: ${(plan.waterTodayMl / 1000).toFixed(1)} L`,
+    `- Meta de água de hoje: ${(plan.waterTodayMl / 1000).toFixed(1)} L`,
   ];
   if (t.deficitBlockedReason) {
     lines.push(
@@ -45,7 +49,7 @@ export async function buildCoachContext(db: D1Database, userId: string): Promise
     .all<{ id: string; name: string; muscle_group: string; equipment: string }>();
 
   const { results: workouts } = await db
-    .prepare("SELECT id, name, description FROM workouts WHERE user_id = ? ORDER BY created_at DESC")
+    .prepare("SELECT id, name, description FROM workouts WHERE user_id = ? AND archived_at IS NULL ORDER BY created_at DESC")
     .bind(userId)
     .all<{ id: string; name: string; description: string | null }>();
 
@@ -56,7 +60,7 @@ export async function buildCoachContext(db: D1Database, userId: string): Promise
        FROM workout_exercises we
        JOIN exercises e ON e.id = we.exercise_id
        JOIN workouts w ON w.id = we.workout_id
-       WHERE w.user_id = ?
+       WHERE w.user_id = ? AND w.archived_at IS NULL
        ORDER BY we.workout_id, we.order_index`
     )
     .bind(userId)
@@ -103,7 +107,24 @@ export async function buildCoachContext(db: D1Database, userId: string): Promise
         )
         .bind(userId, plan.today)
         .first<{ meals: number; kcal: number; protein: number }>()
+        .catch(() => null)
     : null;
+  const waterToday = plan
+    ? await db
+        .prepare("SELECT COALESCE(SUM(amount_ml), 0) AS ml FROM water_logs WHERE user_id = ? AND local_date = ?")
+        .bind(userId, plan.today)
+        .first<{ ml: number }>()
+        .catch(() => null)
+    : null;
+
+  // Consumo de hoje sempre explícito, inclusive quando é zero: sem essa linha o modelo
+  // confundia a meta com o consumido e dizia que o usuário já tinha batido as metas
+  const consumedText = plan
+    ? `\n\nCONSUMO REGISTRADO HOJE (${plan.today} — o que o usuário de fato registrou; não confunda com as metas acima):
+- Refeições: ${eatenToday?.meals ?? 0}, ${Math.round(eatenToday?.kcal ?? 0)} kcal de ${plan.targets.targetKcal} kcal da meta, ${Math.round(eatenToday?.protein ?? 0)} g de proteína (estimativas)
+- Água: ${((waterToday?.ml ?? 0) / 1000).toFixed(1)} L de ${(plan.waterTodayMl / 1000).toFixed(1)} L da meta
+- Só diga que uma meta foi batida se o consumido acima for maior ou igual à meta. Valor zero significa que nada foi registrado ainda.`
+    : "";
 
   const catalogText = exercises
     .map((e) => `- ${e.id} | ${e.name} | ${e.muscle_group} | ${e.equipment}`)
@@ -133,11 +154,7 @@ export async function buildCoachContext(db: D1Database, userId: string): Promise
     : "Nenhum treino concluído ainda.";
 
   return `PERFIL E PLANO NUTRICIONAL (calculado pelo app — use estes números, não recalcule):
-${formatProfile(plan)}${
-    eatenToday?.meals
-      ? `\n- Registrado hoje: ${eatenToday.meals} refeição(ões), ${Math.round(eatenToday.kcal)} kcal e ${Math.round(eatenToday.protein)} g de proteína (estimativas)`
-      : ""
-  }
+${formatProfile(plan)}${consumedText}
 
 CATÁLOGO DE EXERCÍCIOS DISPONÍVEIS (use somente estes ids):
 ${catalogText}
@@ -149,5 +166,36 @@ RECORDES PESSOAIS RECENTES (carga):
 ${prsText}
 
 ÚLTIMOS TREINOS CONCLUÍDOS:
-${sessionsText}`;
+${sessionsText}${await gamificationText(db, userId)}`;
+}
+
+/**
+ * Nível, escudos e missões da semana: o Théo é o "mestre do jogo" e usa isso para motivar
+ * (comemorar conquistas, lembrar o que falta para fechar uma missão).
+ */
+async function gamificationText(db: D1Database, userId: string): Promise<string> {
+  try {
+    const [xp, streak, week] = await Promise.all([
+      loadTotalXp(db, userId),
+      loadStreak(db, userId),
+      loadWeeklyMissions(db, userId),
+    ]);
+    const { level, xpIntoLevel, xpForNextLevel } = computeLevel(xp);
+    const missions = week.missions
+      .map(
+        (m) =>
+          `- ${m.title} (${m.description}): ${m.progress.toLocaleString("pt-BR")}/${m.target.toLocaleString("pt-BR")} ${m.unit}, vale ${m.xp} XP${m.completed ? " — CONCLUÍDA" : ""}`,
+      )
+      .join("\n");
+    return `
+
+GAMIFICAÇÃO (use para motivar; comemore conquistas e diga quanto falta para fechar missões, sem inventar números):
+- Nível ${level} (${xpIntoLevel}/${xpForNextLevel} XP para o próximo), ${xp} XP no total
+- Constância: ${streak.streakDays} dias; escudos guardados: ${streak.shields} (cada escudo salva a constância num dia perdido; ganha 1 a cada 7 dias seguidos)
+- Missões da semana (faltam ${week.daysLeft} dia(s) para acabar):
+${missions}
+- XP extra: meta de água do dia +15, 3 refeições registradas no dia +10, dia dentro da meta de calorias +20`;
+  } catch {
+    return "";
+  }
 }

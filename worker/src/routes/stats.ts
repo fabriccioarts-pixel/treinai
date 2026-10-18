@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { loadStreak } from "../lib/streak-shields";
 
 export const statsRoutes = new Hono<{ Bindings: Env }>();
 
@@ -26,6 +27,7 @@ interface PrRow {
 }
 
 const DAY_MS = 86_400_000;
+const APP_TIME_ZONE = "America/Sao_Paulo";
 
 statsRoutes.get("/", async (c) => {
   const userId = c.req.query("userId");
@@ -75,30 +77,14 @@ statsRoutes.get("/", async (c) => {
     .filter((s) => sessionIdsThisWeek.has(s.session_id))
     .reduce((sum, s) => sum + s.weight * s.reps, 0);
 
-  // --- Constância (dias consecutivos com treino concluído, sem folga) ---
-  // Consulta própria só com as datas: a lista de sessões acima cobre apenas 6 semanas.
-  const { results: trainedDays } = await c.env.DB.prepare(
-    `SELECT DISTINCT substr(finished_at, 1, 10) AS day FROM workout_sessions
-     WHERE user_id = ? AND finished_at IS NOT NULL AND finished_at >= ?`
-  )
-    .bind(userId, new Date(now - 400 * DAY_MS).toISOString())
-    .all<{ day: string }>();
-  const finishedDates = new Set(trainedDays.map((r) => r.day));
+  // --- Constância (dias com treino concluído, tolerando folga curta — ver lib/streak) ---
+  // Consulta própria só com as datas (a lista de sessões acima cobre apenas 6 semanas) e escudos aplicados
+  const streak = await loadStreak(c.env.DB, userId, now);
+  const { streakDays, trainedToday, atRisk: streakAtRisk, lostStreakDays, finishedDays: finishedDates } = streak;
   const dayKey = (daysBack: number) => new Date(now - daysBack * DAY_MS).toISOString().slice(0, 10);
-  const runLength = (fromDaysBack: number) => {
-    let n = 0;
-    while (n < 400 && finishedDates.has(dayKey(fromDaysBack + n))) n++;
-    return n;
-  };
-
-  const trainedToday = finishedDates.has(dayKey(0));
-  // Hoje ainda sem treino não quebra a sequência de ontem (fica "em risco")
-  const streakDays = trainedToday ? runLength(0) : runLength(1);
-  // Sequência que quebrou ontem (treinou anteontem, não treinou ontem nem hoje)
-  const lostStreakDays = !trainedToday && streakDays === 0 ? runLength(2) : 0;
   const last7Days = Array.from({ length: 7 }, (_, i) => {
     const date = dayKey(6 - i);
-    return { date, trained: finishedDates.has(date) };
+    return { date, trained: finishedDates.has(date), shielded: streak.protectedDays.has(date) };
   });
 
   // --- PRs (contamos apenas o tipo "carga" como um PR de destaque) ---
@@ -138,6 +124,25 @@ statsRoutes.get("/", async (c) => {
     const entry = weeklyVolumeSeries.find((b) => b.bucketIndex === bucket);
     if (entry) entry.volume += set.weight * set.reps;
   }
+
+  // --- Volume por dia (últimas 6 semanas), para o mapa de calor ---
+  // Dia no fuso do app, não em UTC: um treino às 22h conta no dia em que foi feito
+  const localDay = new Intl.DateTimeFormat("en-CA", {
+    timeZone: APP_TIME_ZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+  const volumeByDay = new Map<string, number>();
+  for (const set of sets) {
+    const session = sessionById.get(set.session_id);
+    if (!session) continue;
+    const day = localDay.format(new Date(session.started_at));
+    volumeByDay.set(day, (volumeByDay.get(day) ?? 0) + set.weight * set.reps);
+  }
+  const dailyVolume = [...volumeByDay]
+    .map(([date, volume]) => ({ date, volume: Math.round(volume) }))
+    .sort((a, b) => a.date.localeCompare(b.date));
 
   // --- Exercícios que mais evoluíram (1RM estimado: primeiro vs. último registro) ---
   const oneRmByExercise = new Map<string, { name: string; first: PrRow; last: PrRow }>();
@@ -183,12 +188,14 @@ statsRoutes.get("/", async (c) => {
     recentPRsCount,
     streakDays,
     trainedToday,
+    streakAtRisk,
     lostStreakDays,
     last7Days,
     frequencyThisMonth,
     newPRsThisMonth,
     recentPRs,
     weeklyVolumeSeries: weeklyVolumeSeries.map(({ week, volume }) => ({ week, volume })),
+    dailyVolume,
     topMovers,
     loadTrend,
   });

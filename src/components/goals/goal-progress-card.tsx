@@ -1,6 +1,6 @@
 "use client";
 
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import { CheckCircle2, X } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { MUSCLE_GROUP_COLOR } from "@/lib/muscle-colors";
@@ -28,6 +28,7 @@ function formatKg(n: number) {
 
 export function GoalProgressCard({ goal }: { goal: GoalVM }) {
   const [pending, startTransition] = useTransition();
+  const [confirming, setConfirming] = useState(false);
   const color = MUSCLE_GROUP_COLOR[goal.muscleGroup as MuscleGroup] ?? "var(--primary)";
   const achieved = Boolean(goal.achievedAt);
 
@@ -45,13 +46,32 @@ export function GoalProgressCard({ goal }: { goal: GoalVM }) {
             <CheckCircle2 className="h-3 w-3" />
             Batida!
           </span>
+        ) : confirming ? (
+          // Mesma confirmação em linha das refeições: o primeiro toque só arma, o segundo apaga
+          <span className="flex shrink-0 items-center gap-1">
+            <button
+              type="button"
+              onClick={() => setConfirming(false)}
+              disabled={pending}
+              className="rounded-full px-2.5 py-1 text-xs font-semibold text-muted-foreground hover:text-foreground"
+            >
+              Manter
+            </button>
+            <button
+              type="button"
+              disabled={pending}
+              onClick={() => startTransition(async () => { await deleteGoalAction(goal.id); })}
+              className="rounded-full bg-destructive/10 px-2.5 py-1 text-xs font-semibold text-destructive"
+            >
+              {pending ? "Removendo…" : "Remover"}
+            </button>
+          </span>
         ) : (
           <button
             type="button"
             aria-label="Remover meta"
-            disabled={pending}
-            onClick={() => startTransition(async () => { await deleteGoalAction(goal.id); })}
-            className="shrink-0 text-muted-foreground/60 hover:text-destructive"
+            onClick={() => setConfirming(true)}
+            className="-m-2 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted-foreground/60 hover:text-destructive"
           >
             <X className="h-4 w-4" />
           </button>

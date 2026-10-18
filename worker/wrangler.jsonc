@@ -22,7 +22,12 @@
     "logs": { "enabled": true, "head_sampling_rate": 1 },
     "traces": { "enabled": true, "head_sampling_rate": 0.1 }
   },
+  "triggers": {
+    // Lembretes de água e de treino (horários no fuso de cada usuário, ver src/lib/reminders.ts)
+    "crons": ["0 * * * *"]
+  },
   "vars": {
-    "APP_URL": "http://localhost:3000"
+    "APP_URL": "http://localhost:3000",
+    "VAPID_SUBJECT": "mailto:fabriccioarts@gmail.com"
   }
 }

@@ -1,7 +1,26 @@
 import Image from "next/image";
-import { Lock } from "lucide-react";
+import {
+  Droplet,
+  Dumbbell,
+  Flag,
+  Flame,
+  Lock,
+  Medal,
+  Moon,
+  PersonStanding,
+  ScrollText,
+  Shield,
+  Star,
+  Sunrise,
+  Target,
+  TrendingUp,
+  Trophy,
+  Zap,
+  type LucideIcon,
+} from "lucide-react";
 import { PrIcon } from "@/components/ui/app-icon";
 import { cn } from "@/lib/utils";
+import { isBadgeTier, TIER_COLOR, type BadgeTier } from "@/lib/gamification";
 
 /** Conquistas com arte própria em /public/badges/<key>.png */
 const BADGE_ART = new Set([
@@ -17,6 +36,20 @@ const BADGE_ART = new Set([
   "volume-1t",
   "volume-10t",
   "primeira-meta",
+  "sequencia-90",
+  "prs-50",
+  "volume-100t",
+  "agua-7",
+  "agua-30",
+  "missoes-1",
+  "missoes-10",
+  "missoes-30",
+  "dobrou-carga",
+  "corpo-completo",
+  "nivel-10",
+  "madrugador",
+  "coruja",
+  "salvo-pelo-escudo",
 ]);
 
 /**
@@ -24,26 +57,72 @@ const BADGE_ART = new Set([
  * o preto some e só o brilho do emblema aparece sobre o card escuro.
  * Bloqueada = mesma arte em cinza, apagada, com cadeado por cima.
  */
+/** Ícone do emblema para conquistas sem arte própria (nome vindo do catálogo do worker) */
+const FALLBACK_ICONS: Record<string, LucideIcon> = {
+  Flame,
+  Medal,
+  Star,
+  Dumbbell,
+  Droplet,
+  ScrollText,
+  TrendingUp,
+  PersonStanding,
+  Zap,
+  Sunrise,
+  Moon,
+  Shield,
+  Target,
+  Trophy,
+  Flag,
+};
+
 export function BadgeIcon({
   badgeKey,
   unlocked,
+  icon,
+  tier,
   size = 44,
   showLock = true,
   className,
 }: {
   badgeKey: string;
   unlocked: boolean;
+  /** Nome do ícone lucide, usado quando a conquista não tem arte própria */
+  icon?: string;
+  tier?: BadgeTier;
   size?: number;
   showLock?: boolean;
   className?: string;
 }) {
   if (!BADGE_ART.has(badgeKey)) {
+    const Icon = icon ? FALLBACK_ICONS[icon] : undefined;
+    const color = isBadgeTier(tier) ? TIER_COLOR[tier] : "var(--gold)";
     return (
       <div
-        className={cn("flex items-center justify-center", unlocked ? "text-gold" : "text-muted-foreground/50", className)}
-        style={{ width: size, height: size }}
+        className={cn(
+          "relative flex shrink-0 items-center justify-center rounded-full",
+          !unlocked && "opacity-40 grayscale",
+          className,
+        )}
+        style={{
+          width: size,
+          height: size,
+          color,
+          background: `radial-gradient(circle at 35% 30%, color-mix(in oklch, ${color} 35%, transparent), color-mix(in oklch, ${color} 8%, transparent) 70%)`,
+          boxShadow: `inset 0 0 0 ${Math.max(1.5, size / 28)}px color-mix(in oklch, ${color} 70%, transparent)`,
+        }}
       >
-        <PrIcon className="h-1/2 w-1/2" />
+        {Icon ? (
+          <Icon style={{ width: size * 0.46, height: size * 0.46 }} strokeWidth={2.2} />
+        ) : (
+          <PrIcon className="h-1/2 w-1/2" />
+        )}
+        {!unlocked && showLock && (
+          <Lock
+            className="absolute -bottom-0.5 -right-0.5 rounded-full bg-card p-0.5 text-muted-foreground"
+            style={{ width: size * 0.36, height: size * 0.36 }}
+          />
+        )}
       </div>
     );
   }

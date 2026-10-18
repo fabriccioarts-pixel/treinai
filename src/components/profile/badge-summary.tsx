@@ -2,17 +2,21 @@ import Link from "next/link";
 import { ChevronRight } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { BadgeIcon } from "./badge-icon";
+import type { BadgeTier } from "@/lib/gamification";
 
 interface BadgeVM {
   key: string;
   label: string;
   icon: string;
+  tier?: BadgeTier;
+  hidden?: boolean;
   unlocked: boolean;
 }
 
 export function BadgeSummary({ badges }: { badges: BadgeVM[] }) {
   const unlocked = badges.filter((b) => b.unlocked);
-  const preview = badges.slice(0, 5);
+  // Mostra primeiro o que já foi conquistado; secretas fechadas não entram na prévia
+  const preview = [...unlocked, ...badges.filter((b) => !b.unlocked && !b.hidden)].slice(0, 5);
 
   return (
     <Link href="/perfil/conquistas">
@@ -22,6 +26,8 @@ export function BadgeSummary({ badges }: { badges: BadgeVM[] }) {
             <BadgeIcon
               key={badge.key}
               badgeKey={badge.key}
+              icon={badge.icon}
+              tier={badge.tier}
               unlocked={badge.unlocked}
               size={34}
               showLock={false}

@@ -2,14 +2,21 @@
 
 import { useState, useTransition, useRef, useEffect } from "react";
 import Link from "next/link";
-import { Send, CheckCircle2, ArrowRight } from "lucide-react";
-import { ProfileIcon, AiIcon } from "@/components/ui/app-icon";
+import { ArrowUp, CheckCircle2, ArrowRight, AudioLines } from "lucide-react";
+import { AiIcon } from "@/components/ui/app-icon";
 import { motion, AnimatePresence } from "framer-motion";
 import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { askCoachAction } from "@/app/actions/ai-actions";
+import {
+  askCoachAction,
+  runVoiceToolAction,
+  saveVoiceTurnAction,
+  startVoiceSessionAction,
+} from "@/app/actions/ai-actions";
+import { GeminiLiveCall, type CallStatus } from "@/lib/voice/gemini-live-call";
+import type { CoachAction } from "@/lib/worker-api";
 import { AiMessageRenderer, parseAiMessage } from "./ai-message-renderer";
 import { AsciiCoach } from "./ascii-coach";
+import { VoiceCallOverlay } from "./voice-call-overlay";
 
 function CoachAvatar({ pulse = false }: { pulse?: boolean }) {
   return (
@@ -20,9 +27,8 @@ function CoachAvatar({ pulse = false }: { pulse?: boolean }) {
           style={{ animation: "pulse-glow 2s ease-in-out infinite" }}
         />
       )}
-      <div className="relative flex h-7 w-7 items-center justify-center rounded-lg border border-primary/25 bg-gradient-to-b from-primary/15 to-primary/5 text-[11px] font-bold text-primary shadow-xs">
-        T
-      </div>
+      {/* Mesmo rosto em ASCII da aba "Théo" na navegação */}
+      <AsciiCoach variant="icon" className="relative h-8 w-8 rounded-full text-primary ring-1 ring-primary/40" />
     </div>
   );
 }
@@ -44,7 +50,7 @@ function TypingDots() {
   );
 }
 
-interface Turn {
+export interface Turn {
   role: "user" | "assistant";
   text: string;
   actions?: { type: "workout_created" | "workout_updated"; workoutId: string; name: string }[];
@@ -67,11 +73,31 @@ const messageVariants = {
   },
 };
 
-export function AiCoachChat({ autoGreetMessage }: { autoGreetMessage?: string } = {}) {
-  const [turns, setTurns] = useState<Turn[]>([]);
+export function AiCoachChat({
+  autoGreetMessage,
+  onWorkoutCreated,
+  conversationId,
+  initialTurns = [],
+  syncUrl = false,
+  voice = false,
+}: {
+  autoGreetMessage?: string;
+  /** Chamado com o primeiro treino que o Théo criar em cada resposta */
+  onWorkoutCreated?: (workout: { workoutId: string; name: string }) => void;
+  /** Conversa salva sendo continuada; sem ela, a primeira resposta abre uma nova */
+  conversationId?: string;
+  initialTurns?: Turn[];
+  /** Grava a conversa nova na URL (?c=), para recarregar a página sem perder o chat */
+  syncUrl?: boolean;
+  /** Mostra o botão de conversa por voz (Gemini Live) quando o campo está vazio */
+  voice?: boolean;
+} = {}) {
+  const [turns, setTurns] = useState<Turn[]>(initialTurns);
+  const conversationIdRef = useRef(conversationId);
   const [input, setInput] = useState("");
   const [pending, startTransition] = useTransition();
   const bottomRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
   const greetedRef = useRef(false);
   // Mantém o busto "falando" (apagado) por um tempo proporcional ao tamanho da resposta
   const [speaking, setSpeaking] = useState(false);
@@ -83,6 +109,83 @@ export function AiCoachChat({ autoGreetMessage }: { autoGreetMessage?: string } 
 
   useEffect(() => () => clearTimeout(speakingTimerRef.current), []);
 
+  // --- Conversa por voz ---
+  const callRef = useRef<GeminiLiveCall | null>(null);
+  const [callStatus, setCallStatus] = useState<CallStatus | null>(null);
+  const [caption, setCaption] = useState({ user: "", assistant: "" });
+  const [muted, setMuted] = useState(false);
+  /** Treinos que o Théo mexeu durante a troca em andamento */
+  const voiceActionsRef = useRef<CoachAction[]>([]);
+  /** Salva as trocas em ordem: a primeira pode criar a conversa que as próximas usam */
+  const voiceSaveRef = useRef<Promise<void>>(Promise.resolve());
+
+  useEffect(() => () => callRef.current?.hangUp(), []);
+
+  function adoptConversation(id: string | undefined) {
+    if (!id || conversationIdRef.current) return;
+    conversationIdRef.current = id;
+    if (syncUrl) window.history.replaceState(null, "", `?c=${id}`);
+  }
+
+  function startVoice() {
+    if (callRef.current) return;
+    setCaption({ user: "", assistant: "" });
+    setMuted(false);
+    voiceActionsRef.current = [];
+    const call = new GeminiLiveCall({
+      getSession: async () => {
+        const result = await startVoiceSessionAction(conversationIdRef.current);
+        if (!result.session) throw new Error(result.error);
+        return result.session;
+      },
+      onToolCall: async (name, args) => {
+        const { output, actions } = await runVoiceToolAction(name, args);
+        voiceActionsRef.current.push(...actions);
+        const created = actions.find((a) => a.type === "workout_created");
+        if (created) onWorkoutCreated?.({ workoutId: created.workoutId, name: created.name });
+        return output;
+      },
+      onStatus: setCallStatus,
+      onCaption: setCaption,
+      onTurn: ({ userText, reply }) => {
+        const actions = voiceActionsRef.current;
+        voiceActionsRef.current = [];
+        setTurns((prev) => [
+          ...prev,
+          ...(userText ? [{ role: "user" as const, text: userText }] : []),
+          ...(reply || actions.length
+            ? [{ role: "assistant" as const, text: reply, actions: actions.length ? actions : undefined }]
+            : []),
+        ]);
+        setCaption({ user: "", assistant: "" });
+        // Saudação sem fala do usuário fica só na tela: o histórico guarda pares pergunta/resposta
+        if (!userText || !reply) return;
+        voiceSaveRef.current = voiceSaveRef.current.then(async () => {
+          const saved = await saveVoiceTurnAction({
+            conversationId: conversationIdRef.current,
+            userText,
+            reply,
+            actions,
+          });
+          adoptConversation(saved.conversationId);
+        });
+      },
+      onEnd: (error) => {
+        callRef.current = null;
+        setCallStatus(null);
+        if (error) setTurns((prev) => [...prev, { role: "assistant", text: error, error: true }]);
+      },
+    });
+    callRef.current = call;
+    void call.start();
+  }
+
+  function toggleMute() {
+    const next = !muted;
+    setMuted(next);
+    callRef.current?.setMuted(next);
+  }
+
   function pushAssistant(result: Awaited<ReturnType<typeof askCoachAction>>) {
     const text = result.error ?? result.reply ?? "";
     setTurns((prev) => [
@@ -91,6 +194,9 @@ export function AiCoachChat({ autoGreetMessage }: { autoGreetMessage?: string } 
         ? { role: "assistant", text, error: true }
         : { role: "assistant", text, actions: result.actions },
     ]);
+    adoptConversation(result.conversationId);
+    const created = result.actions?.find((a) => a.type === "workout_created");
+    if (created) onWorkoutCreated?.({ workoutId: created.workoutId, name: created.name });
     setSpeaking(true);
     clearTimeout(speakingTimerRef.current);
     speakingTimerRef.current = setTimeout(
@@ -103,7 +209,7 @@ export function AiCoachChat({ autoGreetMessage }: { autoGreetMessage?: string } 
     if (!autoGreetMessage || greetedRef.current) return;
     greetedRef.current = true;
     startTransition(async () => {
-      pushAssistant(await askCoachAction(autoGreetMessage, []));
+      pushAssistant(await askCoachAction(autoGreetMessage, { hidden: true }));
     });
   }, [autoGreetMessage]);
 
@@ -123,8 +229,10 @@ export function AiCoachChat({ autoGreetMessage }: { autoGreetMessage?: string } 
 
     setTurns((prev) => [...prev, { role: "user", text: userText }]);
     setInput("");
+    if (inputRef.current) inputRef.current.style.height = "auto";
     startTransition(async () => {
-      pushAssistant(await askCoachAction(userText, history));
+      // Com conversa salva o worker usa o histórico do banco; o do cliente só vale para worker antigo
+      pushAssistant(await askCoachAction(userText, { conversationId: conversationIdRef.current, history }));
     });
   }
 
@@ -241,7 +349,7 @@ export function AiCoachChat({ autoGreetMessage }: { autoGreetMessage?: string } 
                               <CheckCircle2 className="h-4.5 w-4.5" />
                             </div>
                             <div className="min-w-0">
-                              <span className="text-[10px] font-bold uppercase tracking-wider text-primary">
+                              <span className="text-[11px] font-bold uppercase tracking-wider text-primary">
                                 {action.type === "workout_created" ? "Treino criado" : "Treino atualizado"}
                               </span>
                               <h4 className="truncate text-sm font-semibold text-foreground">
@@ -289,32 +397,68 @@ export function AiCoachChat({ autoGreetMessage }: { autoGreetMessage?: string } 
       </div>
       </div>
 
-      {/* Input bar — glass with glow on focus */}
+      {/* Input bar — single pill with the send button inside, ChatGPT-style */}
       <form
         onSubmit={(e) => {
           e.preventDefault();
           send(input);
         }}
-        className="mt-4 flex items-center gap-2.5"
+        className="mt-4 flex items-end gap-2 rounded-[28px] border border-border/60 bg-secondary/50 py-2 pl-5 pr-2 shadow-lg shadow-black/20 backdrop-blur-md transition-colors focus-within:border-border"
       >
-        <div className="group/input relative flex h-12 flex-1 items-center gap-2.5 rounded-2xl border border-border/50 bg-secondary/40 px-4 transition-all duration-300 focus-within:border-primary/40 focus-within:bg-secondary/60 focus-within:shadow-lg focus-within:shadow-primary/5">
-          <ProfileIcon className="h-4 w-4 shrink-0 text-muted-foreground transition-colors group-focus-within/input:text-primary/60" />
-          <input
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder="Escreva para o personal trainer…"
-            className="h-full flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground/60"
-          />
-        </div>
-        <Button
-          type="submit"
-          size="icon"
-          className="h-12 w-12 shrink-0 rounded-2xl bg-gradient-to-br from-primary to-primary/80 shadow-lg shadow-primary/20 transition-all duration-300 hover:shadow-xl hover:shadow-primary/30 disabled:opacity-40 disabled:shadow-none"
-          disabled={pending}
-        >
-          <Send className="h-4.5 w-4.5" />
-        </Button>
+        <textarea
+          ref={inputRef}
+          rows={1}
+          value={input}
+          onChange={(e) => {
+            setInput(e.target.value);
+            const el = e.target;
+            el.style.height = "auto";
+            el.style.height = `${Math.min(el.scrollHeight, 160)}px`;
+          }}
+          onKeyDown={(e) => {
+            // Enter envia; Shift+Enter quebra linha
+            if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
+              e.preventDefault();
+              e.currentTarget.form?.requestSubmit();
+            }
+          }}
+          placeholder="Escreva para o personal trainer…"
+          className="max-h-40 min-h-10 flex-1 resize-none bg-transparent py-2 text-base leading-6 text-foreground outline-none placeholder:text-muted-foreground/60"
+        />
+        {/* Campo vazio: o botão abre a conversa por voz, como no ChatGPT */}
+        {voice && !input.trim() ? (
+          <button
+            type="button"
+            onClick={startVoice}
+            aria-label="Conversar por voz com o Théo"
+            disabled={pending || callStatus !== null}
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-foreground text-background transition-opacity hover:opacity-85 disabled:cursor-not-allowed disabled:opacity-30"
+          >
+            <AudioLines className="h-5 w-5" strokeWidth={2.25} />
+          </button>
+        ) : (
+          <button
+            type="submit"
+            aria-label="Enviar mensagem"
+            disabled={pending || !input.trim()}
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-foreground text-background transition-opacity hover:opacity-85 disabled:cursor-not-allowed disabled:opacity-30"
+          >
+            <ArrowUp className="h-5 w-5" strokeWidth={2.5} />
+          </button>
+        )}
       </form>
+
+      <AnimatePresence>
+        {callStatus && (
+          <VoiceCallOverlay
+            status={callStatus}
+            caption={caption}
+            muted={muted}
+            onToggleMute={toggleMute}
+            onHangUp={() => callRef.current?.hangUp()}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }

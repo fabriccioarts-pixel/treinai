@@ -49,6 +49,97 @@ export class MealAnalysisError extends Error {
 }
 
 export async function analyzeMeal(apiKey: string, input: MealAnalysisInput): Promise<MealEstimate> {
+  const round = (n: number) => Math.max(0, Math.round(n));
+
+  if (apiKey.startsWith("AQ.") || apiKey.startsWith("AIza") || !apiKey.startsWith("sk-ant-")) {
+    const model = "gemini-3.8-flash";
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+
+    const parts: any[] = [];
+    if (input.kind === "photo") {
+      parts.push({
+        inlineData: {
+          mimeType: input.mediaType,
+          data: input.base64,
+        },
+      });
+      parts.push({ text: "Estime os alimentos deste prato." });
+    } else {
+      parts.push({ text: `Estime os alimentos desta refeição: ${input.text}` });
+    }
+
+    const payload = {
+      systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
+      contents: [{ role: "user", parts }],
+      generationConfig: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: "OBJECT",
+          properties: {
+            items: {
+              type: "ARRAY",
+              items: {
+                type: "OBJECT",
+                properties: {
+                  name: { type: "STRING" },
+                  grams: { type: "NUMBER" },
+                  kcal: { type: "NUMBER" },
+                  protein_g: { type: "NUMBER" },
+                  carbs_g: { type: "NUMBER" },
+                  fat_g: { type: "NUMBER" },
+                },
+                required: ["name", "grams", "kcal", "protein_g", "carbs_g", "fat_g"],
+              },
+            },
+            confidence: { type: "STRING", enum: ["alta", "media", "baixa"] },
+            note: { type: "STRING" },
+          },
+          required: ["items", "confidence", "note"],
+        },
+      },
+    };
+
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+
+    if (!res.ok) {
+      const errText = await res.text();
+      console.error("Gemini meal analysis HTTP error:", errText);
+      throw new MealAnalysisError("unparseable");
+    }
+
+    const data = (await res.json()) as any;
+    const resParts = data.candidates?.[0]?.content?.parts || [];
+    const textPart = resParts.find((p: any) => typeof p.text === "string" && p.text.trim());
+    const textOutput = textPart?.text;
+    if (!textOutput) throw new MealAnalysisError("unparseable");
+
+    try {
+      const parsed = JSON.parse(textOutput);
+      const validated = MealEstimateSchema.safeParse(parsed);
+      if (!validated.success) throw new MealAnalysisError("unparseable");
+
+      return {
+        ...validated.data,
+        items: validated.data.items
+          .filter((i) => i.name.trim() && i.grams > 0)
+          .map((i) => ({
+            name: i.name.trim().slice(0, 80),
+            grams: round(i.grams),
+            kcal: round(i.kcal),
+            protein_g: round(i.protein_g),
+            carbs_g: round(i.carbs_g),
+            fat_g: round(i.fat_g),
+          })),
+      };
+    } catch {
+      throw new MealAnalysisError("unparseable");
+    }
+  }
+
   const client = new Anthropic({ apiKey });
 
   const content: Anthropic.Beta.BetaContentBlockParam[] =
@@ -74,7 +165,6 @@ export async function analyzeMeal(apiKey: string, input: MealAnalysisInput): Pro
   if (response.stop_reason === "refusal") throw new MealAnalysisError("refused");
   if (!response.parsed_output) throw new MealAnalysisError("unparseable");
 
-  const round = (n: number) => Math.max(0, Math.round(n));
   return {
     ...response.parsed_output,
     items: response.parsed_output.items

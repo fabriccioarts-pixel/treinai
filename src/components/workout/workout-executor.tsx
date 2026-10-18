@@ -1,15 +1,26 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
-import { Check, ChevronLeft, ChevronRight, X } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { AnimatePresence, motion } from "framer-motion";
+import { Check, ChevronLeft, ChevronRight, Undo2, X } from "lucide-react";
 import { PhotoIcon, StartIcon, GoalIcon, PrIcon } from "@/components/ui/app-icon";
 import { Card } from "@/components/ui/card";
 import { BadgeIcon } from "@/components/profile/badge-icon";
+import { Confetti } from "@/components/gamification/confetti";
+import { ExerciseDemo } from "@/components/workout/exercise-demo";
 import { Button } from "@/components/ui/button";
 import { MUSCLE_GROUP_LABEL } from "@/lib/muscle-groups";
 import { MUSCLE_GROUP_COLOR } from "@/lib/muscle-colors";
 import type { MuscleGroup } from "@/lib/types";
-import { logSetAction, uploadSessionPhotoAction, finishWorkoutAction } from "@/app/actions/session-actions";
+import { usePreferences } from "@/lib/preferences";
+import {
+  logSetAction,
+  undoSetAction,
+  uploadSessionPhotoAction,
+  finishWorkoutAction,
+  discardSessionAction,
+} from "@/app/actions/session-actions";
 
 interface ExerciseVM {
   id: string;
@@ -24,6 +35,14 @@ interface ExerciseVM {
 }
 
 interface LoggedSetVM {
+  id: string;
+  set_number: number;
+  weight: number;
+  reps: number;
+}
+
+/** Série da última sessão em que o exercício foi feito */
+export interface PreviousSetVM {
   set_number: number;
   weight: number;
   reps: number;
@@ -36,8 +55,67 @@ const PR_LABEL: Record<string, string> = {
   volume: "Volume",
 };
 
+const REST_EXTENSION_SECONDS = 30;
+
 function formatKg(n: number) {
   return Number.isInteger(n) ? String(n) : n.toFixed(1);
+}
+
+/**
+ * Valores iniciais da próxima série: o que já foi feito nesta sessão,
+ * senão a primeira série da última vez, senão carga zero e o mínimo de repetições.
+ */
+function prefillFor(exercise: ExerciseVM, logged: LoggedSetVM[], previous: PreviousSetVM[] | undefined) {
+  const last = logged.at(-1);
+  if (last) return { weight: last.weight, reps: last.reps };
+  const first = previous?.find((s) => s.set_number === 1) ?? previous?.[0];
+  return { weight: first?.weight ?? 0, reps: first?.reps ?? exercise.target_reps_min };
+}
+
+/** Vibração e dois bipes curtos, conforme as preferências. O AudioContext é criado num toque do usuário (exigência do iOS). */
+function alertRestOver(audio: AudioContext | null, { sound, vibration }: { sound: boolean; vibration: boolean }) {
+  if (vibration && "vibrate" in navigator) navigator.vibrate([200, 100, 200]);
+  if (!sound || !audio) return;
+  const start = audio.currentTime;
+  for (const offset of [0, 0.25]) {
+    const osc = audio.createOscillator();
+    const gain = audio.createGain();
+    osc.frequency.value = 880;
+    gain.gain.setValueAtTime(0.0001, start + offset);
+    gain.gain.exponentialRampToValueAtTime(0.25, start + offset + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.0001, start + offset + 0.18);
+    osc.connect(gain).connect(audio.destination);
+    osc.start(start + offset);
+    osc.stop(start + offset + 0.2);
+  }
+}
+
+/** Mantém a tela acesa durante o treino; o navegador solta a trava ao esconder a aba, então ela é pedida de novo ao voltar. */
+function useWakeLock(enabled: boolean) {
+  useEffect(() => {
+    if (!enabled || !("wakeLock" in navigator)) return;
+    let sentinel: WakeLockSentinel | null = null;
+    let cancelled = false;
+
+    async function acquire() {
+      if (document.visibilityState !== "visible") return;
+      try {
+        const next = await navigator.wakeLock.request("screen");
+        if (cancelled) void next.release();
+        else sentinel = next;
+      } catch {
+        // Recusado (ex.: modo economia de energia): o treino segue normalmente
+      }
+    }
+
+    void acquire();
+    document.addEventListener("visibilitychange", acquire);
+    return () => {
+      cancelled = true;
+      document.removeEventListener("visibilitychange", acquire);
+      void sentinel?.release();
+    };
+  }, [enabled]);
 }
 
 function NumberStepper({
@@ -46,6 +124,8 @@ function NumberStepper({
   step,
   min,
   unit,
+  label,
+  integer = false,
   formatValue,
 }: {
   value: number;
@@ -53,28 +133,55 @@ function NumberStepper({
   step: number;
   min: number;
   unit: string;
+  label: string;
+  integer?: boolean;
   formatValue?: (n: number) => string;
 }) {
+  // Texto em edição; null quando o campo não está focado
+  const [draft, setDraft] = useState<string | null>(null);
+  const display = formatValue ? formatValue(value) : String(value);
+  const round = (n: number) => (integer ? Math.round(n) : Math.round(n * 10) / 10);
+
+  function commit(raw: string) {
+    const parsed = Number(raw.replace(",", ".").trim());
+    if (raw.trim() !== "" && Number.isFinite(parsed)) onChange(Math.max(min, round(parsed)));
+    setDraft(null);
+  }
+
   return (
-    <div className="flex items-center justify-between rounded-2xl bg-muted px-3 py-2.5">
+    <div className="flex items-center justify-between gap-1 rounded-2xl bg-muted px-2 py-2">
       <button
         type="button"
-        onClick={() => onChange(Math.max(min, Math.round((value - step) * 10) / 10))}
-        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-card text-lg font-semibold text-foreground"
+        onClick={() => onChange(Math.max(min, round(value - step)))}
+        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-card text-xl font-semibold text-foreground active:scale-95"
         aria-label={`Diminuir ${unit}`}
       >
         −
       </button>
-      <div className="text-center">
-        <p className="tabular text-[22px] leading-none font-bold text-foreground">
-          {formatValue ? formatValue(value) : value}
-        </p>
-        <p className="mt-1 text-[10px] text-muted-foreground">{unit}</p>
-      </div>
+      <label className="min-w-0 flex-1 text-center">
+        <input
+          type="text"
+          inputMode={integer ? "numeric" : "decimal"}
+          enterKeyHint="done"
+          aria-label={label}
+          value={draft ?? display}
+          onFocus={(e) => {
+            setDraft(display);
+            e.target.select();
+          }}
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={(e) => commit(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") e.currentTarget.blur();
+          }}
+          className="tabular w-full bg-transparent text-center text-[22px] leading-none font-bold text-foreground outline-none"
+        />
+        <span className="mt-1 block text-[11px] text-muted-foreground">{unit}</span>
+      </label>
       <button
         type="button"
-        onClick={() => onChange(Math.round((value + step) * 10) / 10)}
-        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-card text-lg font-semibold text-foreground"
+        onClick={() => onChange(round(value + step))}
+        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-card text-xl font-semibold text-foreground active:scale-95"
         aria-label={`Aumentar ${unit}`}
       >
         +
@@ -89,18 +196,21 @@ export function WorkoutExecutor({
   startedAt,
   exercises,
   initialSets,
+  previousSets,
 }: {
   sessionId: string;
   workoutName: string;
   startedAt: string;
   exercises: ExerciseVM[];
-  initialSets: { exercise_id: string; set_number: number; weight: number; reps: number }[];
+  initialSets: { id: string; exercise_id: string; set_number: number; weight: number; reps: number }[];
+  previousSets: Record<string, PreviousSetVM[]>;
 }) {
   const [index, setIndex] = useState(0);
   const [loggedByExercise, setLoggedByExercise] = useState<Record<string, LoggedSetVM[]>>(() => {
     const grouped: Record<string, LoggedSetVM[]> = {};
     for (const set of initialSets) {
       (grouped[set.exercise_id] ??= []).push({
+        id: set.id,
         set_number: set.set_number,
         weight: set.weight,
         reps: set.reps,
@@ -108,36 +218,61 @@ export function WorkoutExecutor({
     }
     return grouped;
   });
-  const [weight, setWeight] = useState(0);
-  const [reps, setReps] = useState(exercises[0].target_reps_min);
+  const [weight, setWeight] = useState(
+    () => prefillFor(exercises[0], loggedByExercise[exercises[0].exercise_id] ?? [], previousSets[exercises[0].exercise_id]).weight
+  );
+  const [reps, setReps] = useState(
+    () => prefillFor(exercises[0], loggedByExercise[exercises[0].exercise_id] ?? [], previousSets[exercises[0].exercise_id]).reps
+  );
   const [settledIndex, setSettledIndex] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [prBanner, setPrBanner] = useState<string[] | null>(null);
   const [totalPRs, setTotalPRs] = useState(0);
   const [goalBanner, setGoalBanner] = useState<string[] | null>(null);
-  const [badgeBanner, setBadgeBanner] = useState<{ key: string; label: string; description: string }[] | null>(null);
+  const [badgeBanner, setBadgeBanner] = useState<
+    { key: string; label: string; description: string; icon?: string }[] | null
+  >(null);
   const [finishing, setFinishing] = useState(false);
-  const [restRemaining, setRestRemaining] = useState<number | null>(null);
+  // Descanso guardado como horário de término: não atrasa quando o navegador segura os timers com a tela bloqueada
+  const [rest, setRest] = useState<{ endsAt: number; total: number } | null>(null);
+  const [now, setNow] = useState(() => Date.now());
   const [pending, startTransition] = useTransition();
+  const [undoing, startUndo] = useTransition();
+  const audioRef = useRef<AudioContext | null>(null);
+  const prsBySetRef = useRef<Record<string, number>>({});
+
+  const prefs = usePreferences();
+  useWakeLock(prefs.keepScreenOn);
 
   const exercise = exercises[index];
+  const nextExercise = exercises[index + 1];
   const muscleColor = MUSCLE_GROUP_COLOR[exercise.muscle_group as MuscleGroup] ?? "var(--muted-foreground)";
   const loggedSets = loggedByExercise[exercise.exercise_id] ?? [];
+  const previous = previousSets[exercise.exercise_id];
+  const previousForNextSet = previous?.find((s) => s.set_number === loggedSets.length + 1);
   const isLastExercise = index === exercises.length - 1;
+  const targetDone = loggedSets.length >= exercise.target_sets;
 
   if (index !== settledIndex) {
     setSettledIndex(index);
-    const sets = loggedByExercise[exercise.exercise_id] ?? [];
-    const last = sets[sets.length - 1];
-    setWeight(last ? last.weight : 0);
-    setReps(last ? last.reps : exercise.target_reps_min);
+    const next = prefillFor(exercise, loggedByExercise[exercise.exercise_id] ?? [], previous);
+    setWeight(next.weight);
+    setReps(next.reps);
   }
 
   useEffect(() => {
-    if (restRemaining === null || restRemaining <= 0) return;
-    const timer = setTimeout(() => setRestRemaining((r) => (r === null ? null : r - 1)), 1000);
-    return () => clearTimeout(timer);
-  }, [restRemaining]);
+    if (!rest) return;
+    const timer = setInterval(() => {
+      const t = Date.now();
+      if (t >= rest.endsAt) {
+        setRest(null);
+        alertRestOver(audioRef.current, { sound: prefs.restSound, vibration: prefs.restVibration });
+      } else {
+        setNow(t);
+      }
+    }, 250);
+    return () => clearInterval(timer);
+  }, [rest, prefs.restSound, prefs.restVibration]);
 
   const [elapsed, setElapsed] = useState(() => Math.max(0, Date.now() - new Date(startedAt).getTime()));
   useEffect(() => {
@@ -165,6 +300,8 @@ export function WorkoutExecutor({
     return () => clearTimeout(timeout);
   }, [badgeBanner]);
 
+  useEffect(() => () => void audioRef.current?.close(), []);
+
   function formatElapsed(ms: number) {
     const totalSeconds = Math.floor(ms / 1000);
     const minutes = Math.floor(totalSeconds / 60);
@@ -175,7 +312,22 @@ export function WorkoutExecutor({
   function formatRest(seconds: number) {
     const minutes = Math.floor(seconds / 60);
     const rest = seconds % 60;
-    return minutes > 0 ? `${minutes}:${rest.toString().padStart(2, "0")}` : `0:${rest.toString().padStart(2, "0")}`;
+    return `${minutes}:${rest.toString().padStart(2, "0")}`;
+  }
+
+  function primeAudio() {
+    try {
+      audioRef.current ??= new AudioContext();
+      void audioRef.current.resume();
+    } catch {
+      // Sem Web Audio: o aviso fica só na vibração
+    }
+  }
+
+  function startRest(seconds: number) {
+    const t = Date.now();
+    setNow(t);
+    setRest(seconds > 0 ? { endsAt: t + seconds * 1000, total: seconds } : null);
   }
 
   function handleLogSet() {
@@ -184,6 +336,7 @@ export function WorkoutExecutor({
       setError("Informe as repetições feitas.");
       return;
     }
+    primeAudio();
 
     startTransition(async () => {
       const result = await logSetAction({
@@ -193,21 +346,26 @@ export function WorkoutExecutor({
         weight,
         reps,
       });
-      if (result.error) {
-        setError(result.error);
+      if (result.error || !result.id) {
+        setError(result.error ?? "Não foi possível salvar a série. Tente novamente.");
         return;
       }
+      const setId = result.id;
       setLoggedByExercise((prev) => ({
         ...prev,
         [exercise.exercise_id]: [
           ...(prev[exercise.exercise_id] ?? []),
-          { set_number: loggedSets.length + 1, weight, reps },
+          // O servidor numera a série; a contagem local é só para worker antigo
+          { id: setId, set_number: result.setNumber ?? loggedSets.length + 1, weight, reps },
         ],
       }));
-      setRestRemaining(exercise.rest_time);
+      startRest(exercise.rest_time);
       if (result.newPRs && result.newPRs.length > 0) {
+        prsBySetRef.current[setId] = result.newPRs.length;
         setTotalPRs((n) => n + result.newPRs!.length);
         setPrBanner(result.newPRs.map((pr) => `${PR_LABEL[pr.type] ?? pr.type}: ${pr.weight}kg × ${pr.reps}`));
+        // Recorde é o momento de comemorar: vibração longa além do confete
+        if ("vibrate" in navigator) navigator.vibrate([40, 60, 40, 60, 120]);
       }
       if (result.newGoals && result.newGoals.length > 0) {
         setGoalBanner(
@@ -215,16 +373,48 @@ export function WorkoutExecutor({
         );
       }
       if (result.newBadges && result.newBadges.length > 0) {
-        setBadgeBanner(result.newBadges.map((b) => ({ key: b.key, label: b.label, description: b.description })));
+        setBadgeBanner(
+          result.newBadges.map((b) => ({ key: b.key, label: b.label, description: b.description, icon: b.icon }))
+        );
       }
+    });
+  }
+
+  function handleUndoLastSet() {
+    const last = loggedSets.at(-1);
+    if (!last) return;
+    setError(null);
+
+    startUndo(async () => {
+      const result = await undoSetAction(sessionId, last.id);
+      if (result.error) {
+        setError(result.error);
+        return;
+      }
+      setLoggedByExercise((prev) => ({
+        ...prev,
+        [exercise.exercise_id]: (prev[exercise.exercise_id] ?? []).filter((s) => s.id !== last.id),
+      }));
+      setTotalPRs((n) => Math.max(0, n - (prsBySetRef.current[last.id] ?? 0)));
+      delete prsBySetRef.current[last.id];
+      // Volta os valores da série desfeita para o stepper: o caso comum é corrigir um número
+      setWeight(last.weight);
+      setReps(last.reps);
+      setRest(null);
+      setPrBanner(null);
     });
   }
 
   function goTo(nextIndex: number) {
     if (nextIndex < 0 || nextIndex >= exercises.length) return;
     setError(null);
-    setRestRemaining(null);
+    setRest(null);
     setIndex(nextIndex);
+  }
+
+  function openFinish() {
+    setRest(null);
+    setFinishing(true);
   }
 
   if (finishing) {
@@ -240,11 +430,57 @@ export function WorkoutExecutor({
     );
   }
 
-  const restPct = restRemaining !== null ? Math.max(0, (restRemaining / exercise.rest_time) * 100) : 0;
+  const restRemaining = rest ? Math.max(0, Math.ceil((rest.endsAt - now) / 1000)) : null;
+  const restPct = rest && restRemaining !== null ? Math.min(100, (restRemaining / rest.total) * 100) : 0;
   const filledDots = Math.min(exercise.target_sets, loggedSets.length);
 
   return (
     <div>
+      <Confetti fireKey={prBanner ? prBanner.join("|") : null} />
+      {/* Avisos de conquista por cima do conteúdo, para não empurrar o botão de registrar */}
+      <div
+        aria-live="polite"
+        className="pointer-events-none fixed inset-x-0 top-0 z-50 mx-auto max-w-md space-y-2 px-4 pt-[calc(env(safe-area-inset-top)+12px)] sm:max-w-lg"
+      >
+        <AnimatePresence>
+          {prBanner && (
+            <Toast key="pr" onDismiss={() => setPrBanner(null)} tint="var(--gold)">
+              <PrIcon className="mt-0.5 h-4 w-4 shrink-0 text-gold" />
+              <div className="space-y-0.5">
+                <p className="font-bold text-gold">Novo recorde pessoal!</p>
+                {prBanner.map((line) => (
+                  <p key={line} className="text-foreground">{line}</p>
+                ))}
+              </div>
+            </Toast>
+          )}
+          {goalBanner && (
+            <Toast key="goal" onDismiss={() => setGoalBanner(null)} tint="var(--primary)">
+              <GoalIcon className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+              <div className="space-y-0.5">
+                <p className="font-bold text-primary">Meta batida! 🎯</p>
+                {goalBanner.map((line) => (
+                  <p key={line} className="text-foreground">{line}</p>
+                ))}
+              </div>
+            </Toast>
+          )}
+          {badgeBanner && (
+            <Toast key="badge" onDismiss={() => setBadgeBanner(null)} tint="var(--accent)">
+              <BadgeIcon badgeKey={badgeBanner[0].key} icon={badgeBanner[0].icon} unlocked size={52} />
+              <div className="space-y-0.5">
+                <p className="font-bold text-accent">Conquista desbloqueada!</p>
+                {badgeBanner.map((b) => (
+                  <p key={b.label} className="text-foreground">
+                    <span className="font-semibold">{b.label}</span> — {b.description}
+                  </p>
+                ))}
+              </div>
+            </Toast>
+          )}
+        </AnimatePresence>
+      </div>
+
       <div className="mb-5 flex items-center justify-between">
         <div>
           <p className="text-xs font-medium text-muted-foreground">{workoutName}</p>
@@ -254,11 +490,9 @@ export function WorkoutExecutor({
         </div>
         <Button
           type="button"
+          variant="outline"
           className="h-10 rounded-full px-5 text-sm font-semibold"
-          onClick={() => {
-            setRestRemaining(null);
-            setFinishing(true);
-          }}
+          onClick={openFinish}
         >
           Finalizar
         </Button>
@@ -269,7 +503,7 @@ export function WorkoutExecutor({
           type="button"
           variant="ghost"
           size="icon"
-          className="rounded-full"
+          className="size-10 rounded-full"
           onClick={() => goTo(index - 1)}
           disabled={index === 0}
           aria-label="Exercício anterior"
@@ -283,7 +517,7 @@ export function WorkoutExecutor({
           type="button"
           variant="ghost"
           size="icon"
-          className="rounded-full"
+          className="size-10 rounded-full"
           onClick={() => goTo(index + 1)}
           disabled={isLastExercise}
           aria-label="Próximo exercício"
@@ -298,78 +532,53 @@ export function WorkoutExecutor({
         />
       </div>
 
-      {restRemaining !== null && restRemaining > 0 && (
+      {rest && restRemaining !== null && (
         <div
+          role="timer"
+          aria-label="Tempo de descanso"
           className="mb-4 flex items-center gap-3 rounded-2xl p-3"
           style={{ background: "color-mix(in oklch, var(--primary), transparent 88%)" }}
         >
           <div
-            className="relative h-11 w-11 shrink-0 rounded-full"
+            className="relative h-12 w-12 shrink-0 rounded-full"
             style={{ background: `conic-gradient(var(--primary) ${restPct}%, var(--muted) ${restPct}% 100%)` }}
           >
             <div className="absolute inset-[3px] flex items-center justify-center rounded-full bg-background">
               <span className="tabular text-xs font-bold text-foreground">{formatRest(restRemaining)}</span>
             </div>
           </div>
-          <div className="flex-1">
-            <p className="text-[13px] font-semibold text-foreground">Descansando</p>
-            <p className="text-xs text-muted-foreground">Próxima série em instantes</p>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold text-foreground">Descansando</p>
+            <p className="text-xs text-muted-foreground">
+              {prefs.restSound && prefs.restVibration
+                ? "Vibra e toca quando acabar"
+                : prefs.restSound
+                  ? "Toca quando acabar"
+                  : prefs.restVibration
+                    ? "Vibra quando acabar"
+                    : "Aviso desligado nas preferências"}
+            </p>
           </div>
           <Button
             type="button"
             size="sm"
-            className="h-[30px] rounded-full bg-muted px-3 text-xs font-semibold text-foreground hover:bg-muted/70"
-            onClick={() => setRestRemaining(null)}
+            className="h-9 rounded-full bg-muted px-3 text-xs font-semibold text-foreground hover:bg-muted/70"
+            onClick={() =>
+              setRest((r) =>
+                r ? { endsAt: r.endsAt + REST_EXTENSION_SECONDS * 1000, total: r.total + REST_EXTENSION_SECONDS } : r
+              )
+            }
+          >
+            +{REST_EXTENSION_SECONDS}s
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            className="h-9 rounded-full bg-muted px-3 text-xs font-semibold text-foreground hover:bg-muted/70"
+            onClick={() => setRest(null)}
           >
             Pular
           </Button>
-        </div>
-      )}
-
-      {prBanner && (
-        <div
-          className="mb-4 flex items-start gap-2 rounded-2xl p-3 text-sm"
-          style={{ background: "color-mix(in oklch, var(--gold), transparent 85%)", boxShadow: "inset 0 0 0 1px color-mix(in oklch, var(--gold), transparent 65%)" }}
-        >
-          <PrIcon className="mt-0.5 h-4 w-4 shrink-0 text-gold" />
-          <div className="space-y-0.5">
-            <p className="font-bold text-gold">Novo recorde pessoal!</p>
-            {prBanner.map((line) => (
-              <p key={line} className="text-foreground">{line}</p>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {goalBanner && (
-        <div
-          className="mb-4 flex items-start gap-2 rounded-2xl p-3 text-sm"
-          style={{ background: "color-mix(in oklch, var(--primary), transparent 85%)", boxShadow: "inset 0 0 0 1px color-mix(in oklch, var(--primary), transparent 65%)" }}
-        >
-          <GoalIcon className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-          <div className="space-y-0.5">
-            <p className="font-bold text-primary">Meta batida! 🎯</p>
-            {goalBanner.map((line) => (
-              <p key={line} className="text-foreground">{line}</p>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {badgeBanner && (
-        <div
-          className="mb-4 flex items-center gap-3 rounded-2xl p-3 text-sm"
-          style={{ background: "color-mix(in oklch, var(--accent), transparent 85%)", boxShadow: "inset 0 0 0 1px color-mix(in oklch, var(--accent), transparent 65%)" }}
-        >
-          <BadgeIcon badgeKey={badgeBanner[0].key} unlocked size={52} />
-          <div className="space-y-0.5">
-            <p className="font-bold text-accent">Conquista desbloqueada!</p>
-            {badgeBanner.map((b) => (
-              <p key={b.label} className="text-foreground">
-                <span className="font-semibold">{b.label}</span> — {b.description}
-              </p>
-            ))}
-          </div>
         </div>
       )}
 
@@ -383,7 +592,7 @@ export function WorkoutExecutor({
             </p>
             <h1 className="mt-0.5 text-xl leading-tight font-bold text-foreground">{exercise.exercise_name}</h1>
           </div>
-          <div className="mt-1 flex shrink-0 gap-1">
+          <div className="mt-1 flex shrink-0 gap-1" aria-label={`${loggedSets.length} de ${exercise.target_sets} séries`}>
             {Array.from({ length: exercise.target_sets }).map((_, i) => (
               <span
                 key={i}
@@ -404,32 +613,69 @@ export function WorkoutExecutor({
           )}
         </div>
 
+        <ExerciseDemo
+          key={exercise.exercise_id}
+          exerciseId={exercise.exercise_id}
+          exerciseName={exercise.exercise_name}
+        />
+
         {loggedSets.length > 0 && (
           <div className="flex flex-col gap-1.5">
-            {loggedSets.map((set) => (
-              <div
-                key={set.set_number}
-                className="flex items-center justify-between rounded-xl bg-muted px-3 py-2 text-sm"
-              >
-                <span className="flex items-center gap-2 text-foreground">
-                  <Check className="h-3.5 w-3.5 text-primary" strokeWidth={3} />
-                  Série {set.set_number}
-                </span>
-                <span className="tabular text-muted-foreground">
-                  {formatKg(set.weight)}kg × {set.reps}
-                </span>
-              </div>
-            ))}
+            {loggedSets.map((set, i) => {
+              const isLast = i === loggedSets.length - 1;
+              return (
+                <div
+                  key={set.id}
+                  className="flex items-center justify-between gap-2 rounded-xl bg-muted px-3 py-2 text-sm"
+                >
+                  <span className="flex items-center gap-2 text-foreground">
+                    <Check className="h-3.5 w-3.5 text-primary" strokeWidth={3} />
+                    Série {set.set_number}
+                  </span>
+                  <span className="flex items-center gap-2">
+                    <span className="tabular text-muted-foreground">
+                      {formatKg(set.weight)}kg × {set.reps}
+                    </span>
+                    {isLast && (
+                      <button
+                        type="button"
+                        onClick={handleUndoLastSet}
+                        disabled={undoing || pending}
+                        className="-my-1 flex h-8 items-center gap-1 rounded-full px-2 text-xs font-semibold text-muted-foreground transition-colors hover:bg-card hover:text-foreground disabled:opacity-40"
+                      >
+                        <Undo2 className="h-3.5 w-3.5" />
+                        {undoing ? "Desfazendo…" : "Desfazer"}
+                      </button>
+                    )}
+                  </span>
+                </div>
+              );
+            })}
           </div>
         )}
 
         <div>
-          <p className="mb-2 text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
-            Série {loggedSets.length + 1}
-          </p>
+          <div className="mb-2 flex items-baseline justify-between gap-2">
+            <p className="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
+              {targetDone ? "Série extra" : `Série ${loggedSets.length + 1}`}
+            </p>
+            {previousForNextSet && (
+              <p className="tabular truncate text-xs text-muted-foreground">
+                Última vez: {formatKg(previousForNextSet.weight)}kg × {previousForNextSet.reps}
+              </p>
+            )}
+          </div>
           <div className="grid grid-cols-2 gap-2.5">
-            <NumberStepper value={weight} onChange={setWeight} step={2.5} min={0} unit="kg" formatValue={formatKg} />
-            <NumberStepper value={reps} onChange={setReps} step={1} min={0} unit="reps" />
+            <NumberStepper
+              value={weight}
+              onChange={setWeight}
+              step={prefs.weightStep}
+              min={0}
+              unit="kg"
+              label="Carga em kg"
+              formatValue={formatKg}
+            />
+            <NumberStepper value={reps} onChange={setReps} step={1} min={0} unit="reps" label="Repetições" integer />
           </div>
         </div>
 
@@ -437,26 +683,60 @@ export function WorkoutExecutor({
 
         <Button
           type="button"
+          variant={targetDone ? "outline" : "default"}
           className="h-[50px] w-full text-base font-bold"
           onClick={handleLogSet}
-          disabled={pending}
+          disabled={pending || undoing}
         >
-          {pending ? "Salvando…" : `Registrar série ${loggedSets.length + 1}`}
+          {pending ? "Salvando…" : targetDone ? "Registrar série extra" : `Registrar série ${loggedSets.length + 1}`}
         </Button>
       </Card>
 
-      {!isLastExercise && (
+      {targetDone ? (
         <Button
           type="button"
-          variant="ghost"
-          className="mt-3 w-full gap-1.5 text-muted-foreground"
-          onClick={() => goTo(index + 1)}
+          className="mt-3 h-[52px] w-full gap-1.5 text-base font-bold"
+          onClick={() => (nextExercise ? goTo(index + 1) : openFinish())}
         >
-          Próximo exercício
+          <span className="truncate">{nextExercise ? `Próximo: ${nextExercise.exercise_name}` : "Finalizar treino"}</span>
           <ChevronRight className="h-4 w-4" />
         </Button>
+      ) : (
+        !isLastExercise && (
+          <Button
+            type="button"
+            variant="ghost"
+            className="mt-3 h-11 w-full gap-1.5 text-muted-foreground"
+            onClick={() => goTo(index + 1)}
+          >
+            Pular para o próximo
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        )
       )}
     </div>
+  );
+}
+
+function Toast({ tint, onDismiss, children }: { tint: string; onDismiss: () => void; children: React.ReactNode }) {
+  return (
+    // Toque fecha antes do tempo; sem foco de teclado porque some sozinho em poucos segundos
+    <motion.div
+      role="status"
+      layout
+      initial={{ opacity: 0, y: -16, scale: 0.97 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, y: -12, scale: 0.97 }}
+      transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+      onClick={onDismiss}
+      className="pointer-events-auto flex w-full cursor-pointer items-start gap-2 rounded-2xl p-3 text-left text-sm"
+      style={{
+        background: `color-mix(in oklch, ${tint} 16%, var(--card))`,
+        boxShadow: `inset 0 0 0 1px color-mix(in oklch, ${tint}, transparent 60%), 0 18px 40px -20px rgb(0 0 0 / 0.8)`,
+      }}
+    >
+      {children}
+    </motion.div>
   );
 }
 
@@ -473,6 +753,7 @@ function FinishPanel({
   totalPRs: number;
   onBack: () => void;
 }) {
+  const router = useRouter();
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -509,6 +790,13 @@ function FinishPanel({
     });
   }
 
+  function handleDiscard() {
+    startTransition(async () => {
+      await discardSessionAction(sessionId);
+      router.push("/");
+    });
+  }
+
   function formatDuration(seconds: number) {
     const minutes = Math.floor(seconds / 60);
     const rest = seconds % 60;
@@ -521,8 +809,8 @@ function FinishPanel({
         <button
           type="button"
           onClick={onBack}
-          aria-label="Voltar"
-          className="flex h-9 w-9 items-center justify-center rounded-full bg-muted text-foreground"
+          aria-label="Voltar ao treino"
+          className="flex h-10 w-10 items-center justify-center rounded-full bg-muted text-foreground"
         >
           <ChevronLeft className="h-[18px] w-[18px]" />
         </button>
@@ -532,12 +820,12 @@ function FinishPanel({
       <div className="mb-5 flex rounded-2xl bg-card p-4 ring-1 ring-foreground/10">
         <div className="flex-1 text-center">
           <p className="tabular text-[19px] font-bold text-foreground">{formatDuration(elapsedSeconds)}</p>
-          <p className="mt-0.5 text-[11px] text-muted-foreground">Duração</p>
+          <p className="mt-0.5 text-xs text-muted-foreground">Duração</p>
         </div>
         <div className="mx-2 w-px bg-border" />
         <div className="flex-1 text-center">
           <p className="tabular text-[19px] font-bold text-foreground">{totalSets}</p>
-          <p className="mt-0.5 text-[11px] text-muted-foreground">Séries</p>
+          <p className="mt-0.5 text-xs text-muted-foreground">{totalSets === 1 ? "Série" : "Séries"}</p>
         </div>
         <div className="mx-2 w-px bg-border" />
         <div className="flex flex-1 flex-col items-center text-center">
@@ -545,69 +833,93 @@ function FinishPanel({
             <PrIcon className="h-4 w-4 text-gold" />
             <span className="tabular text-[19px] font-bold text-gold">{totalPRs}</span>
           </span>
-          <p className="mt-0.5 text-[11px] text-muted-foreground">Novo PR</p>
+          <p className="mt-0.5 text-xs text-muted-foreground">{totalPRs === 1 ? "PR novo" : "PRs novos"}</p>
         </div>
       </div>
 
-      <Card className="gap-4 p-[18px]">
-        <div>
-          <p className="text-[15px] font-semibold text-foreground">Registrar uma foto</p>
-          <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
-            Opcional — guarde o resultado, o local ou como você está se sentindo hoje.
-          </p>
-        </div>
-
-        {previewUrl ? (
-          <div className="relative overflow-hidden rounded-2xl">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={previewUrl} alt="Prévia da foto do treino" className="max-h-80 w-full object-cover" />
-            <button
-              type="button"
-              aria-label="Remover foto"
-              onClick={() => {
-                if (previewUrl) URL.revokeObjectURL(previewUrl);
-                setPhotoFile(null);
-                setPreviewUrl(null);
-                if (fileInputRef.current) fileInputRef.current.value = "";
-              }}
-              className="absolute top-2.5 right-2.5 flex h-8 w-8 items-center justify-center rounded-full bg-black/45 text-white backdrop-blur-sm"
-            >
-              <X className="h-4 w-4" />
-            </button>
+      {totalSets === 0 ? (
+        // Concluir sem séries contaria um treino vazio na constância e nas estatísticas
+        <Card className="gap-4 p-[18px]">
+          <div>
+            <p className="text-[15px] font-semibold text-foreground">Nenhuma série registrada</p>
+            <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+              Volte e registre o que fez, ou descarte esta sessão se começou o treino por engano.
+            </p>
           </div>
-        ) : (
-          <label className="flex cursor-pointer flex-col items-center justify-center gap-2.5 rounded-2xl border-[1.5px] border-dashed border-border py-9 text-center transition-colors hover:bg-muted/40">
-            <div
-              className="flex h-12 w-12 items-center justify-center rounded-full"
-              style={{ background: "color-mix(in oklch, var(--primary), transparent 85%)" }}
-            >
-              <PhotoIcon className="h-[22px] w-[22px] text-primary" strokeWidth={1.75} />
+          <Button type="button" className="h-[52px] w-full text-base font-bold" onClick={onBack} disabled={pending}>
+            Voltar ao treino
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            className="h-11 w-full text-destructive hover:text-destructive"
+            onClick={handleDiscard}
+            disabled={pending}
+          >
+            {pending ? "Descartando…" : "Descartar treino"}
+          </Button>
+        </Card>
+      ) : (
+        <Card className="gap-4 p-[18px]">
+          <div>
+            <p className="text-[15px] font-semibold text-foreground">Registrar uma foto</p>
+            <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+              Opcional — guarde o resultado, o local ou como você está se sentindo hoje.
+            </p>
+          </div>
+
+          {previewUrl ? (
+            <div className="relative overflow-hidden rounded-2xl">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={previewUrl} alt="Prévia da foto do treino" className="max-h-80 w-full object-cover" />
+              <button
+                type="button"
+                aria-label="Remover foto"
+                onClick={() => {
+                  if (previewUrl) URL.revokeObjectURL(previewUrl);
+                  setPhotoFile(null);
+                  setPreviewUrl(null);
+                  if (fileInputRef.current) fileInputRef.current.value = "";
+                }}
+                className="absolute top-2.5 right-2.5 flex h-9 w-9 items-center justify-center rounded-full bg-black/45 text-white backdrop-blur-sm"
+              >
+                <X className="h-4 w-4" />
+              </button>
             </div>
-            <span className="text-sm font-semibold text-foreground">Tirar ou escolher uma foto</span>
-            <span className="text-xs text-muted-foreground">JPEG, PNG ou WebP · até 8MB</span>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/jpeg,image/png,image/webp"
-              capture="environment"
-              className="hidden"
-              onChange={handleFileChange}
-            />
-          </label>
-        )}
+          ) : (
+            <label className="flex cursor-pointer flex-col items-center justify-center gap-2.5 rounded-2xl border-[1.5px] border-dashed border-border py-9 text-center transition-colors hover:bg-muted/40">
+              <div
+                className="flex h-12 w-12 items-center justify-center rounded-full"
+                style={{ background: "color-mix(in oklch, var(--primary), transparent 85%)" }}
+              >
+                <PhotoIcon className="h-[22px] w-[22px] text-primary" strokeWidth={1.75} />
+              </div>
+              <span className="text-sm font-semibold text-foreground">Tirar ou escolher uma foto</span>
+              <span className="text-xs text-muted-foreground">JPEG, PNG ou WebP · até 8MB</span>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                capture="environment"
+                className="hidden"
+                onChange={handleFileChange}
+              />
+            </label>
+          )}
 
-        {error && <p className="text-sm text-destructive">{error}</p>}
+          {error && <p className="text-sm text-destructive">{error}</p>}
 
-        <Button
-          type="button"
-          className="h-[52px] w-full gap-2 text-base font-bold"
-          onClick={handleFinish}
-          disabled={pending}
-        >
-          <StartIcon className="h-4 w-4" />
-          {pending ? "Salvando…" : "Concluir treino"}
-        </Button>
-      </Card>
+          <Button
+            type="button"
+            className="h-[52px] w-full gap-2 text-base font-bold"
+            onClick={handleFinish}
+            disabled={pending}
+          >
+            <StartIcon className="h-4 w-4" />
+            {pending ? "Salvando…" : "Concluir treino"}
+          </Button>
+        </Card>
+      )}
     </div>
   );
 }

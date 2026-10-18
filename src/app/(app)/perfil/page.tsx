@@ -7,14 +7,15 @@ import { Card } from "@/components/ui/card";
 import { SignOutButton } from "@/components/auth/sign-out-button";
 import { ProfileAvatarEditor } from "@/components/profile/profile-avatar-editor";
 import { BadgeSummary } from "@/components/profile/badge-summary";
+import { ReminderSettings } from "@/components/profile/reminder-settings";
 import { auth } from "@/auth";
 import { workerApi } from "@/lib/worker-api";
 
 const SETTINGS_ITEMS = [
-  { label: "Biblioteca de exercícios", icon: WorkoutIcon },
-  { label: "Preferências", icon: SlidersHorizontal },
-  { label: "Exportar dados", icon: Download },
-  { label: "Sobre o Treinai", icon: Info },
+  { label: "Biblioteca de exercícios", href: "/perfil/exercicios", icon: WorkoutIcon },
+  { label: "Preferências", href: "/perfil/preferencias", icon: SlidersHorizontal },
+  { label: "Exportar dados", href: "/perfil/exportar", icon: Download },
+  { label: "Sobre o Treinai", href: "/perfil/sobre", icon: Info },
 ];
 
 export default async function PerfilPage() {
@@ -50,7 +51,7 @@ export default async function PerfilPage() {
               <p className="font-semibold text-foreground tracking-tight text-base truncate">
                 {name}
               </p>
-              <span className="inline-flex items-center gap-1 rounded-full border border-primary/20 bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary tracking-wide shrink-0">
+              <span className="inline-flex items-center gap-1 rounded-full border border-primary/20 bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary tracking-wide shrink-0">
                 <XpIcon className="h-2.5 w-2.5" />
                 Nível {badgesResult.level}
               </span>
@@ -92,11 +93,14 @@ export default async function PerfilPage() {
         <ChevronRight className="h-4 w-4 text-muted-foreground/40 transition-transform group-hover:translate-x-0.5 group-hover:text-muted-foreground" />
       </Link>
 
+      <ReminderSettings />
+
       {/* Menu / Settings List */}
       <Card className="divide-y divide-border/50 p-0">
-        {SETTINGS_ITEMS.map(({ label, icon: Icon }) => (
-          <div
+        {SETTINGS_ITEMS.map(({ label, href, icon: Icon }) => (
+          <Link
             key={label}
+            href={href}
             className="group flex items-center gap-3.5 px-4 py-3.5 text-muted-foreground transition-colors hover:bg-muted/30 hover:text-foreground"
           >
             <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-border/50 bg-secondary/50 text-muted-foreground transition-colors group-hover:border-primary/30 group-hover:bg-primary/10 group-hover:text-primary">
@@ -105,11 +109,8 @@ export default async function PerfilPage() {
             <span className="flex-1 text-sm font-medium text-foreground/90">
               {label}
             </span>
-            <span className="rounded-full border border-border/50 bg-secondary/60 px-2.5 py-0.5 text-[10px] font-medium tracking-wide text-muted-foreground">
-              Em breve
-            </span>
             <ChevronRight className="h-4 w-4 text-muted-foreground/40 transition-transform group-hover:translate-x-0.5 group-hover:text-muted-foreground" />
-          </div>
+          </Link>
         ))}
       </Card>
 

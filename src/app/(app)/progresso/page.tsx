@@ -7,9 +7,13 @@ import { StreakCard } from "@/components/streak/streak-card";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Card } from "@/components/ui/card";
 import { WeeklyVolumeChart } from "@/components/charts/weekly-volume-chart";
+import { VolumeHeatmap } from "@/components/charts/volume-heatmap";
 import { GoalsSection } from "@/components/goals/goals-section";
 import { PrCard } from "@/components/pr/pr-card";
-import { formatDate } from "@/lib/format";
+import { ExerciseProgressList } from "@/components/progress/exercise-progress-list";
+import { summarizeExercises, topStrengthGains } from "@/lib/exercise-progress";
+import { BicepsFlexed } from "lucide-react";
+import { formatDate, formatWeight } from "@/lib/format";
 import { auth } from "@/auth";
 import { workerApi } from "@/lib/worker-api";
 
@@ -19,12 +23,14 @@ const DEFAULT_STATS = {
   recentPRsCount: 0,
   streakDays: 0,
   trainedToday: false,
+  streakAtRisk: false,
   lostStreakDays: 0,
   last7Days: [],
   frequencyThisMonth: 0,
   newPRsThisMonth: 0,
   recentPRs: [],
   weeklyVolumeSeries: [],
+  dailyVolume: [] as { date: string; volume: number }[],
   topMovers: [],
   loadTrend: null,
 };
@@ -33,7 +39,7 @@ export default async function ProgressoPage() {
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
   const userId = session.user.id;
-  const [stats, recentPhotosResult, goalsResult, exercisesResult] = await Promise.all([
+  const [stats, recentPhotosResult, goalsResult, exercisesResult, prsResult] = await Promise.all([
     workerApi.getStats(userId).catch((err) => {
       console.error("Erro ao carregar stats em /progresso:", err);
       return DEFAULT_STATS;
@@ -50,7 +56,13 @@ export default async function ProgressoPage() {
       console.error("Erro ao carregar exercícios em /progresso:", err);
       return { exercises: [] };
     }),
+    workerApi.listPersonalRecords(userId).catch((err) => {
+      console.error("Erro ao carregar PRs em /progresso:", err);
+      return { personalRecords: [] };
+    }),
   ]);
+  const trainedExercises = summarizeExercises(prsResult.personalRecords);
+  const strengthGains = topStrengthGains(prsResult.personalRecords);
   const recentPhotos = recentPhotosResult?.sessions ?? [];
   const hasVolume = (stats.weeklyVolumeSeries ?? []).some((w) => w.volume > 0);
 
@@ -94,6 +106,14 @@ export default async function ProgressoPage() {
         )}
       </section>
 
+      {/* Evolução das cargas em cada exercício */}
+      {trainedExercises.length > 0 && (
+        <section>
+          <SectionHeader title="Evolução por exercício" href="/progresso/exercicios" linkLabel="Ver todos" />
+          <ExerciseProgressList exercises={trainedExercises.slice(0, 4)} />
+        </section>
+      )}
+
       <GoalsSection goals={goalsResult.goals} exercises={exercisesResult.exercises} />
 
       {/* Weekly Volume */}
@@ -101,7 +121,12 @@ export default async function ProgressoPage() {
         <SectionHeader title="Volume semanal" />
         {hasVolume ? (
           <Card className="p-4">
-            <WeeklyVolumeChart data={stats.weeklyVolumeSeries} />
+            {/* Worker sem a série diária ainda cai nas barras semanais */}
+            {stats.dailyVolume ? (
+              <VolumeHeatmap daily={stats.dailyVolume} />
+            ) : (
+              <WeeklyVolumeChart data={stats.weeklyVolumeSeries} />
+            )}
           </Card>
         ) : (
           <EmptyState
@@ -142,21 +167,34 @@ export default async function ProgressoPage() {
         )}
       </section>
 
-      {/* Top movers */}
-      <section>
-        <SectionHeader title="Força — exercícios que mais evoluíram" />
-        {stats.topMovers.length > 0 ? (
+      {/* Quem mais ganhou carga, em kg reais: "de 45 para 140 kg" diz mais que "+211%" */}
+      <section aria-labelledby="ganhos-forca">
+        <div className="mb-3 flex items-center gap-2.5">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+            <BicepsFlexed className="h-5 w-5" aria-hidden />
+          </span>
+          <h2 id="ganhos-forca" className="text-lg font-semibold tracking-tight text-foreground">
+            Exercícios em que você mais evoluiu
+          </h2>
+        </div>
+        {strengthGains.length > 0 ? (
           <Card className="divide-y divide-border/50 p-0">
-            {stats.topMovers.map((mover) => (
-              <div
-                key={mover.exerciseId}
-                className="flex items-center justify-between px-4 py-3.5 transition-colors hover:bg-muted/30"
+            {strengthGains.map((g) => (
+              <Link
+                key={g.exerciseId}
+                href={`/progresso/exercicios/${g.exerciseId}`}
+                className="flex items-center justify-between gap-3 px-4 py-3.5 transition-colors hover:bg-muted/30"
               >
-                <span className="text-sm font-medium text-foreground">{mover.label}</span>
-                <span className="flex items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary">
-                  <TrendIcon className="h-3.5 w-3.5" />+{mover.changePct}%
+                <span className="min-w-0">
+                  <span className="block truncate text-sm font-medium text-foreground">{g.name}</span>
+                  <span className="tabular block text-sm text-muted-foreground">
+                    de {formatWeight(g.fromKg)} para {formatWeight(g.toKg)}
+                  </span>
                 </span>
-              </div>
+                <span className="tabular shrink-0 rounded-full bg-primary/10 px-3 py-1 text-sm font-bold text-primary">
+                  +{formatWeight(g.gainKg)}
+                </span>
+              </Link>
             ))}
           </Card>
         ) : (

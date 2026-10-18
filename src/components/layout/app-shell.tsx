@@ -6,6 +6,8 @@ interface ActiveSessionVM {
   id: string;
   workout_id: string;
   workout_name: string;
+  completedSets: number | null;
+  minutesAgo: number | null;
 }
 
 export function AppShell({
@@ -25,6 +27,8 @@ export function AppShell({
             sessionId={activeSession.id}
             workoutId={activeSession.workout_id}
             workoutName={activeSession.workout_name}
+            completedSets={activeSession.completedSets}
+            minutesAgo={activeSession.minutesAgo}
             onDiscard={onDiscardActiveSession}
           />
         )}

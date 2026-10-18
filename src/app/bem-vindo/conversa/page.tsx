@@ -1,8 +1,5 @@
-import Link from "next/link";
 import Image from "next/image";
-import { ArrowRight } from "lucide-react";
-import { buttonVariants } from "@/components/ui/button";
-import { AiCoachChat } from "@/components/workout/ai-coach-chat";
+import { OnboardingChat } from "@/components/workout/onboarding-chat";
 import { MUSCLE_GROUP_LABEL } from "@/lib/muscle-groups";
 import type { MuscleGroup } from "@/lib/types";
 
@@ -52,20 +49,7 @@ export default async function BemVindoConversaPage({
         </div>
       </div>
 
-      <div className="flex-1 overflow-hidden">
-        <AiCoachChat autoGreetMessage={greeting} />
-      </div>
-
-      <Link
-        href="/"
-        className={buttonVariants({
-          variant: "outline",
-          className: "mt-3 h-11 w-full gap-2 text-sm font-semibold",
-        })}
-      >
-        Ir para o app
-        <ArrowRight className="h-4 w-4" />
-      </Link>
+      <OnboardingChat greeting={greeting} />
     </div>
   );
 }

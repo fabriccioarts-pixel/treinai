@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { newId, nowIso } from "../lib/id";
 import { evaluateBadges } from "../lib/badges";
+import { loadWeeklyMissions } from "../lib/missions";
 
 export const sessionRoutes = new Hono<{ Bindings: Env }>();
 
@@ -132,7 +133,11 @@ sessionRoutes.patch("/:id", async (c) => {
   const session = await c.env.DB.prepare("SELECT user_id FROM workout_sessions WHERE id = ?")
     .bind(id)
     .first<{ user_id: string }>();
-  if (session) newBadges = await evaluateBadges(c.env.DB, session.user_id);
+  if (session) {
+    // Missões antes das conquistas: "Missão cumprida" pode sair deste mesmo treino
+    await loadWeeklyMissions(c.env.DB, session.user_id).catch((err) => console.error("Erro nas missões:", err));
+    newBadges = await evaluateBadges(c.env.DB, session.user_id);
+  }
 
   return c.json({ ok: true, newBadges });
 });

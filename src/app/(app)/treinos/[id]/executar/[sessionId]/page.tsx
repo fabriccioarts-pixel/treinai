@@ -1,7 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { workerApi, WorkerApiError } from "@/lib/worker-api";
-import { WorkoutExecutor } from "@/components/workout/workout-executor";
+import { WorkoutExecutor, type PreviousSetVM } from "@/components/workout/workout-executor";
 
 export default async function ExecutarTreinoPage({
   params,
@@ -35,6 +35,12 @@ export default async function ExecutarTreinoPage({
     redirect("/");
   }
 
+  const previousSets = await loadPreviousSets(
+    authSession.user.id,
+    sessionId,
+    workout.exercises.map((e) => e.exercise_id),
+  );
+
   return (
     <WorkoutExecutor
       sessionId={sessionId}
@@ -42,6 +48,29 @@ export default async function ExecutarTreinoPage({
       startedAt={workoutSession.started_at}
       exercises={workout.exercises}
       initialSets={setsRes.sets}
+      previousSets={previousSets}
     />
   );
+}
+
+/**
+ * Séries da última sessão (fora a atual) de cada exercício, para pré-preencher a carga.
+ * É só conveniência: se falhar, o treino abre com os campos vazios.
+ */
+async function loadPreviousSets(userId: string, currentSessionId: string, exerciseIds: string[]) {
+  const entries = await Promise.all(
+    [...new Set(exerciseIds)].map(async (exerciseId) => {
+      const { sets } = await workerApi.listExerciseSets(userId, exerciseId).catch(() => ({ sets: [] }));
+      const lastSessionId = sets.find((s) => s.session_id !== currentSessionId)?.session_id;
+      const previous = sets
+        .filter((s) => s.session_id === lastSessionId)
+        .map((s) => ({ set_number: s.set_number, weight: s.weight, reps: s.reps }))
+        .sort((a, b) => a.set_number - b.set_number);
+      return [exerciseId, previous] as const;
+    }),
+  );
+  return Object.fromEntries(entries.filter(([, previous]) => previous.length > 0)) as Record<
+    string,
+    PreviousSetVM[]
+  >;
 }
