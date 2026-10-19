@@ -591,4 +591,14 @@ export const workerApi = {
       body: JSON.stringify({ userId, kind }),
     }),
 
+  getRoutineStability: (userId: string) =>
+    workerFetch<RoutineStability>(`/workouts/stability?userId=${encodeURIComponent(userId)}`),
 };
+
+export interface RoutineStability {
+  level: "ok" | "atencao" | "alerta";
+  daysSinceLastChange: number | null;
+  changesLast28Days: number;
+  sessionsSinceLastChange: number;
+  recommendedDays: number;
+}

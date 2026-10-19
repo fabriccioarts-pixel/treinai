@@ -1,3 +1,4 @@
+import { formatStabilityForCoach, getRoutineStability } from "./routine-stability";
 import { loadProfileWithTargets, type ProfileWithTargets } from "./profile";
 import { computeLevel } from "./badges";
 import { loadWeeklyMissions } from "./missions";
@@ -162,11 +163,23 @@ ${catalogText}
 TREINOS ATUAIS DO USUÁRIO:
 ${workoutsText || "O usuário ainda não tem nenhum treino."}
 
+ESTABILIDADE DA ROTINA:
+${await stabilityText(db, userId)}
+
 RECORDES PESSOAIS RECENTES (carga):
 ${prsText}
 
 ÚLTIMOS TREINOS CONCLUÍDOS:
 ${sessionsText}${await gamificationText(db, userId)}`;
+}
+
+/** Tabela nova (migração 0012): se ainda não existir, o Théo segue sem essa informação */
+async function stabilityText(db: D1Database, userId: string): Promise<string> {
+  try {
+    return formatStabilityForCoach(await getRoutineStability(db, userId));
+  } catch {
+    return "Sem informação sobre trocas recentes de treino.";
+  }
 }
 
 /**

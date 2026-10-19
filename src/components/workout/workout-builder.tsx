@@ -14,6 +14,9 @@ import { MUSCLE_GROUP_COLOR } from "@/lib/muscle-colors";
 import { cn } from "@/lib/utils";
 import type { MuscleGroup } from "@/lib/types";
 import { createWorkoutAction } from "@/app/actions/workout-actions";
+import { routineChangeCopy } from "@/components/workout/routine-change-notice";
+import type { RoutineStability } from "@/lib/worker-api";
+import Link from "next/link";
 
 interface ExerciseOption {
   id: string;
@@ -111,7 +114,16 @@ function formatRest(seconds: number) {
   return s ? `${m}min${s}` : `${m}min`;
 }
 
-export function WorkoutBuilder({ exercises }: { exercises: ExerciseOption[] }) {
+export function WorkoutBuilder({
+  exercises,
+  stability,
+}: {
+  exercises: ExerciseOption[];
+  /** Trocas recentes de treino: se houver, confirma antes de salvar */
+  stability?: RoutineStability | null;
+}) {
+  const changeWarning = stability ? routineChangeCopy(stability) : null;
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [showDescription, setShowDescription] = useState(false);
@@ -194,8 +206,13 @@ export function WorkoutBuilder({ exercises }: { exercises: ExerciseOption[] }) {
     setPickerOpen(true);
   }
 
-  function handleSave() {
+  function handleSave(confirmed = false) {
     if (!canSave) return;
+    if (changeWarning && !confirmed) {
+      setConfirmOpen(true);
+      return;
+    }
+    setConfirmOpen(false);
     setError(null);
     startTransition(async () => {
       const result = await createWorkoutAction(
@@ -452,13 +469,42 @@ export function WorkoutBuilder({ exercises }: { exercises: ExerciseOption[] }) {
           <Button
             type="button"
             className="h-11 shrink-0 rounded-xl px-6 font-semibold"
-            onClick={handleSave}
+            onClick={() => handleSave()}
             disabled={pending || !canSave}
           >
             {pending ? "Salvando…" : "Salvar treino"}
           </Button>
         </div>
       </div>
+
+      {/* Aviso de trocas frequentes: a pessoa decide, mas com a informação na frente */}
+      {changeWarning && (
+        <Sheet open={confirmOpen} onOpenChange={setConfirmOpen}>
+          <SheetContent side="bottom" className="gap-0 rounded-t-3xl px-4 pt-5 pb-6">
+            <SheetHeader className="px-0">
+              <SheetTitle>{changeWarning.title}</SheetTitle>
+              <SheetDescription className="text-foreground/85">{changeWarning.body}</SheetDescription>
+            </SheetHeader>
+            <div className="mt-5 grid gap-2">
+              <Link
+                href="/treinos"
+                className="flex h-12 items-center justify-center rounded-xl bg-primary text-base font-semibold text-primary-foreground"
+              >
+                Manter meu treino atual
+              </Link>
+              <Button
+                type="button"
+                variant="ghost"
+                className="h-11 text-muted-foreground"
+                disabled={pending}
+                onClick={() => handleSave(true)}
+              >
+                Salvar mesmo assim
+              </Button>
+            </div>
+          </SheetContent>
+        </Sheet>
+      )}
 
       {/* Seletor de exercícios */}
       <Sheet open={pickerOpen} onOpenChange={setPickerOpen}>

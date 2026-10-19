@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { nowIso } from "../lib/id";
+import { getRoutineStability, recordWorkoutChange } from "../lib/routine-stability";
 import {
   createWorkoutRecord,
   updateWorkoutRecord,
@@ -43,6 +44,17 @@ workoutRoutes.post("/", async (c) => {
 
   const workoutId = await createWorkoutRecord(c.env.DB, body.userId, body);
   return c.json({ id: workoutId }, 201);
+});
+
+/** Se o usuário trocou o treino há pouco — base do aviso antes de uma nova troca */
+workoutRoutes.get("/stability", async (c) => {
+  const userId = c.req.query("userId");
+  if (!userId) return c.json({ error: "missing_userId" }, 400);
+  // Sem a tabela (migração 0012 pendente), responde "ok": melhor não avisar do que travar a tela
+  const stability = await getRoutineStability(c.env.DB, userId).catch(() => null);
+  return c.json(
+    stability ?? { level: "ok", daysSinceLastChange: null, changesLast28Days: 0, sessionsSinceLastChange: 0, recommendedDays: 28 },
+  );
 });
 
 workoutRoutes.get("/:id", async (c) => {
@@ -96,9 +108,11 @@ workoutRoutes.delete("/:id", async (c) => {
     .first();
   if (hasSessions) {
     await c.env.DB.prepare("UPDATE workouts SET archived_at = ? WHERE id = ?").bind(nowIso(), id).run();
+    await recordWorkoutChange(c.env.DB, userId, id, "removido");
     return c.json({ ok: true, archived: true });
   }
 
   await c.env.DB.prepare("DELETE FROM workouts WHERE id = ?").bind(id).run();
+  await recordWorkoutChange(c.env.DB, userId, id, "removido");
   return c.json({ ok: true, archived: false });
 });

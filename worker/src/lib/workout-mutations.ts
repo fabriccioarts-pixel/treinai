@@ -1,4 +1,5 @@
 import { newId, nowIso } from "./id";
+import { recordWorkoutChange } from "./routine-stability";
 
 export interface WorkoutExerciseInput {
   exerciseId: string;
@@ -47,6 +48,7 @@ export async function createWorkoutRecord(
     ),
   ];
   await db.batch(statements);
+  await recordWorkoutChange(db, userId, workoutId, "criado");
   return workoutId;
 }
 
@@ -81,4 +83,6 @@ export async function updateWorkoutRecord(
     ),
   ];
   await db.batch(statements);
+  const owner = await db.prepare("SELECT user_id FROM workouts WHERE id = ?").bind(workoutId).first<{ user_id: string }>();
+  if (owner) await recordWorkoutChange(db, owner.user_id, workoutId, "alterado");
 }

@@ -4,13 +4,17 @@ import { ArrowLeft } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { buttonVariants } from "@/components/ui/button";
 import { WorkoutBuilder } from "@/components/workout/workout-builder";
+import { RoutineChangeNotice } from "@/components/workout/routine-change-notice";
 import { auth } from "@/auth";
 import { workerApi } from "@/lib/worker-api";
 
 export default async function NovoTreinoPage() {
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
-  const { exercises } = await workerApi.listExercises(session.user.id);
+  const [{ exercises }, stability] = await Promise.all([
+    workerApi.listExercises(session.user.id),
+    workerApi.getRoutineStability(session.user.id).catch(() => null),
+  ]);
 
   return (
     <div>
@@ -28,7 +32,8 @@ export default async function NovoTreinoPage() {
           </Link>
         }
       />
-      <WorkoutBuilder exercises={exercises} />
+      {stability && <RoutineChangeNotice stability={stability} className="mb-6" />}
+      <WorkoutBuilder exercises={exercises} stability={stability} />
     </div>
   );
 }
