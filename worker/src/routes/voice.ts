@@ -4,6 +4,7 @@ import { findConversation, loadModelHistory, saveExchange, type CoachAction } fr
 import { createCoachToolExecutors, GEMINI_COACH_FUNCTIONS } from "../lib/coach-tools";
 import { COACH_RULES, THEO_PERSONA } from "../lib/coach-persona";
 import { COACH_KNOWLEDGE } from "../lib/coach-knowledge";
+import { DAILY_VOICE_MINUTES, endVoiceSession, MAX_CALL_MS, startVoiceQuota } from "../lib/voice-quota";
 
 /*
  * Conversa por voz com o Théo (Gemini Live API).
@@ -16,8 +17,6 @@ export const voiceRoutes = new Hono<{ Bindings: Env }>();
 const LIVE_MODEL = "gemini-3.8-live";
 /** Voz masculina grave e firme, com energia de parceiro de academia */
 const VOICE_NAME = "Orus";
-/** O Gemini limita sessões só de áudio a 15 min; o token não precisa viver mais que isso */
-const SESSION_MAX_MS = 15 * 60_000;
 const HISTORY_TURNS = 12;
 
 const VOICE_RULES = `MODO VOZ — VOCÊ ESTÁ NUMA CONVERSA FALADA, EM TEMPO REAL
@@ -36,6 +35,11 @@ voiceRoutes.post("/session", async (c) => {
 
   const apiKey = c.env.GEMINI_API_KEY || c.env.GOOGLE_API_KEY;
   if (!apiKey) return c.json({ error: "ai_not_configured" }, 503);
+
+  const quota = await startVoiceQuota(c.env.DB, userId);
+  if (!quota.allowed) {
+    return c.json({ error: "voice_quota_exceeded", limitMinutes: DAILY_VOICE_MINUTES }, 429);
+  }
 
   let history: { role: "user" | "assistant"; content: string }[] = [];
   if (conversationId) {
@@ -74,7 +78,7 @@ voiceRoutes.post("/session", async (c) => {
     headers: { "x-goog-api-key": apiKey, "Content-Type": "application/json" },
     body: JSON.stringify({
       uses: 1,
-      expireTime: new Date(now + SESSION_MAX_MS).toISOString(),
+      expireTime: new Date(now + quota.allowedMs).toISOString(),
       newSessionExpireTime: new Date(now + 60_000).toISOString(),
       // Trava modelo, persona e ferramentas: o token não serve para outra coisa
       bidiGenerateContentSetup: setup,
@@ -87,7 +91,24 @@ voiceRoutes.post("/session", async (c) => {
   }
   const { name: token } = (await res.json()) as { name: string };
 
-  return c.json({ token, expiresAt: new Date(now + SESSION_MAX_MS).toISOString(), setup });
+  return c.json({
+    token,
+    expiresAt: new Date(now + quota.allowedMs).toISOString(),
+    setup,
+    voiceSessionId: quota.sessionId,
+    // A ligação termina antes dos 15 min porque acabaram os minutos do dia
+    endsByDailyLimit: quota.allowedMs < MAX_CALL_MS,
+    dailyLimitMinutes: DAILY_VOICE_MINUTES,
+    remainingMinutes: Math.floor(quota.remainingMs / 60_000),
+  });
+});
+
+/** O cliente desligou: encerra a contagem de minutos dessa ligação */
+voiceRoutes.post("/end", async (c) => {
+  const { userId, voiceSessionId } = await c.req.json<{ userId?: string; voiceSessionId?: string }>();
+  if (!userId || !voiceSessionId) return c.json({ error: "invalid_input" }, 400);
+  await endVoiceSession(c.env.DB, userId, voiceSessionId);
+  return c.json({ ok: true });
 });
 
 voiceRoutes.post("/tool", async (c) => {

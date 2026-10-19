@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { newId } from "../lib/id";
-import { pushToUser, vapidFromEnv } from "../lib/reminders";
+import { dueReminders, pushToUser, vapidFromEnv } from "../lib/reminders";
 
 export const pushRoutes = new Hono<{ Bindings: Env }>();
 
@@ -32,16 +32,28 @@ pushRoutes.post("/unsubscribe", async (c) => {
   return c.json({ ok: true });
 });
 
-/** Notificação de boas-vindas logo depois de ativar, para a pessoa ver que funcionou */
+/**
+ * Notificação de teste. Sem `kind`: boas-vindas logo depois de ativar, para a pessoa ver que funcionou.
+ * Com `kind` ("agua" | "treino"): o lembrete real, com a mensagem motivacional, sem esperar o horário.
+ */
 pushRoutes.post("/test", async (c) => {
-  const body = await c.req.json<{ userId?: string }>().catch(() => ({}) as Record<string, never>);
+  const body = await c.req
+    .json<{ userId?: string; kind?: string }>()
+    .catch(() => ({}) as Record<string, never>);
   if (!body.userId) return c.json({ error: "missing_userId" }, 400);
   const vapid = vapidFromEnv(c.env);
   if (!vapid) return c.json({ error: "push_not_configured" }, 503);
 
+  if (body.kind === "bom-dia" || body.kind === "agua" || body.kind === "treino") {
+    const [message] = await dueReminders(c.env.DB, body.userId, new Date(), body.kind);
+    // Água: meta de hoje já batida. Treino: nenhum treino cadastrado.
+    if (!message) return c.json({ sent: 0, reason: body.kind === "agua" ? "water_goal_met" : "no_workout" });
+    return c.json({ sent: await pushToUser(c.env.DB, vapid, body.userId, message) });
+  }
+
   const sent = await pushToUser(c.env.DB, vapid, body.userId, {
     title: "Lembretes ativados",
-    body: "Vou te lembrar de beber água ao longo do dia e do treino às 18h. Bora!",
+    body: "Vou te dar bom dia, lembrar da água ao longo do dia e do treino às 18h. Bora!",
     url: "/",
     tag: "boas-vindas",
   });

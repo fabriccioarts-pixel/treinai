@@ -12,6 +12,7 @@ import { RecentPrs } from "@/components/home/recent-prs";
 import { ShortcutGrid } from "@/components/home/shortcut-grid";
 import { StreakCard } from "@/components/streak/streak-card";
 import { NutritionToday } from "@/components/nutrition/nutrition-today";
+import { EnableNotificationsPrompt } from "@/components/home/enable-notifications-prompt";
 import { WeeklyMissions } from "@/components/gamification/weekly-missions";
 import { CelebrationToast } from "@/components/gamification/celebration-toast";
 import { buttonVariants } from "@/components/ui/button";
@@ -223,6 +224,9 @@ export default async function InicioPage() {
 
       {/* Registro rápido: refeição e água sem precisar navegar */}
       <NutritionToday plan={plan} meals={meals} water={water} />
+
+      {/* Some sozinho quando o navegador já perguntou (permitido ou bloqueado) */}
+      <EnableNotificationsPrompt />
 
       <ShortcutGrid />
 

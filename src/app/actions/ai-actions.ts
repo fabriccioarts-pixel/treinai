@@ -45,6 +45,10 @@ export interface VoiceSession {
   token: string;
   expiresAt: string;
   setup: Record<string, unknown>;
+  voiceSessionId?: string | null;
+  /** A ligação acaba antes dos 15 min porque terminaram os minutos de voz do dia */
+  endsByDailyLimit?: boolean;
+  dailyLimitMinutes?: number;
 }
 
 export async function startVoiceSessionAction(
@@ -60,8 +64,20 @@ export async function startVoiceSessionAction(
     if (err instanceof WorkerApiError && err.status === 503) {
       return { error: "A conversa por voz ainda não foi configurada neste app." };
     }
+    if (err instanceof WorkerApiError && err.status === 429) {
+      return {
+        error: "Você já usou seus minutos de voz de hoje. Amanhã tem mais! Enquanto isso, pode falar comigo por escrito.",
+      };
+    }
     return { error: "Não foi possível ligar para o Théo agora. Tente de novo." };
   }
+}
+
+/** Avisa o fim da ligação (para a contagem de minutos do dia); falha não incomoda o usuário */
+export async function endVoiceSessionAction(voiceSessionId: string): Promise<void> {
+  const session = await auth();
+  if (!session?.user?.id) return;
+  await workerApi.endVoiceSession(session.user.id, voiceSessionId).catch(() => null);
 }
 
 export async function runVoiceToolAction(

@@ -7,6 +7,7 @@ import { findConversation, loadModelHistory, saveExchange, type CoachAction } fr
 import { createCoachToolExecutors, GEMINI_COACH_FUNCTIONS } from "../lib/coach-tools";
 import { COACH_RULES, THEO_PERSONA } from "../lib/coach-persona";
 import { COACH_KNOWLEDGE } from "../lib/coach-knowledge";
+import { forgetPromptCache, getPromptCache } from "../lib/gemini-cache";
 
 export const aiRoutes = new Hono<{ Bindings: Env }>();
 
@@ -143,20 +144,39 @@ aiRoutes.post("/coach", async (c) => {
         parts: [{ text: m.content }],
       }));
 
+      // Parte fixa do prompt (persona, regras, conhecimento e ferramentas) em cache: custa 10% do preço.
+      // Com cache, o Gemini não aceita systemInstruction nem tools no pedido, então o contexto do usuário
+      // abre a conversa. Sem cache (ou se ele falhar), vai tudo no prompt do sistema, como antes.
+      let promptCache = await getPromptCache(c.env.DB, geminiKey, model, SYSTEM_PROMPT, geminiTools);
+      const contextTurns = [
+        {
+          role: "user",
+          parts: [{ text: `CONTEXTO DO USUÁRIO (dados atuais do app, não é uma mensagem do usuário):\n${context}` }],
+        },
+        { role: "model", parts: [{ text: "Entendido. Vou usar esses dados nas respostas." }] },
+      ];
+      const requestBody = () =>
+        promptCache
+          ? { cachedContent: promptCache, contents: [...contextTurns, ...currentContents] }
+          : {
+              systemInstruction: { parts: [{ text: `${SYSTEM_PROMPT}\n\nCONTEXTO DO USUÁRIO:\n${context}` }] },
+              contents: currentContents,
+              tools: geminiTools,
+            };
+      const callGemini = () =>
+        fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(requestBody()) });
+
       let loopCount = 0;
       while (loopCount < 4) {
         loopCount++;
-        const res = await fetch(url, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            systemInstruction: {
-              parts: [{ text: `${SYSTEM_PROMPT}\n\nCONTEXTO DO USUÁRIO:\n${context}` }],
-            },
-            contents: currentContents,
-            tools: geminiTools,
-          }),
-        });
+        let res = await callGemini();
+        if (!res.ok && promptCache) {
+          // Cache expirado ou recusado: repete a mesma chamada com o prompt completo
+          console.error(JSON.stringify({ message: "gemini cache rejected", status: res.status, body: await res.text() }));
+          forgetPromptCache(promptCache);
+          promptCache = null;
+          res = await callGemini();
+        }
 
         if (!res.ok) {
           const errBody = await res.text();
@@ -165,6 +185,16 @@ aiRoutes.post("/coach", async (c) => {
         }
 
         const data = (await res.json()) as any;
+        // Para conferir no `wrangler tail` quanto do prompt veio do cache
+        console.log(
+          JSON.stringify({
+            message: "gemini coach usage",
+            prompt: data.usageMetadata?.promptTokenCount,
+            cached: data.usageMetadata?.cachedContentTokenCount ?? 0,
+            output: data.usageMetadata?.candidatesTokenCount,
+            thoughts: data.usageMetadata?.thoughtsTokenCount,
+          }),
+        );
         const candidate = data.candidates?.[0];
         if (!candidate?.content) break;
 

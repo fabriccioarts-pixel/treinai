@@ -11,6 +11,7 @@ import {
   runVoiceToolAction,
   saveVoiceTurnAction,
   startVoiceSessionAction,
+  endVoiceSessionAction,
 } from "@/app/actions/ai-actions";
 import { GeminiLiveCall, type CallStatus } from "@/lib/voice/gemini-live-call";
 import type { CoachAction } from "@/lib/worker-api";
@@ -118,6 +119,7 @@ export function AiCoachChat({
   const voiceActionsRef = useRef<CoachAction[]>([]);
   /** Salva as trocas em ordem: a primeira pode criar a conversa que as próximas usam */
   const voiceSaveRef = useRef<Promise<void>>(Promise.resolve());
+  const voiceSessionIdRef = useRef<string | null>(null);
 
   useEffect(() => () => callRef.current?.hangUp(), []);
 
@@ -136,6 +138,7 @@ export function AiCoachChat({
       getSession: async () => {
         const result = await startVoiceSessionAction(conversationIdRef.current);
         if (!result.session) throw new Error(result.error);
+        voiceSessionIdRef.current = result.session.voiceSessionId ?? null;
         return result.session;
       },
       onToolCall: async (name, args) => {
@@ -171,6 +174,9 @@ export function AiCoachChat({
         });
       },
       onEnd: (error) => {
+        // Para a contagem dos minutos de voz do dia no momento em que a ligação acabou
+        if (voiceSessionIdRef.current) void endVoiceSessionAction(voiceSessionIdRef.current);
+        voiceSessionIdRef.current = null;
         callRef.current = null;
         setCallStatus(null);
         if (error) setTurns((prev) => [...prev, { role: "assistant", text: error, error: true }]);

@@ -61,6 +61,8 @@ export interface LiveSessionConfig {
   token: string;
   expiresAt: string;
   setup: Record<string, unknown>;
+  /** A ligação acaba no prazo porque terminaram os minutos de voz do dia (não pelo teto de 15 min) */
+  endsByDailyLimit?: boolean;
 }
 
 export interface CallHandlers {
@@ -158,11 +160,14 @@ export class GeminiLiveCall {
     };
 
     const msLeft = Date.parse(session.expiresAt) - Date.now();
+    const timeUp = session.endsByDailyLimit
+      ? "Acabaram seus minutos de voz de hoje. Amanhã tem mais! Pode continuar comigo por escrito."
+      : "Chegamos no limite de tempo da ligação.";
     this.watchdog = setInterval(() => {
       if (Date.now() - this.lastActivity > IDLE_TIMEOUT_MS) this.finish("Encerrei a ligação porque ficou em silêncio.");
-      else if (Date.parse(session.expiresAt) - Date.now() < 5_000) this.finish("Chegamos no limite de tempo da ligação.");
+      else if (Date.parse(session.expiresAt) - Date.now() < 5_000) this.finish(timeUp);
     }, 5_000);
-    if (msLeft <= 0) this.finish("Chegamos no limite de tempo da ligação.");
+    if (msLeft <= 0) this.finish(timeUp);
   }
 
   setMuted(muted: boolean) {

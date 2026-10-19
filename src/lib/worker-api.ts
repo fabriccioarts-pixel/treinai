@@ -399,9 +399,25 @@ export const workerApi = {
 
   /** Token temporário + configuração para o navegador abrir a conversa por voz no Gemini Live */
   startVoiceSession: (userId: string, conversationId?: string) =>
-    workerFetch<{ token: string; expiresAt: string; setup: Record<string, unknown> }>("/ai/voice/session", {
+    workerFetch<{
+      token: string;
+      expiresAt: string;
+      setup: Record<string, unknown>;
+      /** Ausentes no worker antigo (sem limite diário) */
+      voiceSessionId?: string | null;
+      endsByDailyLimit?: boolean;
+      dailyLimitMinutes?: number;
+      remainingMinutes?: number;
+    }>("/ai/voice/session", {
       method: "POST",
       body: JSON.stringify({ userId, conversationId }),
+    }),
+
+  /** Fim da ligação, para parar de contar os minutos de voz do dia */
+  endVoiceSession: (userId: string, voiceSessionId: string) =>
+    workerFetch<{ ok: true }>("/ai/voice/end", {
+      method: "POST",
+      body: JSON.stringify({ userId, voiceSessionId }),
     }),
 
   runVoiceTool: (userId: string, name: string, args: unknown) =>
@@ -568,9 +584,11 @@ export const workerApi = {
       body: JSON.stringify({ userId, endpoint }),
     }),
 
-  sendTestPush: (userId: string) =>
-    workerFetch<{ sent: number }>("/push/test", {
+  /** Sem `kind`: boas-vindas. Com `kind`: o lembrete real de água ou de treino, sem esperar o horário */
+  sendTestPush: (userId: string, kind?: "agua" | "treino") =>
+    workerFetch<{ sent: number; reason?: "water_goal_met" | "no_workout" }>("/push/test", {
       method: "POST",
-      body: JSON.stringify({ userId }),
+      body: JSON.stringify({ userId, kind }),
     }),
+
 };
