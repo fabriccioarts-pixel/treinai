@@ -282,6 +282,10 @@
   animation: cta-sweep 3.6s ease-in-out 1s infinite;
   pointer-events: none;
 }
+.cta-shine:disabled::after,
+.cta-shine[aria-disabled="true"]::after {
+  animation: none;
+}
 @keyframes cta-sweep {
   0% { transform: translateX(-120%); }
   45%, 100% { transform: translateX(120%); }

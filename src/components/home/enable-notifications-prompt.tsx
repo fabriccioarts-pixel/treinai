@@ -77,7 +77,7 @@ export function EnableNotificationsPrompt() {
             type="button"
             onClick={enable}
             disabled={pending}
-            className="mt-3 rounded-full bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground transition-opacity disabled:opacity-60"
+            className="cta-shine mt-3 rounded-full bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground disabled:opacity-60"
           >
             {pending ? "Ativando…" : "Ativar lembretes"}
           </button>
