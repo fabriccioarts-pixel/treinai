@@ -2,6 +2,8 @@ import { Hono } from "hono";
 import { hashPassword, verifyPassword, hashToken, generateToken } from "../lib/password";
 import { sendPasswordResetEmail } from "../lib/email";
 import { newId, nowIso } from "../lib/id";
+import { startTrial } from "../lib/billing";
+import { linkLeadsToUser } from "./leads";
 
 export const authRoutes = new Hono<{ Bindings: Env }>();
 
@@ -43,6 +45,7 @@ authRoutes.post("/register", async (c) => {
   )
     .bind(id, email.toLowerCase(), name, passwordHash, nowIso())
     .run();
+  await Promise.all([startTrial(c.env, id), linkLeadsToUser(c.env.DB, id, email)]);
 
   return c.json({ user: { id, email: email.toLowerCase(), name, createdAt: nowIso() } }, 201);
 });
@@ -95,6 +98,7 @@ authRoutes.post("/google", async (c) => {
       )
         .bind(id, email.toLowerCase(), name, googleId, createdAt)
         .run();
+      await Promise.all([startTrial(c.env, id), linkLeadsToUser(c.env.DB, id, email)]);
       row = { id, email: email.toLowerCase(), name, password_hash: null, google_id: googleId, created_at: createdAt };
     }
   }

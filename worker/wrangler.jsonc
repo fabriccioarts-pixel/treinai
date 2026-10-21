@@ -28,6 +28,13 @@
   },
   "vars": {
     "APP_URL": "http://localhost:3000",
-    "VAPID_SUBJECT": "mailto:fabriccioarts@gmail.com"
+    "VAPID_SUBJECT": "mailto:fabriccioarts@gmail.com",
+    // Dias de teste grátis com a IA liberada; depois, só com assinatura (src/lib/billing.ts)
+    "TRIAL_DAYS": "3",
+    // Ids das ofertas na Cakto (o final do link pay.cakto.com.br/<id>); vazio = checkout desligado
+    "CAKTO_OFFER_MENSAL": "3esbaq9_1222082",
+    "CAKTO_OFFER_TRIMESTRAL": "8g6hp4p"
   }
+  // Segredos da Cakto (wrangler secret put): CAKTO_WEBHOOK_SECRET (obrigatório),
+  // CAKTO_CLIENT_ID e CAKTO_CLIENT_SECRET (opcionais: cancelar a assinatura pelo app)
 }

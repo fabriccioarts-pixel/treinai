@@ -4,6 +4,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { newId, nowIso } from "../lib/id";
 import { localDate } from "../lib/nutrition";
 import { MealAnalysisError, analyzeMeal } from "../lib/meal-analysis";
+import { requireAiAccess } from "../lib/billing";
 
 export const mealRoutes = new Hono<{ Bindings: Env }>();
 
@@ -36,7 +37,9 @@ mealRoutes.post("/analyze", async (c) => {
   if (!parsed.success || (!parsed.data.photo && !parsed.data.text)) {
     return c.json({ error: "invalid_input" }, 400);
   }
-  const { photo, text } = parsed.data;
+  const { userId, photo, text } = parsed.data;
+  const locked = await requireAiAccess(c, userId);
+  if (locked) return locked;
 
   const apiKey = c.env.GEMINI_API_KEY || c.env.GOOGLE_API_KEY || c.env.ANTHROPIC_API_KEY;
   if (!apiKey) return c.json({ error: "ai_not_configured" }, 503);

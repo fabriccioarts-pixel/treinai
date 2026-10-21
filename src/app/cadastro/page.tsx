@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import Link from "next/link";
 import { AuthShell } from "@/components/auth/auth-shell";
 import { GoogleSignInButton } from "@/components/auth/google-sign-in-button";
@@ -11,8 +11,26 @@ import { registerAction, type ActionState } from "@/app/actions/auth-actions";
 
 const initialState: ActionState = {};
 
+/** Nome e e-mail já informados no diagnóstico (/diagnostico), para não pedir de novo */
+function readDiagnosticContact(): { name: string; email: string } | null {
+  try {
+    const saved = JSON.parse(localStorage.getItem("treinai.diagnostico") ?? "null");
+    const name = typeof saved?.answers?.nome === "string" ? saved.answers.nome.trim() : "";
+    const email = typeof saved?.email === "string" ? saved.email.trim() : "";
+    return name || email ? { name, email } : null;
+  } catch {
+    return null;
+  }
+}
+
 export default function CadastroPage() {
   const [state, formAction, pending] = useActionState(registerAction, initialState);
+  const [prefill, setPrefill] = useState<{ name: string; email: string } | null>(null);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- localStorage só existe no navegador
+    setPrefill(readDiagnosticContact());
+  }, []);
 
   return (
     <AuthShell
@@ -35,14 +53,14 @@ export default function CadastroPage() {
         <div className="h-px flex-1 bg-border" />
       </div>
 
-      <form action={formAction} className="space-y-4">
+      <form key={prefill ? "prefill" : "empty"} action={formAction} className="space-y-4">
         <div className="space-y-1.5">
           <Label htmlFor="name">Nome</Label>
-          <Input id="name" name="name" required autoComplete="name" />
+          <Input id="name" name="name" required autoComplete="name" defaultValue={prefill?.name} />
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="email">E-mail</Label>
-          <Input id="email" name="email" type="email" required autoComplete="email" />
+          <Input id="email" name="email" type="email" required autoComplete="email" defaultValue={prefill?.email} />
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="password">Senha</Label>

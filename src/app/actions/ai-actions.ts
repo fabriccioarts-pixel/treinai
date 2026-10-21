@@ -2,6 +2,7 @@
 
 import { auth } from "@/auth";
 import { workerApi, WorkerApiError, type CoachAction } from "@/lib/worker-api";
+import { PAYWALL_MESSAGE } from "@/lib/billing";
 
 export interface AskCoachResult {
   reply?: string;
@@ -9,6 +10,8 @@ export interface AskCoachResult {
   /** Conversa onde a troca foi salva; ausente se não deu para salvar */
   conversationId?: string;
   error?: string;
+  /** O teste grátis acabou e não há assinatura: mostrar o convite para assinar */
+  paywall?: boolean;
 }
 
 export interface ChatHistoryMessage {
@@ -31,6 +34,7 @@ export async function askCoachAction(
     return { reply, actions, conversationId: conversationId ?? undefined };
   } catch (err) {
     console.error("[askCoachAction] Failed:", err);
+    if (err instanceof WorkerApiError && err.status === 402) return { error: PAYWALL_MESSAGE, paywall: true };
     if (err instanceof WorkerApiError && err.status === 503) {
       return { error: "O assistente de IA ainda não foi configurado neste app." };
     }
@@ -53,7 +57,7 @@ export interface VoiceSession {
 
 export async function startVoiceSessionAction(
   conversationId?: string
-): Promise<{ session?: VoiceSession; error?: string }> {
+): Promise<{ session?: VoiceSession; error?: string; paywall?: boolean }> {
   const session = await auth();
   if (!session?.user?.id) return { error: "Sessão expirada. Entre novamente." };
 
@@ -61,6 +65,7 @@ export async function startVoiceSessionAction(
     return { session: await workerApi.startVoiceSession(session.user.id, conversationId) };
   } catch (err) {
     console.error("[startVoiceSessionAction] Failed:", err);
+    if (err instanceof WorkerApiError && err.status === 402) return { error: PAYWALL_MESSAGE, paywall: true };
     if (err instanceof WorkerApiError && err.status === 503) {
       return { error: "A conversa por voz ainda não foi configurada neste app." };
     }

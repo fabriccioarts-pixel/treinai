@@ -12,12 +12,17 @@ function minutesSince(startedAt: string): number | null {
 
 export default async function AuthenticatedLayout({ children }: { children: ReactNode }) {
   const session = await auth();
-  const activeSession = session?.user?.id
-    ? await workerApi.getActiveSession(session.user.id).catch((err) => {
-        console.error("Erro ao carregar sessão ativa no layout:", err);
-        return null;
-      })
-    : null;
+  const userId = session?.user?.id;
+  const [activeSession, billing] = userId
+    ? await Promise.all([
+        workerApi.getActiveSession(userId).catch((err) => {
+          console.error("Erro ao carregar sessão ativa no layout:", err);
+          return null;
+        }),
+        // Sem resposta do worker, o app segue sem a faixa do teste grátis
+        workerApi.getBilling(userId).catch(() => null),
+      ])
+    : [null, null];
   // Progresso da sessão aberta, para o banner dizer o que já foi feito (e o que se perde ao descartar)
   const completedSets = activeSession
     ? await workerApi
@@ -31,6 +36,7 @@ export default async function AuthenticatedLayout({ children }: { children: Reac
     <AppShell
       activeSession={activeSession ? { ...activeSession, completedSets, minutesAgo } : null}
       onDiscardActiveSession={activeSession ? discardSessionAction.bind(null, activeSession.id) : undefined}
+      billing={billing}
     >
       {children}
     </AppShell>

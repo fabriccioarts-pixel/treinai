@@ -73,7 +73,7 @@ const ALLOWED_MEAL_PHOTO_TYPES = new Set(["image/jpeg", "image/png", "image/webp
 
 export async function analyzeMealAction(
   input: { photoBase64: string; mediaType: string } | { text: string },
-): Promise<{ estimate?: MealEstimate; error?: string }> {
+): Promise<{ estimate?: MealEstimate; error?: string; paywall?: boolean }> {
   const session = await auth();
   if (!session?.user?.id) return { error: "Sessão expirada." };
 
@@ -96,6 +96,9 @@ export async function analyzeMealAction(
     }
     return { estimate };
   } catch (err) {
+    if (err instanceof WorkerApiError && err.status === 402) {
+      return { error: "Seu teste grátis acabou. Assine para continuar analisando refeições por foto.", paywall: true };
+    }
     if (err instanceof WorkerApiError && err.code === "busy") {
       return { error: "Muita gente registrando agora. Tente de novo em instantes." };
     }

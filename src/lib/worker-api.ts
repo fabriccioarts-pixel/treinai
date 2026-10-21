@@ -593,7 +593,69 @@ export const workerApi = {
 
   getRoutineStability: (userId: string) =>
     workerFetch<RoutineStability>(`/workouts/stability?userId=${encodeURIComponent(userId)}`),
+
+  /** Planos e dias de teste, para a oferta pública */
+  getPlans: () => workerFetch<{ plans: Plan[]; trialDays: number }>("/billing/plans"),
+
+  /** Teste grátis, assinatura e planos do usuário */
+  getBilling: (userId: string) => workerFetch<Billing>(`/billing?userId=${encodeURIComponent(userId)}`),
+
+  /** Link de pagamento da Cakto para o plano, já com a conta e o contato da pessoa */
+  createCheckout: (userId: string, plan: PlanKey) =>
+    workerFetch<{ url: string }>("/billing/checkout", {
+      method: "POST",
+      body: JSON.stringify({ userId, plan }),
+    }),
+
+  cancelSubscription: (userId: string) =>
+    workerFetch<{ ok: true; access: BillingAccess }>("/billing/cancel", {
+      method: "POST",
+      body: JSON.stringify({ userId }),
+    }),
+
+  /** Contato deixado no fim do diagnóstico */
+  saveLead: (lead: {
+    name: string;
+    email: string;
+    whatsapp: string;
+    answers: Record<string, unknown>;
+    score: number;
+    phase: string;
+    utm?: Record<string, string>;
+  }) =>
+    workerFetch<{ id: string }>("/leads", {
+      method: "POST",
+      body: JSON.stringify(lead),
+    }),
 };
+
+export type PlanKey = "mensal" | "trimestral";
+
+export interface Plan {
+  key: PlanKey;
+  label: string;
+  months: number;
+  amountCents: number;
+}
+
+export interface BillingAccess {
+  /** expired: o teste acabou e não há assinatura em dia — a IA fica bloqueada */
+  status: "trial" | "active" | "expired";
+  trialEndsAt: string | null;
+  subscription: {
+    id: string;
+    plan: PlanKey;
+    /** canceled: sem renovação, mas o acesso vale até paidUntil; refunded/chargeback: acesso encerrado */
+    status: "active" | "canceled" | "refunded" | "chargeback" | string;
+    amountCents: number;
+    paidUntil: string | null;
+  } | null;
+}
+
+export interface Billing extends BillingAccess {
+  plans: Plan[];
+  trialDays: number;
+}
 
 export interface RoutineStability {
   level: "ok" | "atencao" | "alerta";

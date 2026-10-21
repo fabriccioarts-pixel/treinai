@@ -1,9 +1,10 @@
 "use client";
 
 import { useRef, useState, useTransition } from "react";
-import { Camera, Loader2, PencilLine, X } from "lucide-react";
+import Link from "next/link";
+import { ArrowRight, Camera, Loader2, PencilLine, X } from "lucide-react";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { analyzeMealAction, saveMealAction } from "@/app/actions/nutrition-actions";
 import { resizeImageToJpegBase64 } from "@/lib/image";
@@ -22,7 +23,7 @@ type Step =
   | { name: "describe" }
   | { name: "analyzing"; previewUrl: string | null }
   | { name: "review"; previewUrl: string | null; estimate: MealEstimate }
-  | { name: "error"; previewUrl: string | null; message: string };
+  | { name: "error"; previewUrl: string | null; message: string; paywall?: boolean };
 
 /** Item em revisão: guarda a estimativa original para recalcular os macros quando a porção muda */
 interface DraftItem {
@@ -73,7 +74,12 @@ export function MealLogger() {
     setStep({ name: "analyzing", previewUrl: preview });
     const result = await analyzeMealAction(input);
     if (!result.estimate) {
-      setStep({ name: "error", previewUrl: preview, message: result.error ?? "Não consegui analisar agora." });
+      setStep({
+        name: "error",
+        previewUrl: preview,
+        message: result.error ?? "Não consegui analisar agora.",
+        paywall: result.paywall,
+      });
       return;
     }
     setItems(result.estimate.items.map((base) => ({ base, grams: String(base.grams) })));
@@ -209,14 +215,21 @@ export function MealLogger() {
               <p role="alert" className="text-sm text-foreground/90">
                 {step.message}
               </p>
-              <div className="grid grid-cols-2 gap-2">
-                <Button type="button" variant="outline" onClick={() => fileInput.current?.click()}>
-                  Outra foto
-                </Button>
-                <Button type="button" variant="outline" onClick={() => setStep({ name: "describe" })}>
-                  Escrever
-                </Button>
-              </div>
+              {step.paywall ? (
+                <Link href="/assinar" className={buttonVariants({ className: "h-11 w-full gap-2 font-semibold" })}>
+                  Ver planos
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
+              ) : (
+                <div className="grid grid-cols-2 gap-2">
+                  <Button type="button" variant="outline" onClick={() => fileInput.current?.click()}>
+                    Outra foto
+                  </Button>
+                  <Button type="button" variant="outline" onClick={() => setStep({ name: "describe" })}>
+                    Escrever
+                  </Button>
+                </div>
+              )}
             </div>
           )}
 

@@ -5,6 +5,7 @@ import { createCoachToolExecutors, GEMINI_COACH_FUNCTIONS } from "../lib/coach-t
 import { COACH_RULES, THEO_PERSONA } from "../lib/coach-persona";
 import { COACH_KNOWLEDGE } from "../lib/coach-knowledge";
 import { DAILY_VOICE_MINUTES, endVoiceSession, MAX_CALL_MS, startVoiceQuota } from "../lib/voice-quota";
+import { requireAiAccess } from "../lib/billing";
 
 /*
  * Conversa por voz com o Théo (Gemini Live API).
@@ -32,6 +33,8 @@ const VOICE_RULES = `MODO VOZ — VOCÊ ESTÁ NUMA CONVERSA FALADA, EM TEMPO REA
 voiceRoutes.post("/session", async (c) => {
   const { userId, conversationId } = await c.req.json<{ userId?: string; conversationId?: string }>();
   if (!userId) return c.json({ error: "invalid_input" }, 400);
+  const locked = await requireAiAccess(c, userId);
+  if (locked) return locked;
 
   const apiKey = c.env.GEMINI_API_KEY || c.env.GOOGLE_API_KEY;
   if (!apiKey) return c.json({ error: "ai_not_configured" }, 503);

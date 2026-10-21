@@ -8,6 +8,7 @@ import { createCoachToolExecutors, GEMINI_COACH_FUNCTIONS } from "../lib/coach-t
 import { COACH_RULES, THEO_PERSONA } from "../lib/coach-persona";
 import { COACH_KNOWLEDGE } from "../lib/coach-knowledge";
 import { forgetPromptCache, getPromptCache } from "../lib/gemini-cache";
+import { requireAiAccess } from "../lib/billing";
 
 export const aiRoutes = new Hono<{ Bindings: Env }>();
 
@@ -68,6 +69,8 @@ aiRoutes.post("/coach", async (c) => {
     }>();
     const { userId, message, conversationId } = body;
     if (!userId || !message) return c.json({ error: "invalid_input" }, 400);
+    const locked = await requireAiAccess(c, userId);
+    if (locked) return locked;
 
     let history = body.history;
     if (conversationId) {

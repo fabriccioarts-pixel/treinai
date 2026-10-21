@@ -56,6 +56,8 @@ export interface Turn {
   text: string;
   actions?: { type: "workout_created" | "workout_updated"; workoutId: string; name: string }[];
   error?: boolean;
+  /** Erro por fim do teste grátis: mostra o botão para assinar */
+  paywall?: boolean;
 }
 
 const SUGGESTIONS = [
@@ -120,6 +122,8 @@ export function AiCoachChat({
   /** Salva as trocas em ordem: a primeira pode criar a conversa que as próximas usam */
   const voiceSaveRef = useRef<Promise<void>>(Promise.resolve());
   const voiceSessionIdRef = useRef<string | null>(null);
+  /** A ligação não abriu porque o teste acabou: o fim da chamada mostra o convite para assinar */
+  const voicePaywallRef = useRef(false);
 
   useEffect(() => () => callRef.current?.hangUp(), []);
 
@@ -137,6 +141,7 @@ export function AiCoachChat({
     const call = new GeminiLiveCall({
       getSession: async () => {
         const result = await startVoiceSessionAction(conversationIdRef.current);
+        voicePaywallRef.current = !!result.paywall;
         if (!result.session) throw new Error(result.error);
         voiceSessionIdRef.current = result.session.voiceSessionId ?? null;
         return result.session;
@@ -179,7 +184,9 @@ export function AiCoachChat({
         voiceSessionIdRef.current = null;
         callRef.current = null;
         setCallStatus(null);
-        if (error) setTurns((prev) => [...prev, { role: "assistant", text: error, error: true }]);
+        const paywall = voicePaywallRef.current;
+        voicePaywallRef.current = false;
+        if (error) setTurns((prev) => [...prev, { role: "assistant", text: error, error: true, paywall }]);
       },
     });
     callRef.current = call;
@@ -197,7 +204,7 @@ export function AiCoachChat({
     setTurns((prev) => [
       ...prev,
       result.error
-        ? { role: "assistant", text, error: true }
+        ? { role: "assistant", text, error: true, paywall: result.paywall }
         : { role: "assistant", text, actions: result.actions },
     ]);
     adoptConversation(result.conversationId);
@@ -319,7 +326,9 @@ export function AiCoachChat({
               ) : (
                 <div
                   className={`max-w-[95%] sm:max-w-[85%] rounded-2xl rounded-tl-sm border p-4 transition-all duration-300 shadow-sm ${
-                    turn.error
+                    turn.paywall
+                      ? "border-primary/40 bg-primary/5"
+                      : turn.error
                       ? "border-destructive/40 bg-destructive/5"
                       : "border-border/50 bg-secondary/35 backdrop-blur-md"
                   }`}
@@ -327,7 +336,18 @@ export function AiCoachChat({
                   <div className="flex items-start gap-3">
                     <CoachAvatar />
                     <div className="min-w-0 flex-1">
-                      {turn.error ? (
+                      {turn.paywall ? (
+                        <div className="mt-0.5 space-y-3">
+                          <p className="text-sm leading-relaxed font-medium text-foreground">{turn.text}</p>
+                          <Link
+                            href="/assinar"
+                            className="inline-flex h-10 items-center gap-2 rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground"
+                          >
+                            Ver planos
+                            <ArrowRight className="h-4 w-4" />
+                          </Link>
+                        </div>
+                      ) : turn.error ? (
                         <p className="mt-0.5 text-sm leading-relaxed font-medium text-destructive">
                           {turn.text}
                         </p>

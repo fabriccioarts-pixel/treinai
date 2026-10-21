@@ -4,10 +4,13 @@ import { NextResponse } from "next/server";
 const AUTH_PAGES = ["/login", "/cadastro", "/esqueci-senha", "/redefinir-senha"];
 // Match exato — "/bem-vindo/conversa" (boas-vindas da IA) continua exigindo login.
 const PUBLIC_ONLY_EXACT_PAGES = ["/bem-vindo"];
+// Abertas para todos, com ou sem login (entrada dos anúncios)
+const PUBLIC_PAGES = ["/diagnostico"];
 
 export default auth((req) => {
   const isLoggedIn = !!req.auth;
   const path = req.nextUrl.pathname;
+  if (PUBLIC_PAGES.includes(path)) return;
   const isPublicOnlyPage =
     AUTH_PAGES.some((page) => path.startsWith(page)) || PUBLIC_ONLY_EXACT_PAGES.includes(path);
 

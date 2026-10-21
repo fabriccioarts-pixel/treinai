@@ -18,11 +18,15 @@ import { waterRoutes } from "./routes/water";
 import { mealRoutes } from "./routes/meals";
 import { pushRoutes } from "./routes/push";
 import { gamificationRoutes } from "./routes/gamification";
+import { billingRoutes, handleCaktoWebhook } from "./routes/billing";
+import { leadRoutes } from "./routes/leads";
 import { runHourlyReminders } from "./lib/reminders";
 
 const app = new Hono<{ Bindings: Env }>();
 
 app.get("/", (c) => c.json({ ok: true, service: "treinai-api" }));
+// Única rota chamada de fora do Next: validada pela assinatura da Cakto, não pelo segredo interno
+app.post("/billing/webhook", handleCaktoWebhook);
 
 app.use("*", requireInternalSecret);
 
@@ -44,6 +48,8 @@ app.route("/water", waterRoutes);
 app.route("/meals", mealRoutes);
 app.route("/push", pushRoutes);
 app.route("/gamification", gamificationRoutes);
+app.route("/billing", billingRoutes);
+app.route("/leads", leadRoutes);
 
 export default {
   fetch: app.fetch,

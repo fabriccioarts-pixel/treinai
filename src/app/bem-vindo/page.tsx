@@ -45,10 +45,11 @@ const BADGES = [
   { key: "primeira-meta", label: "Meta batida" },
 ];
 
-function PrimaryCta({ className, children = "Criar conta grátis" }: { className?: string; children?: string }) {
+/** Entrada do funil: diagnóstico grátis → contato → resultado e oferta → cadastro com teste grátis */
+function PrimaryCta({ className, children = "Fazer meu diagnóstico grátis" }: { className?: string; children?: string }) {
   return (
     <Link
-      href="/cadastro"
+      href="/diagnostico"
       className={buttonVariants({
         size: "lg",
         className: cn(
