@@ -46,18 +46,13 @@ export default async function TreinoDetalhePage({
   );
   const estimatedMinutes = Math.max(10, Math.round(estimatedSeconds / 60));
 
-  const groups = new Map<
-    string,
-    { label: string; color: string; sets: number; exercises: typeof workout.exercises }
-  >();
+  const groups = new Map<string, { label: string; color: string; sets: number }>();
   workout.exercises.forEach((exercise) => {
     const key = exercise.muscle_group;
     const label = MUSCLE_GROUP_LABEL[key as MuscleGroup] ?? key;
     const color = MUSCLE_GROUP_COLOR[key as MuscleGroup] ?? "var(--muted-foreground)";
-    if (!groups.has(key)) groups.set(key, { label, color, sets: 0, exercises: [] });
-    const g = groups.get(key)!;
-    g.sets += exercise.target_sets;
-    g.exercises.push(exercise);
+    if (!groups.has(key)) groups.set(key, { label, color, sets: 0 });
+    groups.get(key)!.sets += exercise.target_sets;
   });
   const groupList = Array.from(groups.entries()).map(([key, g]) => ({ key, ...g }));
 
@@ -122,7 +117,7 @@ export default async function TreinoDetalhePage({
       )}
 
       <WorkoutExerciseGroups
-        groupList={groupList}
+        exercises={workout.exercises}
         startWorkoutAction={startWorkoutAction.bind(null, workout.id)}
         isResuming={isResuming}
       />

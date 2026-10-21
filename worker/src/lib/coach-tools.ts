@@ -1,6 +1,12 @@
 import { createWorkoutRecord, updateWorkoutRecord } from "./workout-mutations";
 import type { CoachAction } from "./coach-conversations";
 
+/** Descrições dos campos de método, compartilhadas pelo Gemini e pelo Claude */
+export const SUPERSET_GROUP_DESCRIPTION =
+  "Conjugado: dê o mesmo número aos exercícios feitos em sequência sem descanso (2 = bi-set, 3 = tri-set, 4+ = série gigante). Eles precisam estar seguidos na lista. Omita para exercício sozinho. O descanso do último do grupo vale para a volta inteira.";
+export const TECHNIQUE_DESCRIPTION =
+  "Técnica de intensidade opcional: drop-set, rest-pause, piramide-crescente, piramide-decrescente, falha, parciais (parciais alongadas no fim), isometria (pausa na contração) ou cadencia (descida lenta). Omita para séries normais.";
+
 /*
  * Ferramentas do Théo (criar e editar treino), compartilhadas pelo chat de texto
  * e pela conversa por voz.
@@ -13,6 +19,8 @@ interface ExerciseInput {
   targetRepsMax?: number;
   restTime?: number;
   notes?: string;
+  supersetGroup?: number;
+  technique?: string;
 }
 
 export interface CreateWorkoutInput {
@@ -59,6 +67,8 @@ function toExerciseRows(exercises: ExerciseInput[] | undefined, exerciseMap: Map
     targetRepsMax: Number(e.targetRepsMax) || 12,
     restTime: Number(e.restTime) ?? 90,
     notes: e.notes,
+    supersetGroup: Number(e.supersetGroup) || null,
+    technique: e.technique ?? null,
   });
 
   const valid = (exercises || [])
@@ -123,6 +133,9 @@ const exerciseItemSchema = (idDescription: string) => ({
     targetRepsMax: { type: "INTEGER", description: "Máximo de repetições" },
     restTime: { type: "INTEGER", description: "Descanso em segundos" },
     notes: { type: "STRING", description: "Observação opcional de execução" },
+    supersetGroup: { type: "INTEGER", description: SUPERSET_GROUP_DESCRIPTION },
+    // Sem enum aqui: valor fora da lista vira série normal em normalizeWorkoutExercises
+    technique: { type: "STRING", description: TECHNIQUE_DESCRIPTION },
   },
   required: ["exerciseId"],
 });

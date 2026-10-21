@@ -53,7 +53,11 @@ CREATE TABLE IF NOT EXISTS workout_exercises (
   target_reps_min INTEGER NOT NULL,
   target_reps_max INTEGER NOT NULL,
   rest_time INTEGER NOT NULL DEFAULT 90,
-  notes TEXT
+  notes TEXT,
+  -- Conjugado: exercícios seguidos com o mesmo número são feitos sem descanso entre eles (migração 0014)
+  superset_group INTEGER,
+  -- Técnica de intensidade (drop-set, rest-pause, pirâmide…); NULL = série normal
+  technique TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_workout_exercises_workout ON workout_exercises(workout_id);
 

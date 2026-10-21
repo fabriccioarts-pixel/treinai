@@ -57,7 +57,8 @@ export async function buildCoachContext(db: D1Database, userId: string): Promise
   const { results: workoutExercises } = await db
     .prepare(
       `SELECT we.workout_id, we.exercise_id, e.name AS exercise_name, we.order_index,
-              we.target_sets, we.target_reps_min, we.target_reps_max, we.rest_time, we.notes
+              we.target_sets, we.target_reps_min, we.target_reps_max, we.rest_time, we.notes,
+              we.superset_group, we.technique
        FROM workout_exercises we
        JOIN exercises e ON e.id = we.exercise_id
        JOIN workouts w ON w.id = we.workout_id
@@ -75,6 +76,8 @@ export async function buildCoachContext(db: D1Database, userId: string): Promise
       target_reps_max: number;
       rest_time: number;
       notes: string | null;
+      superset_group: number | null;
+      technique: string | null;
     }>();
 
   const { results: prs } = await db
@@ -137,7 +140,7 @@ export async function buildCoachContext(db: D1Database, userId: string): Promise
         .filter((we) => we.workout_id === w.id)
         .map(
           (we) =>
-            `  ${we.order_index}. ${we.exercise_name} (id: ${we.exercise_id}) — ${we.target_sets}x${we.target_reps_min}-${we.target_reps_max}, descanso ${we.rest_time}s${we.notes ? `, obs: ${we.notes}` : ""}`
+            `  ${we.order_index}. ${we.exercise_name} (id: ${we.exercise_id}) — ${we.target_sets}x${we.target_reps_min}-${we.target_reps_max}, descanso ${we.rest_time}s${we.superset_group ? `, conjugado ${we.superset_group}` : ""}${we.technique ? `, técnica ${we.technique}` : ""}${we.notes ? `, obs: ${we.notes}` : ""}`
         )
         .join("\n");
       return `Treino "${w.name}" (id: ${w.id})${w.description ? ` — ${w.description}` : ""}\n${items}`;

@@ -57,6 +57,16 @@ Foco interno (conexão mente-músculo):
 Técnicas de intensidade:
 - Drop-set, rest-pause e myo-reps economizam tempo e geram hipertrofia parecida a séries tradicionais de mesmo volume. São ferramentas, não obrigação. Use no último set de isoladores, não em agachamento ou terra.
 
+Métodos de treino (como montar no app):
+- Bi-set antagonista (ex.: rosca + tríceps, supino + remada, extensora + flexora): economiza tempo sem perder desempenho. Bom para quem tem pouco tempo e para iniciantes que já dominam os movimentos.
+- Bi-set/tri-set do mesmo músculo (ex.: supino inclinado + crucifixo; elevação lateral + crucifixo inverso + face pull): mais estímulo metabólico e fadiga. Use em máquinas e isoladores, para intermediários e avançados.
+- Série gigante (4+ exercícios): circuito para condicionamento ou finalização de abdômen e ombros. Cargas moderadas.
+- Pré-exaustão: isolador antes do composto do mesmo músculo (ex.: extensora + agachamento) — útil quando outro músculo limita o composto.
+- Nunca conjugue dois compostos pesados e técnicos (agachamento, terra, supino pesado): a fadiga estraga a técnica e aumenta o risco.
+- No conjugado, o descanso entre os exercícios é zero; o descanso do grupo (no último exercício) costuma ser 90–150 s. Mantenha o mesmo número de séries nos exercícios do grupo.
+- Drop-set e rest-pause: na última série de isoladores e máquinas. Pirâmide crescente: compostos, subindo carga e baixando reps. Pirâmide decrescente: começa pesado e alivia a carga. Parciais alongadas, isometria e cadência lenta: ótimas para intensificar sem carga alta (bom para quem treina em casa ou volta de lesão, com liberação profissional).
+- Iniciante: no máximo 1 conjugado antagonista e nenhuma técnica de intensidade no primeiro mês. Intermediário: 1–2 conjugados e 1–2 técnicas por treino. Avançado: pode usar mais, controlando a fadiga.
+
 Fadiga, deload e recuperação:
 - Sinais de fadiga acumulada: cargas caindo por 2+ sessões, dor articular, sono ruim, falta de vontade. Resposta: deload de ~1 semana reduzindo o volume em ~40–50% e mantendo a carga, ou mais RIR. Muitos treinadores programam deload a cada 4–8 semanas (consenso de especialistas, Bell et al., 2023).
 - Sono: 7–9 h. Dormir mal piora força, recuperação e composição corporal. É a variável mais barata.

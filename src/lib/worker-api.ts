@@ -153,6 +153,9 @@ export const workerApi = {
           target_reps_max: number;
           rest_time: number;
           notes: string | null;
+          /** Ausentes antes da migração 0014 do worker */
+          superset_group?: number | null;
+          technique?: string | null;
         }[];
       };
     }>(`/workouts/${id}`),
@@ -169,6 +172,8 @@ export const workerApi = {
       targetRepsMax: number;
       restTime: number;
       notes?: string;
+      supersetGroup?: number;
+      technique?: string;
     }[];
   }) =>
     workerFetch<{ id: string }>("/workouts", {

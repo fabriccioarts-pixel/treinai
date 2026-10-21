@@ -13,6 +13,9 @@ export interface WorkoutExerciseInput {
   targetRepsMax: number;
   restTime: number;
   notes?: string;
+  /** Exercícios seguidos com o mesmo número formam um conjugado */
+  supersetGroup?: number;
+  technique?: string;
 }
 
 export interface CreateWorkoutResult {

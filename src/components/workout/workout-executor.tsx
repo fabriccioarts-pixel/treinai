@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
-import { Check, ChevronLeft, ChevronRight, Undo2, X } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, Link2, Undo2, X, Zap } from "lucide-react";
 import { PhotoIcon, StartIcon, GoalIcon, PrIcon } from "@/components/ui/app-icon";
 import { Card } from "@/components/ui/card";
 import { BadgeIcon } from "@/components/profile/badge-icon";
@@ -14,6 +14,7 @@ import { MUSCLE_GROUP_LABEL } from "@/lib/muscle-groups";
 import { MUSCLE_GROUP_COLOR } from "@/lib/muscle-colors";
 import type { MuscleGroup } from "@/lib/types";
 import { usePreferences } from "@/lib/preferences";
+import { supersetLabel, techniqueInfo, toExerciseBlocks } from "@/lib/training-methods";
 import {
   logSetAction,
   undoSetAction,
@@ -32,6 +33,8 @@ interface ExerciseVM {
   target_reps_max: number;
   rest_time: number;
   notes: string | null;
+  superset_group?: number | null;
+  technique?: string | null;
 }
 
 interface LoggedSetVM {
@@ -70,6 +73,26 @@ function prefillFor(exercise: ExerciseVM, logged: LoggedSetVM[], previous: Previ
   if (last) return { weight: last.weight, reps: last.reps };
   const first = previous?.find((s) => s.set_number === 1) ?? previous?.[0];
   return { weight: first?.weight ?? 0, reps: first?.reps ?? exercise.target_reps_min };
+}
+
+/**
+ * Para onde ir depois de registrar uma série. Exercício sozinho: fica e descansa. Conjugado: segue
+ * sem descanso para o próximo da volta; no fim da volta, descansa e recomeça pelo primeiro que falta.
+ */
+function stepAfterSet(block: number[], current: number, isDone: (i: number) => boolean, blockRest: number) {
+  if (block.length === 1) return { nextIndex: current, restSeconds: blockRest };
+  const laterInRound = block.slice(block.indexOf(current) + 1).find((i) => !isDone(i));
+  if (laterInRound !== undefined) return { nextIndex: laterInRound, restSeconds: 0 };
+  return { nextIndex: block.find((i) => !isDone(i)) ?? current, restSeconds: blockRest };
+}
+
+/**
+ * Descanso contado a partir de agora. Fica fora do componente porque o compilador do React não
+ * acompanha o caminho do conjugado e acha que o relógio é lido durante a renderização; só roda após registrar uma série.
+ */
+function restFromNow(seconds: number) {
+  const now = Date.now();
+  return { now, rest: seconds > 0 ? { endsAt: now + seconds * 1000, total: seconds } : null };
 }
 
 /** Vibração e dois bipes curtos, conforme as preferências. O AudioContext é criado num toque do usuário (exigência do iOS). */
@@ -252,6 +275,24 @@ export function WorkoutExecutor({
   const previousForNextSet = previous?.find((s) => s.set_number === loggedSets.length + 1);
   const isLastExercise = index === exercises.length - 1;
   const targetDone = loggedSets.length >= exercise.target_sets;
+  const technique = techniqueInfo(exercise.technique);
+
+  // Conjugados como listas de índices; exercício sozinho é um bloco de 1
+  const blocks = useMemo(
+    () =>
+      toExerciseBlocks(exercises.map((e, i) => ({ superset_group: e.superset_group ?? null, index: i }))).map((b) =>
+        b.map((x) => x.index),
+      ),
+    [exercises],
+  );
+  const block = blocks.find((b) => b.includes(index)) ?? [index];
+  const inSuperset = block.length > 1;
+  const positionInBlock = block.indexOf(index);
+  const blockRest = exercises[block.at(-1)!].rest_time;
+  const isDone = (i: number) => (loggedByExercise[exercises[i].exercise_id]?.length ?? 0) >= exercises[i].target_sets;
+  const blockDone = block.every((i) => isDone(i));
+  const nextInBlock = block.slice(positionInBlock + 1).find((i) => !isDone(i)) ?? block.find((i) => i !== index && !isDone(i));
+  const afterBlock = exercises[block.at(-1)! + 1];
 
   if (index !== settledIndex) {
     setSettledIndex(index);
@@ -325,9 +366,9 @@ export function WorkoutExecutor({
   }
 
   function startRest(seconds: number) {
-    const t = Date.now();
-    setNow(t);
-    setRest(seconds > 0 ? { endsAt: t + seconds * 1000, total: seconds } : null);
+    const next = restFromNow(seconds);
+    setNow(next.now);
+    setRest(next.rest);
   }
 
   function handleLogSet() {
@@ -359,7 +400,12 @@ export function WorkoutExecutor({
           { id: setId, set_number: result.setNumber ?? loggedSets.length + 1, weight, reps },
         ],
       }));
-      startRest(exercise.rest_time);
+      // Conta a série recém-registrada (o estado ainda não atualizou)
+      const doneAfterThisSet = (i: number) =>
+        (loggedByExercise[exercises[i].exercise_id]?.length ?? 0) + (i === index ? 1 : 0) >= exercises[i].target_sets;
+      const step = stepAfterSet(block, index, doneAfterThisSet, blockRest);
+      startRest(step.restSeconds);
+      if (step.nextIndex !== index) setIndex(step.nextIndex);
       if (result.newPRs && result.newPRs.length > 0) {
         prsBySetRef.current[setId] = result.newPRs.length;
         setTotalPRs((n) => n + result.newPRs!.length);
@@ -605,9 +651,33 @@ export function WorkoutExecutor({
 
         <div className="-mt-2">
           <p className="text-sm text-muted-foreground">
-            Alvo {exercise.target_sets}x {exercise.target_reps_min}–{exercise.target_reps_max} · descanso{" "}
-            {exercise.rest_time}s
+            Alvo {exercise.target_sets}x {exercise.target_reps_min}–{exercise.target_reps_max} ·{" "}
+            {inSuperset ? `descanso ${blockRest}s ao fim da volta` : `descanso ${exercise.rest_time}s`}
           </p>
+          {inSuperset && (
+            <div className="mt-2.5 rounded-xl bg-primary/10 px-3 py-2 text-xs">
+              <p className="flex items-center gap-1.5 font-semibold text-primary">
+                <Link2 className="h-3.5 w-3.5" />
+                {supersetLabel(block.length)} · {positionInBlock + 1} de {block.length}
+              </p>
+              <p className="mt-0.5 text-muted-foreground">
+                {blockDone
+                  ? "Conjugado concluído."
+                  : nextInBlock !== undefined && nextInBlock > index
+                    ? `Depois: ${exercises[nextInBlock].exercise_name}, sem descanso.`
+                    : `Fim da volta: descanse ${blockRest}s.`}
+              </p>
+            </div>
+          )}
+          {technique && (
+            <div className="mt-2.5 rounded-xl bg-accent/10 px-3 py-2 text-xs">
+              <p className="flex items-center gap-1.5 font-semibold text-accent">
+                <Zap className="h-3.5 w-3.5" />
+                {technique.label}
+              </p>
+              <p className="mt-0.5 leading-relaxed text-muted-foreground">{technique.hint}</p>
+            </div>
+          )}
           {exercise.notes && (
             <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground italic">{exercise.notes}</p>
           )}
@@ -692,7 +762,25 @@ export function WorkoutExecutor({
         </Button>
       </Card>
 
-      {targetDone ? (
+      {inSuperset && blockDone ? (
+        <Button
+          type="button"
+          className="mt-3 h-[52px] w-full gap-1.5 text-base font-bold"
+          onClick={() => (afterBlock ? goTo(block.at(-1)! + 1) : openFinish())}
+        >
+          <span className="truncate">{afterBlock ? `Próximo: ${afterBlock.exercise_name}` : "Finalizar treino"}</span>
+          <ChevronRight className="h-4 w-4" />
+        </Button>
+      ) : inSuperset && targetDone && nextInBlock !== undefined ? (
+        <Button
+          type="button"
+          className="mt-3 h-[52px] w-full gap-1.5 text-base font-bold"
+          onClick={() => goTo(nextInBlock)}
+        >
+          <span className="truncate">Continuar: {exercises[nextInBlock].exercise_name}</span>
+          <ChevronRight className="h-4 w-4" />
+        </Button>
+      ) : targetDone ? (
         <Button
           type="button"
           className="mt-3 h-[52px] w-full gap-1.5 text-base font-bold"

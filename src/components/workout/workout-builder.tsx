@@ -2,7 +2,7 @@
 
 import { useMemo, useRef, useState, useTransition } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, Minus, Trash2, ChevronUp, ChevronDown, Search, Check, StickyNote } from "lucide-react";
+import { Plus, Minus, Trash2, ChevronUp, ChevronDown, Search, Check, StickyNote, Link2, Link2Off, Zap } from "lucide-react";
 import { WorkoutIcon, RestIcon, SetsIcon } from "@/components/ui/app-icon";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -13,6 +13,7 @@ import { MUSCLE_GROUP_LABEL } from "@/lib/muscle-groups";
 import { MUSCLE_GROUP_COLOR } from "@/lib/muscle-colors";
 import { cn } from "@/lib/utils";
 import type { MuscleGroup } from "@/lib/types";
+import { TECHNIQUES, supersetLabel, techniqueInfo, type Technique } from "@/lib/training-methods";
 import { createWorkoutAction } from "@/app/actions/workout-actions";
 import { routineChangeCopy } from "@/components/workout/routine-change-notice";
 import type { RoutineStability } from "@/lib/worker-api";
@@ -35,6 +36,35 @@ interface BuilderRow {
   restTime: number;
   notes: string;
   showNotes: boolean;
+  /** Conjugado com o exercício de baixo: feitos em sequência, sem descanso entre eles */
+  linkNext: boolean;
+  technique: Technique | null;
+  showTechnique: boolean;
+}
+
+interface BlockPosition {
+  /** Número do conjugado (1, 2…) ou null quando o exercício está sozinho */
+  group: number | null;
+  size: number;
+  isFirst: boolean;
+  isLast: boolean;
+}
+
+/** Linhas seguidas ligadas por linkNext formam um conjugado; a última linha nunca liga com nada */
+function blockPositions(rows: BuilderRow[]): BlockPosition[] {
+  const positions: BlockPosition[] = [];
+  let start = 0;
+  let group = 0;
+  rows.forEach((row, i) => {
+    if (i < rows.length - 1 && row.linkNext) return;
+    const size = i - start + 1;
+    const blockGroup = size > 1 ? ++group : null;
+    for (let j = start; j <= i; j++) {
+      positions.push({ group: blockGroup, size, isFirst: j === start, isLast: j === i });
+    }
+    start = i + 1;
+  });
+  return positions;
 }
 
 const MUSCLE_GROUP_ORDER: MuscleGroup[] = [
@@ -159,9 +189,12 @@ export function WorkoutBuilder({
     return counts;
   }, [rows]);
 
+  const positions = useMemo(() => blockPositions(rows), [rows]);
+  // No conjugado só o último exercício descansa: é o descanso da volta inteira
+  const restFor = (row: BuilderRow, i: number) => (positions[i]?.isLast === false ? 0 : row.restTime);
   const totalSets = rows.reduce((sum, r) => sum + r.targetSets, 0);
   const estimatedMinutes = Math.round(
-    rows.reduce((sum, r) => sum + r.targetSets * (SET_EXECUTION_SECONDS + r.restTime), 0) / 60,
+    rows.reduce((sum, r, i) => sum + r.targetSets * (SET_EXECUTION_SECONDS + restFor(r, i)), 0) / 60,
   );
   const canSave = name.trim().length > 0 && rows.length > 0;
 
@@ -179,6 +212,9 @@ export function WorkoutBuilder({
         restTime: 90,
         notes: "",
         showNotes: false,
+        linkNext: false,
+        technique: null,
+        showTechnique: false,
       },
     ]);
   }
@@ -224,8 +260,10 @@ export function WorkoutBuilder({
           targetSets: row.targetSets,
           targetRepsMin: row.targetRepsMin,
           targetRepsMax: row.targetRepsMax,
-          restTime: row.restTime,
+          restTime: restFor(row, i),
           notes: row.notes || undefined,
+          supersetGroup: positions[i]?.group ?? undefined,
+          technique: row.technique ?? undefined,
         })),
       );
       if (result?.error) setError(result.error);
@@ -304,7 +342,11 @@ export function WorkoutBuilder({
         ) : (
           <div className="space-y-3">
             <AnimatePresence initial={false}>
-              {rows.map((row, index) => (
+              {rows.map((row, index) => {
+                const pos = positions[index];
+                const inBlock = pos.group !== null;
+                const technique = techniqueInfo(row.technique);
+                return (
                 <motion.div
                   key={row.uid}
                   layout
@@ -313,7 +355,21 @@ export function WorkoutBuilder({
                   exit={{ opacity: 0, x: -24, transition: { duration: 0.18 } }}
                   transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
                 >
-                  <Card className="relative gap-4 overflow-hidden p-4 pl-5">
+                  {inBlock && pos.isFirst && (
+                    <p className="mb-2 flex items-center gap-1.5 px-1 text-xs font-semibold text-primary">
+                      <Link2 className="h-3.5 w-3.5" />
+                      {supersetLabel(pos.size)}
+                      <span className="font-normal text-muted-foreground">
+                        · {pos.size} exercícios seguidos, sem descanso entre eles
+                      </span>
+                    </p>
+                  )}
+                  <Card
+                    className={cn(
+                      "relative gap-4 overflow-hidden p-4 pl-5",
+                      inBlock && "ring-1 ring-primary/40",
+                    )}
+                  >
                     <span
                       className="absolute inset-y-0 left-0 w-1"
                       style={{ background: muscleColor(row.muscleGroup) }}
@@ -374,15 +430,24 @@ export function WorkoutBuilder({
                         max={10}
                         onChange={(v) => updateRow(row.uid, { targetSets: v })}
                       />
-                      <Stepper
-                        label="Descanso"
-                        value={row.restTime}
-                        min={0}
-                        max={300}
-                        step={15}
-                        format={formatRest}
-                        onChange={(v) => updateRow(row.uid, { restTime: v })}
-                      />
+                      {inBlock && !pos.isLast ? (
+                        <div className="space-y-1.5">
+                          <p className="text-[11px] font-medium text-muted-foreground">Descanso</p>
+                          <p className="flex h-10 items-center justify-center rounded-xl border border-dashed border-border/60 px-2 text-center text-xs text-muted-foreground">
+                            Direto pro próximo
+                          </p>
+                        </div>
+                      ) : (
+                        <Stepper
+                          label={inBlock ? "Descanso da volta" : "Descanso"}
+                          value={row.restTime}
+                          min={0}
+                          max={300}
+                          step={15}
+                          format={formatRest}
+                          onChange={(v) => updateRow(row.uid, { restTime: v })}
+                        />
+                      )}
                       <Stepper
                         label="Reps mín."
                         value={row.targetRepsMin}
@@ -427,9 +492,76 @@ export function WorkoutBuilder({
                         Adicionar observação
                       </button>
                     )}
+
+                    {row.showTechnique || technique ? (
+                      <div className="-mt-1 space-y-2">
+                        <p className="text-[11px] font-medium text-muted-foreground">Técnica de intensidade</p>
+                        <div className="no-scrollbar -mx-4 flex gap-1.5 overflow-x-auto px-4 pl-5">
+                          {TECHNIQUES.map((t) => (
+                            <button
+                              key={t.id}
+                              type="button"
+                              aria-pressed={row.technique === t.id}
+                              onClick={() =>
+                                updateRow(row.uid, { technique: row.technique === t.id ? null : t.id })
+                              }
+                              className={cn(
+                                "h-8 shrink-0 rounded-full border px-3 text-xs font-semibold transition-colors",
+                                row.technique === t.id
+                                  ? "border-primary bg-primary text-primary-foreground"
+                                  : "border-border/60 bg-secondary/40 text-muted-foreground hover:text-foreground",
+                              )}
+                            >
+                              {t.label}
+                            </button>
+                          ))}
+                        </div>
+                        <p className="text-xs leading-relaxed text-muted-foreground">
+                          {technique ? technique.hint : "Escolha uma técnica ou deixe em séries normais."}
+                        </p>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => updateRow(row.uid, { showTechnique: true })}
+                        className="-mt-2 inline-flex items-center gap-1.5 self-start text-xs font-medium text-muted-foreground transition-colors hover:text-primary"
+                      >
+                        <Zap className="h-3.5 w-3.5" />
+                        Adicionar técnica (drop-set, rest-pause…)
+                      </button>
+                    )}
                   </Card>
+
+                  {index < rows.length - 1 && (
+                    <div className="relative flex justify-center pt-3">
+                      <button
+                        type="button"
+                        onClick={() => updateRow(row.uid, { linkNext: !row.linkNext })}
+                        aria-pressed={row.linkNext}
+                        className={cn(
+                          "inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-xs font-semibold transition-colors",
+                          row.linkNext
+                            ? "border-primary/50 bg-primary/15 text-primary"
+                            : "border-dashed border-border text-muted-foreground hover:border-primary/50 hover:text-primary",
+                        )}
+                      >
+                        {row.linkNext ? (
+                          <>
+                            <Link2Off className="h-3.5 w-3.5" />
+                            Desfazer conjugado
+                          </>
+                        ) : (
+                          <>
+                            <Link2 className="h-3.5 w-3.5" />
+                            Conjugar com o próximo
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  )}
                 </motion.div>
-              ))}
+                );
+              })}
             </AnimatePresence>
 
             <button

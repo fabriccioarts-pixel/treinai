@@ -4,7 +4,13 @@ import { betaZodTool } from "@anthropic-ai/sdk/helpers/beta/zod";
 import { z } from "zod";
 import { buildCoachContext } from "../lib/ai-context";
 import { findConversation, loadModelHistory, saveExchange, type CoachAction } from "../lib/coach-conversations";
-import { createCoachToolExecutors, GEMINI_COACH_FUNCTIONS } from "../lib/coach-tools";
+import {
+  createCoachToolExecutors,
+  GEMINI_COACH_FUNCTIONS,
+  SUPERSET_GROUP_DESCRIPTION,
+  TECHNIQUE_DESCRIPTION,
+} from "../lib/coach-tools";
+import { TECHNIQUES } from "../lib/workout-mutations";
 import { COACH_RULES, THEO_PERSONA } from "../lib/coach-persona";
 import { COACH_KNOWLEDGE } from "../lib/coach-knowledge";
 import { forgetPromptCache, getPromptCache } from "../lib/gemini-cache";
@@ -19,6 +25,8 @@ const exerciseInputSchema = z.object({
   targetRepsMax: z.coerce.number().int().min(1).max(50).default(12).describe("Máximo de repetições"),
   restTime: z.coerce.number().int().min(0).max(600).default(90).describe("Descanso em segundos"),
   notes: z.string().optional().describe("Observação opcional de execução"),
+  supersetGroup: z.coerce.number().int().min(1).max(20).optional().describe(SUPERSET_GROUP_DESCRIPTION),
+  technique: z.enum(TECHNIQUES).optional().describe(TECHNIQUE_DESCRIPTION),
 });
 
 const MODEL = "claude-sonnet-5-5";
