@@ -89,9 +89,10 @@ export async function getAccess(env: Env, userId: string): Promise<Access> {
     : null;
   const now = Date.now();
 
-  // Reembolso e chargeback encerram na hora: a folga de cobrança não vale para eles
-  const revoked = sub?.status === "refunded" || sub?.status === "chargeback";
-  if (sub?.paid_until && !revoked && Date.parse(sub.paid_until) + GRACE_MS > now) {
+  // A folga só cobre a renovação atrasada de quem segue assinando: cancelada vale até o fim do
+  // período pago, e reembolso/chargeback encerram na hora (paid_until já é o momento do estorno)
+  const grace = sub?.status === "active" ? GRACE_MS : 0;
+  if (sub?.paid_until && Date.parse(sub.paid_until) + grace > now) {
     return { status: "active", trialEndsAt: user?.trial_ends_at ?? null, subscription };
   }
 
@@ -132,7 +133,11 @@ export async function upsertSubscription(env: Env, sub: SubscriptionUpdate): Pro
      VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?8)
      ON CONFLICT(id) DO UPDATE SET
        user_id = COALESCE(subscriptions.user_id, excluded.user_id),
-       status = excluded.status,
+       -- Cancelar depois de um estorno não pode apagar o estorno (nem reabrir acesso)
+       status = CASE
+         WHEN subscriptions.status IN ('refunded', 'chargeback') AND excluded.status = 'canceled' THEN subscriptions.status
+         ELSE excluded.status
+       END,
        plan = excluded.plan,
        amount_cents = excluded.amount_cents,
        paid_until = CASE
