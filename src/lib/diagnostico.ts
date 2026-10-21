@@ -10,10 +10,12 @@ export interface Option {
   label: string;
   /** Nota de 0 a 100 que essa resposta dá para a área da pergunta */
   score?: number;
+  /** Foto do cartão (layout "photos"); opções sem foto aparecem como botão comum embaixo */
+  image?: string;
 }
 
 export type Step =
-  | { id: string; kind: "single"; area?: AreaKey; section: string; title: string; hint?: string; options: Option[]; layout?: "chips" }
+  | { id: string; kind: "single"; area?: AreaKey; section: string; title: string; hint?: string; options: Option[]; layout?: "chips" | "photos" }
   | { id: "nome"; kind: "name"; section: string; title: string; hint?: string }
   /** Várias respostas, gravadas separadas por vírgula; `exclusive` desmarca as outras */
   | { id: string; kind: "multi"; section: string; title: string; hint?: string; options: (Option & { exclusive?: boolean })[] }
@@ -27,9 +29,10 @@ export const STEPS: Step[] = [
     kind: "single",
     section: "Seu perfil",
     title: "Pra começar, como você se identifica?",
+    layout: "photos",
     options: [
-      { value: "f", label: "Mulher" },
-      { value: "m", label: "Homem" },
+      { value: "f", label: "Mulher", image: "/quiz-fotos/mulher.jpg" },
+      { value: "m", label: "Homem", image: "/quiz-fotos/homem.jpg" },
       { value: "x", label: "Prefiro não dizer" },
     ],
   },

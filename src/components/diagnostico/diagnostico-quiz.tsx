@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { ArrowLeft, ArrowRight, Check, Lock, Minus, Plus } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, Droplet, Lock, Minus, Moon, Plus, Sparkles, Timer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PlanCards } from "@/components/billing/plan-cards";
@@ -222,19 +222,51 @@ export function DiagnosticoQuiz({ plans, trialDays }: { plans: Plan[]; trialDays
           transition: { duration: 0.32, ease: [0.22, 1, 0.36, 1] as const },
         };
 
+  // A abertura some por conta própria (capa recolhe, textos esmaecem); aqui ela só sai de cena.
+  // Quem chega dela entra subindo devagar, sem o zoom das trocas de pergunta.
+  const viewMotion = (v: View) => {
+    if (reduceMotion) return zoom(1);
+    if (v === "intro") return { ...zoom(1), exit: { opacity: 0, transition: { duration: 0.01 } } };
+    if (v === "quiz")
+      return {
+        initial: { opacity: 0, y: 18 },
+        animate: { opacity: 1, y: 0 },
+        exit: { opacity: 0, scale: 0.95 },
+        transition: { duration: 0.6, ease: [0.22, 1, 0.36, 1] as const },
+      };
+    return zoom(1);
+  };
+
   return (
     <div className="mx-auto flex min-h-dvh w-full max-w-md flex-col px-4 py-5 sm:max-w-lg">
+      {/* Luz verde difusa no topo e na base da tela, fixa enquanto a página rola */}
+      <div
+        aria-hidden
+        className="pointer-events-none fixed inset-0 -z-10"
+        style={{
+          background: [
+            "radial-gradient(ellipse 110% 38% at 50% 0%, color-mix(in oklch, var(--primary) 13%, transparent), transparent 72%)",
+            "radial-gradient(ellipse 110% 32% at 50% 100%, color-mix(in oklch, var(--primary) 11%, transparent), transparent 72%)",
+          ].join(", "),
+        }}
+      />
       {view !== "intro" && view !== "resultado" && (
+        <motion.div
+          initial={reduceMotion ? false : { opacity: 0, y: -8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
+        >
         <Header
           onBack={view === "analise" ? undefined : back}
           current={view === "quiz" ? index + 1 : STEPS.length}
           total={STEPS.length}
           reduceMotion={!!reduceMotion}
         />
+        </motion.div>
       )}
 
       <AnimatePresence mode="wait" initial={false}>
-      <motion.div key={view} {...zoom(1)} className="flex flex-1 flex-col">
+      <motion.div key={view} {...viewMotion(view)} className="flex flex-1 flex-col">
       {view === "intro" && <Intro onStart={() => setView("quiz")} hasProgress={index > 0} onRestart={restart} />}
 
       {view === "quiz" && (
@@ -248,9 +280,9 @@ export function DiagnosticoQuiz({ plans, trialDays }: { plans: Plan[]; trialDays
             )}
             {step.kind !== "single" && (
               <div className="mt-auto pt-6">
-                <Button type="button" size="lg" className="h-12 w-full gap-2 text-base font-semibold" onClick={next}>
+                <Button type="button" size="lg" className="cta-shine group h-14 w-full gap-2 rounded-full text-base font-semibold" onClick={next}>
                   Continuar
-                  <ArrowRight className="h-4 w-4" />
+                  <ArrowRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-1" />
                 </Button>
               </div>
             )}
@@ -323,9 +355,9 @@ export function DiagnosticoQuiz({ plans, trialDays }: { plans: Plan[]; trialDays
             </p>
           )}
           <div className="mt-auto pt-6">
-            <Button type="submit" size="lg" className="h-12 w-full gap-2 text-base font-semibold" disabled={saving}>
+            <Button type="submit" size="lg" className="cta-shine group h-14 w-full gap-2 rounded-full text-base font-semibold" disabled={saving}>
               {saving ? "Liberando…" : "Ver meu diagnóstico"}
-              {!saving && <ArrowRight className="h-4 w-4" />}
+              {!saving && <ArrowRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-1" />}
             </Button>
             <p className="mt-3 text-center text-xs text-muted-foreground">
               Seus dados ficam só com o Treinai. Sem spam, e dá pra sair da lista quando quiser.
@@ -387,63 +419,179 @@ function Header({
   );
 }
 
+/** Tempo para a capa recolher e os textos da abertura sumirem antes da primeira pergunta */
+const LEAVE_MS = 700;
+
+/** Números de exemplo que flutuam sobre a foto de capa: mostram o que o app acompanha */
+const HERO_BADGES = [
+  { key: "sono", icon: Moon, label: "Sono", value: "7h 32min", className: "top-[22%] left-4", delay: 0 },
+  { key: "agua", icon: Droplet, label: "Água", value: "2,1 L", className: "top-[44%] right-4", delay: 1.2 },
+] as const;
+
 function Intro({ onStart, hasProgress, onRestart }: { onStart: () => void; hasProgress: boolean; onRestart: () => void }) {
+  const reduceMotion = useReducedMotion();
+  const [leaving, setLeaving] = useState(false);
+
+  // Ao começar, a capa e os selos se recolhem para cima antes da primeira pergunta entrar
+  function start() {
+    if (reduceMotion) return onStart();
+    setLeaving(true);
+    setTimeout(onStart, LEAVE_MS);
+  }
+
   return (
-    <div className="flex flex-1 flex-col justify-center py-6">
-      <Image src="/logo.png" alt="Treinai" width={120} height={32} className="mb-6 h-8 w-auto self-start" priority />
-      <PhotoCard src="/quiz/intro.jpg" priority className="mb-6" />
-      <p className="text-xs font-semibold tracking-wide text-primary uppercase">Diagnóstico grátis</p>
-      <h1 className="mt-2 text-3xl leading-tight font-bold tracking-[-0.02em] text-balance text-foreground">
-        O que está travando a sua evolução?
-      </h1>
-      <p className="mt-3 text-base leading-relaxed text-muted-foreground">
-        Perguntas rápidas sobre treino, constância, sono, alimentação e água. No fim, você vê sua nota de 0 a 100 em
-        cada área e um plano pra começar.
-      </p>
-      <div className="mt-8 flex items-center gap-3 rounded-2xl border border-border/60 bg-card p-4">
-        <Image
-          src="/ai-coach-avatar.png"
-          alt=""
-          width={44}
-          height={44}
-          className="h-11 w-11 shrink-0 rounded-full ring-1 ring-primary/30"
-        />
-        <p className="text-sm text-foreground/90">
-          Oi, eu sou o <strong>Théo</strong>, o personal de IA do Treinai. Responde com sinceridade que eu te digo
-          por onde começar.
+    <div className="-mx-4 -mt-5 flex flex-1 flex-col">
+      <motion.div
+        initial={false}
+        animate={leaving ? { height: 0, opacity: 0 } : { height: "auto", opacity: 1 }}
+        transition={{ duration: LEAVE_MS / 1000, ease: [0.65, 0, 0.35, 1] }}
+        className="overflow-hidden"
+      >
+        <div className="relative aspect-square max-h-[58dvh] w-full overflow-hidden">
+          <Image
+            src="/quiz-fotos/hero.jpg"
+            alt=""
+            fill
+            priority
+            sizes="(min-width: 640px) 512px, 100vw"
+            className="photo-zoom-in object-cover object-top"
+          />
+          {/* A base da foto some no fundo da página, para o título emendar */}
+          <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-background via-background/60 to-transparent" />
+          {HERO_BADGES.map((b, i) => (
+            <motion.div
+              key={b.key}
+              initial={reduceMotion ? false : { opacity: 0, y: 12, scale: 0.92 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              transition={{ delay: 0.25 + i * 0.15, duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+              className={cn("absolute", b.className)}
+            >
+              <div
+                className="hero-float flex items-center gap-2.5 rounded-2xl border border-white/10 bg-black/45 py-2 pr-3.5 pl-2 backdrop-blur-md"
+                style={{ animationDelay: `${-b.delay}s` }}
+              >
+                <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/20 text-primary">
+                  <b.icon className="h-4.5 w-4.5" />
+                </span>
+                <span className="leading-tight">
+                  <span className="block text-[11px] text-white/70">{b.label}</span>
+                  <span className="block text-base font-bold text-white">{b.value}</span>
+                </span>
+              </div>
+            </motion.div>
+          ))}
+
+          <motion.div
+            initial={reduceMotion ? false : { opacity: 0, y: 12, scale: 0.92 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{ delay: 0.55, duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+            className="absolute top-[64%] left-10"
+          >
+            <div
+              className="hero-float flex items-center gap-2.5 rounded-2xl border border-white/10 bg-black/45 py-2 pr-3.5 pl-2 backdrop-blur-md"
+              style={{ animationDelay: "-2.4s" }}
+            >
+              <svg viewBox="0 0 36 36" className="h-10 w-10 -rotate-90" aria-hidden>
+                <circle cx="18" cy="18" r="14" fill="none" strokeWidth="4" className="stroke-white/15" />
+                <motion.circle
+                  cx="18"
+                  cy="18"
+                  r="14"
+                  fill="none"
+                  strokeWidth="4"
+                  strokeLinecap="round"
+                  className="stroke-primary"
+                  initial={{ pathLength: reduceMotion ? 0.72 : 0 }}
+                  animate={{ pathLength: 0.72 }}
+                  transition={{ delay: 0.7, duration: reduceMotion ? 0 : 1.2, ease: [0.33, 1, 0.68, 1] }}
+                />
+              </svg>
+              <span className="leading-tight">
+                <span className="block text-base font-bold text-white">
+                  <CountUp to={72} suffix="%" />
+                </span>
+                <span className="block text-[11px] text-white/70">da meta</span>
+              </span>
+            </div>
+          </motion.div>
+        </div>
+      </motion.div>
+
+      <motion.div
+        initial={false}
+        animate={leaving ? { opacity: 0, y: -14 } : { opacity: 1, y: 0 }}
+        transition={{ duration: 0.45, ease: [0.4, 0, 1, 1] }}
+        className="relative -mt-6 flex flex-1 flex-col px-4 pb-6"
+      >
+        <Image src="/logo.png" alt="Treinai" width={92} height={108} className="mb-4 h-16 w-auto self-start" priority />
+        <p className="flex items-center gap-1.5 text-xs font-semibold tracking-[0.08em] text-primary uppercase">
+          <Sparkles className="h-3.5 w-3.5" />
+          Diagnóstico Treinai · grátis
         </p>
-      </div>
-      <Button type="button" size="lg" className="mt-8 h-12 w-full gap-2 text-base font-semibold" onClick={onStart}>
-        {hasProgress ? "Continuar meu diagnóstico" : "Começar meu diagnóstico"}
-        <ArrowRight className="h-4 w-4" />
-      </Button>
-      {hasProgress ? (
-        <button type="button" onClick={onRestart} className="mt-3 text-sm text-muted-foreground hover:text-foreground">
-          Começar do zero
-        </button>
-      ) : (
-        <p className="mt-3 text-center text-xs text-muted-foreground">Leva uns 3 minutos. O resultado sai na hora.</p>
-      )}
+        <h1 className="mt-3 text-[2.1rem] leading-[1.1] font-bold tracking-[-0.02em] text-balance text-foreground">
+          O que está travando a sua <span className="text-primary">evolução?</span>
+        </h1>
+        <p className="mt-4 text-base leading-relaxed text-muted-foreground">
+          Perguntas rápidas sobre cinco áreas: treino, constância, sono, alimentação e água. No fim, você vê sua nota de
+          0 a 100 em cada uma e sabe por onde começar.
+        </p>
+        <Button
+          type="button"
+          size="lg"
+          className="cta-shine group mt-7 h-14 w-full gap-2 rounded-full text-base font-semibold"
+          onClick={start}
+          disabled={leaving}
+        >
+          {hasProgress ? "Continuar meu diagnóstico" : "Começar meu diagnóstico"}
+          <ArrowRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-1" />
+        </Button>
+        {hasProgress ? (
+          <button
+            type="button"
+            onClick={onRestart}
+            className="mt-3 self-center text-sm text-muted-foreground hover:text-foreground"
+          >
+            Começar do zero
+          </button>
+        ) : (
+          <p className="mt-3 flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
+            <Timer className="h-3.5 w-3.5 text-primary" />
+            Leva uns 3 minutos. O resultado sai na hora.
+          </p>
+        )}
+        <div className="mt-7 flex items-center gap-3">
+          <Image
+            src="/ai-coach-avatar.png"
+            alt=""
+            width={40}
+            height={40}
+            className="h-10 w-10 shrink-0 rounded-full ring-2 ring-primary/30"
+          />
+          <p className="text-sm text-foreground/80">
+            Quem analisa é o <strong className="text-foreground">Théo</strong>, o personal de IA do Treinai.
+          </p>
+        </div>
+      </motion.div>
     </div>
   );
 }
 
-/** Perguntas que abrem com uma foto da cena (public/quiz); as de lista longa ou com controle próprio ficam sem */
+/** Perguntas que abrem com uma foto da cena (public/quiz-fotos); as de lista longa ou com controle próprio ficam sem */
 const QUESTION_PHOTO: Partial<Record<string, string>> = {
-  objetivo: "/quiz/objetivo.jpg",
-  experiencia: "/quiz/experiencia.jpg",
-  carga: "/quiz/carga.jpg",
-  bloqueio: "/quiz/bloqueio.jpg",
-  recomecos: "/quiz/recomecos.jpg",
-  sono: "/quiz/sono.jpg",
-  ultraprocessados: "/quiz/ultraprocessados.jpg",
-  proteina: "/quiz/proteina.jpg",
+  objetivo: "/quiz-fotos/objetivo.jpg",
+  experiencia: "/quiz-fotos/experiencia.jpg",
+  carga: "/quiz-fotos/carga.jpg",
+  bloqueio: "/quiz-fotos/bloqueio.jpg",
+  recomecos: "/quiz-fotos/recomecos.jpg",
+  sono: "/quiz-fotos/sono.jpg",
+  ultraprocessados: "/quiz-fotos/ultraprocessados.jpg",
+  proteina: "/quiz-fotos/proteina.jpg",
 };
 
 function PhotoCard({ src, priority, className }: { src: string; priority?: boolean; className?: string }) {
   return (
     <div className={cn("relative aspect-[16/9] overflow-hidden rounded-2xl border border-border/60 bg-card", className)}>
-      <Image src={src} alt="" fill priority={priority} sizes="(min-width: 640px) 512px, 100vw" className="object-cover" />
+      <Image src={src} alt="" fill priority={priority} sizes="(min-width: 640px) 512px, 100vw" className="photo-zoom-in object-cover" />
       {/* Escurece a base para a foto emendar no fundo da página */}
       <div className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-background/70 to-transparent" />
     </div>
@@ -472,12 +620,53 @@ function StepView({
   onAnswer: (id: string, value: string, autoAdvance: boolean) => void;
 }) {
   switch (step.kind) {
-    case "single":
+    case "single": {
+      const photoOptions = step.layout === "photos" ? step.options.filter((o) => o.image) : [];
       return (
         <div>
           <QuestionTitle step={step} />
+          {photoOptions.length > 0 && (
+            <div className="mb-2.5 grid grid-cols-2 gap-2.5">
+              {photoOptions.map((o) => {
+                const selected = answers[step.id] === o.value;
+                return (
+                  <button
+                    key={o.value}
+                    type="button"
+                    aria-pressed={selected}
+                    onClick={() => onAnswer(step.id, o.value, true)}
+                    className={cn(
+                      "group relative aspect-[3/4] overflow-hidden rounded-2xl border text-left transition-all active:scale-[0.98]",
+                      selected ? "border-primary ring-2 ring-primary/50" : "border-border/60 hover:border-border",
+                    )}
+                  >
+                    <Image
+                      src={o.image!}
+                      alt=""
+                      fill
+                      priority
+                      sizes="(min-width: 640px) 250px, 50vw"
+                      className="object-cover transition-transform duration-500 group-hover:scale-[1.04]"
+                    />
+                    <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/85 to-transparent" />
+                    <span className="absolute inset-x-0 bottom-0 flex items-center justify-between gap-2 p-3.5 text-base font-semibold text-white">
+                      {o.label}
+                      <span
+                        className={cn(
+                          "flex h-6 w-6 items-center justify-center rounded-full border-2 transition-colors",
+                          selected ? "border-primary bg-primary text-primary-foreground" : "border-white/50",
+                        )}
+                      >
+                        {selected && <Check className="h-3.5 w-3.5" strokeWidth={3} />}
+                      </span>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
           <div className={cn(step.layout === "chips" ? "grid grid-cols-2 gap-2.5" : "grid gap-2.5")}>
-            {step.options.map((o) => {
+            {step.options.filter((o) => !photoOptions.includes(o)).map((o) => {
               const selected = answers[step.id] === o.value;
               return (
                 <button
@@ -501,6 +690,7 @@ function StepView({
           </div>
         </div>
       );
+    }
 
     case "multi": {
       const picked = new Set((answers[step.id] ?? "").split(",").filter(Boolean));
@@ -753,15 +943,16 @@ function Analysis({ reduceMotion }: { reduceMotion: boolean }) {
   return (
     <div className="flex flex-1 flex-col items-center justify-center py-10" role="status" aria-live="polite">
       <ScoreRing score={pct} size={140} label={`${pct}%`} />
-      <h1 className="mt-8 text-xl font-bold text-foreground">Analisando suas respostas</h1>
-      <ul className="mt-5 w-full max-w-xs space-y-2.5">
+      <h1 className="mt-8 text-center text-xl font-bold text-foreground">Analisando suas respostas</h1>
+      {/* Lista num cartão centralizado: os itens ficam alinhados entre si e o bloco, alinhado ao anel e ao título */}
+      <ul className="mt-5 w-full max-w-[17.5rem] space-y-3 rounded-2xl border border-border/60 bg-card/60 px-5 py-4">
         {ANALYSIS_LINES.map((line, i) => {
           const ok = reduceMotion || i < done;
           return (
-            <li key={line} className={cn("flex items-center gap-2.5 text-sm transition-colors", ok ? "text-foreground" : "text-muted-foreground/50")}>
+            <li key={line} className={cn("flex items-center gap-3 text-sm transition-colors", ok ? "text-foreground" : "text-muted-foreground/50")}>
               <span
                 className={cn(
-                  "flex h-5 w-5 items-center justify-center rounded-full border",
+                  "flex h-5 w-5 shrink-0 items-center justify-center rounded-full border transition-colors",
                   ok ? "border-primary bg-primary text-primary-foreground" : "border-muted-foreground/30",
                 )}
               >
