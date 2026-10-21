@@ -64,7 +64,7 @@ export async function saveLeadAction(input: LeadInput): Promise<{ error?: string
     Object.entries(input.answers)
       .filter(([, v]) => typeof v === "string" || typeof v === "number")
       .slice(0, 40)
-      .map(([k, v]) => [k.slice(0, 40), typeof v === "string" ? v.slice(0, 80) : v]),
+      .map(([k, v]) => [k.slice(0, 40), typeof v === "string" ? v.slice(0, 200) : v]),
   );
   const utm = input.utm
     ? Object.fromEntries(

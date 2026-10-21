@@ -15,6 +15,8 @@ export interface Option {
 export type Step =
   | { id: string; kind: "single"; area?: AreaKey; section: string; title: string; hint?: string; options: Option[]; layout?: "chips" }
   | { id: "nome"; kind: "name"; section: string; title: string; hint?: string }
+  /** Várias respostas, gravadas separadas por vírgula; `exclusive` desmarca as outras */
+  | { id: string; kind: "multi"; section: string; title: string; hint?: string; options: (Option & { exclusive?: boolean })[] }
   | { id: "copos"; kind: "glasses"; section: string; title: string; hint?: string }
   | { id: "medidas"; kind: "measures"; section: string; title: string; hint?: string }
   | { id: string; kind: "insight"; section: string };
@@ -58,6 +60,28 @@ export const STEPS: Step[] = [
     ],
   },
   { id: "nome", kind: "name", section: "Seu perfil", title: "Como posso te chamar?", hint: "Seu diagnóstico sai com o seu nome." },
+  {
+    id: "condicoes",
+    kind: "multi",
+    section: "Seu perfil",
+    title: "Você tem alguma dessas condições?",
+    hint: "Pode marcar mais de uma. Isso ajuda a montar um treino mais seguro pra você.",
+    options: [
+      { value: "condromalacia", label: "Condromalácia (desgaste no joelho)" },
+      { value: "joelho", label: "Outra lesão no joelho (menisco, ligamento, tendinite)" },
+      { value: "lombar", label: "Dor lombar ou hérnia de disco" },
+      { value: "ombro", label: "Dor no ombro (tendinite, bursite, luxação)" },
+      { value: "punho", label: "Tendinite ou dor no punho/cotovelo" },
+      { value: "quadril", label: "Dor no quadril" },
+      { value: "tornozelo", label: "Entorses frequentes no tornozelo" },
+      { value: "osteoporose", label: "Osteoporose ou osteopenia" },
+      { value: "cardio", label: "Hipertensão ou problema no coração" },
+      { value: "diabetes", label: "Diabetes" },
+      { value: "gestacao", label: "Gravidez ou pós-parto recente" },
+      { value: "outra", label: "Outra condição não listada" },
+      { value: "nenhuma", label: "Nenhuma dessas", exclusive: true },
+    ],
+  },
   {
     id: "experiencia",
     kind: "single",
@@ -384,6 +408,21 @@ export const BLOQUEIO_PITCH: Record<string, string> = {
   resultado:
     "Você treina, mas não vê resultado. O Théo acompanha cada série e diz quando subir a carga — é a progressão que faz o corpo mudar.",
 };
+
+/** Condições marcadas (sem "nenhuma"), na ordem da pergunta */
+export function selectedConditions(answers: Answers): Option[] {
+  const step = STEPS.find((s) => s.id === "condicoes");
+  if (!step || step.kind !== "multi") return [];
+  const picked = new Set((answers.condicoes ?? "").split(",").filter(Boolean));
+  return step.options.filter((o) => picked.has(o.value) && !o.exclusive);
+}
+
+/** Pedem liberação médica antes de começar, não só adaptação de exercício */
+const MEDICAL_CLEARANCE = new Set(["cardio", "gestacao", "osteoporose", "diabetes"]);
+
+export function needsMedicalClearance(conditions: Option[]): boolean {
+  return conditions.some((c) => MEDICAL_CLEARANCE.has(c.value));
+}
 
 export function formatLitersShort(ml: number): string {
   return `${(ml / 1000).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} L`;

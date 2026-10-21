@@ -227,6 +227,19 @@
   to { transform: scaleY(1); opacity: 1; }
 }
 
+/* Água ondulando dentro do copo (WaterGlass): desliza um período da onda (22 unidades do SVG) */
+@keyframes water-wave {
+  from { transform: translateX(0); }
+  to { transform: translateX(-22px); }
+}
+@keyframes water-wave-back {
+  from { transform: translateX(-22px); }
+  to { transform: translateX(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .water-wave { animation: none !important; }
+}
+
 /* Typing dots */
 @keyframes typing-dot {
   0%, 60%, 100% { opacity: 0.3; transform: translateY(0); }

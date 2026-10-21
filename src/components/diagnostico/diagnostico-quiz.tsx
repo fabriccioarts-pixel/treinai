@@ -8,6 +8,7 @@ import { ArrowLeft, ArrowRight, Check, Lock, Minus, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PlanCards } from "@/components/billing/plan-cards";
+import { WaterGlass } from "@/components/ui/water-glass";
 import { saveLeadAction } from "@/app/actions/billing-actions";
 import {
   BLOQUEIO_PITCH,
@@ -17,7 +18,9 @@ import {
   computeResult,
   formatLitersShort,
   formatWhatsapp,
+  needsMedicalClearance,
   planStep,
+  selectedConditions,
   validMeasures,
   waterTargetMl,
   type Answers,
@@ -162,6 +165,10 @@ export function DiagnosticoQuiz({ plans, trialDays }: { plans: Plan[]; trialDays
   }
 
   function next() {
+    if (step.kind === "multi" && !(answers[step.id] ?? "")) {
+      setError("Marque pelo menos uma opção (ou \"Nenhuma dessas\").");
+      return;
+    }
     if (step.kind === "name" && (answers.nome ?? "").trim().length < 2) {
       setError("Digite seu primeiro nome, com pelo menos 2 letras.");
       return;
@@ -203,7 +210,17 @@ export function DiagnosticoQuiz({ plans, trialDays }: { plans: Plan[]; trialDays
 
   if (!hydrated) return <div className="min-h-dvh" />;
 
-  const offset = reduceMotion ? 0 : 40;
+  // Zoom out suave: a tela entra um pouco ampliada e assenta; a que sai encolhe e some.
+  // Voltando uma pergunta, o movimento se inverte. Com "reduzir movimento", só um fade curto.
+  const zoom = (dir: number) =>
+    reduceMotion
+      ? { initial: { opacity: 0 }, animate: { opacity: 1 }, exit: { opacity: 0 }, transition: { duration: 0.12 } }
+      : {
+          initial: { opacity: 0, scale: dir >= 0 ? 1.06 : 0.95 },
+          animate: { opacity: 1, scale: 1 },
+          exit: { opacity: 0, scale: dir >= 0 ? 0.95 : 1.06 },
+          transition: { duration: 0.32, ease: [0.22, 1, 0.36, 1] as const },
+        };
 
   return (
     <div className="mx-auto flex min-h-dvh w-full max-w-md flex-col px-4 py-5 sm:max-w-lg">
@@ -216,19 +233,13 @@ export function DiagnosticoQuiz({ plans, trialDays }: { plans: Plan[]; trialDays
         />
       )}
 
+      <AnimatePresence mode="wait" initial={false}>
+      <motion.div key={view} {...zoom(1)} className="flex flex-1 flex-col">
       {view === "intro" && <Intro onStart={() => setView("quiz")} hasProgress={index > 0} onRestart={restart} />}
 
       {view === "quiz" && (
-        <AnimatePresence mode="wait" initial={false} custom={direction}>
-          <motion.div
-            key={step.id}
-            custom={direction}
-            initial={{ opacity: 0, x: direction * offset }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: direction * -offset }}
-            transition={{ duration: reduceMotion ? 0.1 : 0.22, ease: "easeOut" }}
-            className="flex flex-1 flex-col"
-          >
+        <AnimatePresence mode="wait" initial={false}>
+          <motion.div key={step.id} {...zoom(direction)} className="flex flex-1 flex-col">
             <StepView step={step} answers={answers} onAnswer={answer} />
             {error && (
               <p role="alert" className="mt-4 text-sm text-destructive">
@@ -326,6 +337,8 @@ export function DiagnosticoQuiz({ plans, trialDays }: { plans: Plan[]; trialDays
       {view === "resultado" && result && (
         <Result result={result} answers={answers} plans={plans} trialDays={trialDays} onRestart={restart} />
       )}
+      </motion.div>
+      </AnimatePresence>
     </div>
   );
 }
@@ -377,7 +390,8 @@ function Header({
 function Intro({ onStart, hasProgress, onRestart }: { onStart: () => void; hasProgress: boolean; onRestart: () => void }) {
   return (
     <div className="flex flex-1 flex-col justify-center py-6">
-      <Image src="/logo.png" alt="Treinai" width={120} height={32} className="mb-10 h-8 w-auto self-start" priority />
+      <Image src="/logo.png" alt="Treinai" width={120} height={32} className="mb-6 h-8 w-auto self-start" priority />
+      <PhotoCard src="/quiz/intro.jpg" priority className="mb-6" />
       <p className="text-xs font-semibold tracking-wide text-primary uppercase">Diagnóstico grátis</p>
       <h1 className="mt-2 text-3xl leading-tight font-bold tracking-[-0.02em] text-balance text-foreground">
         O que está travando a sua evolução?
@@ -414,12 +428,36 @@ function Intro({ onStart, hasProgress, onRestart }: { onStart: () => void; hasPr
   );
 }
 
-function QuestionTitle({ section, title, hint }: { section: string; title: string; hint?: string }) {
+/** Perguntas que abrem com uma foto da cena (public/quiz); as de lista longa ou com controle próprio ficam sem */
+const QUESTION_PHOTO: Partial<Record<string, string>> = {
+  objetivo: "/quiz/objetivo.jpg",
+  experiencia: "/quiz/experiencia.jpg",
+  carga: "/quiz/carga.jpg",
+  bloqueio: "/quiz/bloqueio.jpg",
+  recomecos: "/quiz/recomecos.jpg",
+  sono: "/quiz/sono.jpg",
+  ultraprocessados: "/quiz/ultraprocessados.jpg",
+  proteina: "/quiz/proteina.jpg",
+};
+
+function PhotoCard({ src, priority, className }: { src: string; priority?: boolean; className?: string }) {
+  return (
+    <div className={cn("relative aspect-[16/9] overflow-hidden rounded-2xl border border-border/60 bg-card", className)}>
+      <Image src={src} alt="" fill priority={priority} sizes="(min-width: 640px) 512px, 100vw" className="object-cover" />
+      {/* Escurece a base para a foto emendar no fundo da página */}
+      <div className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-background/70 to-transparent" />
+    </div>
+  );
+}
+
+function QuestionTitle({ step }: { step: Exclude<Step, { kind: "insight" }> }) {
+  const photo = QUESTION_PHOTO[step.id];
   return (
     <div className="mb-5">
-      <p className="text-xs font-semibold tracking-wide text-primary uppercase">{section}</p>
-      <h2 className="mt-1.5 text-xl leading-snug font-bold text-foreground">{title}</h2>
-      {hint && <p className="mt-1 text-sm text-muted-foreground">{hint}</p>}
+      {photo && <PhotoCard src={photo} priority className="mb-5" />}
+      <p className="text-xs font-semibold tracking-wide text-primary uppercase">{step.section}</p>
+      <h2 className="mt-1.5 text-xl leading-snug font-bold text-foreground">{step.title}</h2>
+      {step.hint && <p className="mt-1 text-sm text-muted-foreground">{step.hint}</p>}
     </div>
   );
 }
@@ -437,7 +475,7 @@ function StepView({
     case "single":
       return (
         <div>
-          <QuestionTitle section={step.section} title={step.title} hint={step.hint} />
+          <QuestionTitle step={step} />
           <div className={cn(step.layout === "chips" ? "grid grid-cols-2 gap-2.5" : "grid gap-2.5")}>
             {step.options.map((o) => {
               const selected = answers[step.id] === o.value;
@@ -464,10 +502,62 @@ function StepView({
         </div>
       );
 
+    case "multi": {
+      const picked = new Set((answers[step.id] ?? "").split(",").filter(Boolean));
+      const toggle = (value: string, exclusive?: boolean) => {
+        const next = new Set(picked);
+        if (next.has(value)) next.delete(value);
+        else if (exclusive) {
+          next.clear();
+          next.add(value);
+        } else {
+          // Marcar uma condição desmarca "Nenhuma dessas"
+          for (const o of step.options) if (o.exclusive) next.delete(o.value);
+          next.add(value);
+        }
+        onAnswer(step.id, step.options.filter((o) => next.has(o.value)).map((o) => o.value).join(","), false);
+      };
+      return (
+        <div>
+          <QuestionTitle step={step} />
+          <div className="grid gap-2">
+            {step.options.map((o) => {
+              const selected = picked.has(o.value);
+              return (
+                <button
+                  key={o.value}
+                  type="button"
+                  role="checkbox"
+                  aria-checked={selected}
+                  onClick={() => toggle(o.value, o.exclusive)}
+                  className={cn(
+                    "flex items-center justify-between gap-3 rounded-2xl border px-4 py-3.5 text-left text-sm font-medium transition-all active:scale-[0.98]",
+                    selected
+                      ? "border-primary/60 bg-primary/10 text-foreground ring-1 ring-primary/40"
+                      : "border-border/60 bg-card text-foreground hover:border-border hover:bg-muted/40",
+                  )}
+                >
+                  {o.label}
+                  <span
+                    className={cn(
+                      "flex h-5 w-5 shrink-0 items-center justify-center rounded-md border-2",
+                      selected ? "border-primary bg-primary text-primary-foreground" : "border-muted-foreground/40",
+                    )}
+                  >
+                    {selected && <Check className="h-3 w-3" strokeWidth={3} />}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      );
+    }
+
     case "name":
       return (
         <div>
-          <QuestionTitle section={step.section} title={step.title} hint={step.hint} />
+          <QuestionTitle step={step} />
           <Input
             autoFocus
             autoComplete="given-name"
@@ -485,24 +575,27 @@ function StepView({
       const set = (n: number) => onAnswer("copos", String(Math.max(0, Math.min(GLASSES_MAX, n))), false);
       return (
         <div>
-          <QuestionTitle section={step.section} title={step.title} hint={step.hint} />
+          <QuestionTitle step={step} />
           <p className="tabular text-4xl font-bold text-foreground">
             {count} <span className="text-base font-medium text-muted-foreground">{count === 1 ? "copo" : "copos"}</span>
           </p>
           <p className="text-sm text-primary">{formatLitersShort(count * GLASS_ML)} por dia</p>
-          <div className="mt-5 grid grid-cols-6 gap-2">
-            {Array.from({ length: GLASSES_MAX }, (_, i) => (
-              <button
-                key={i}
-                type="button"
-                aria-label={`${i + 1} ${i === 0 ? "copo" : "copos"}`}
-                onClick={() => set(i + 1 === count ? i : i + 1)}
-                className={cn(
-                  "h-12 rounded-b-xl rounded-t-sm border-2 transition-colors",
-                  i < count ? "border-sky-400 bg-sky-400/70" : "border-border bg-transparent hover:border-muted-foreground/50",
-                )}
-              />
-            ))}
+          <div className="mt-5 grid grid-cols-6 gap-x-2 gap-y-3">
+            {Array.from({ length: GLASSES_MAX }, (_, i) => {
+              const full = i < count;
+              return (
+                <button
+                  key={i}
+                  type="button"
+                  aria-label={`${i + 1} ${i === 0 ? "copo" : "copos"}`}
+                  aria-pressed={full}
+                  onClick={() => set(i + 1 === count ? i : i + 1)}
+                  className="group flex justify-center rounded-lg py-1 transition-transform active:scale-95"
+                >
+                  <WaterGlass full={full} delay={(i % 6) * 0.17} className="group-hover:opacity-90" />
+                </button>
+              );
+            })}
           </div>
           <div className="mt-5 flex items-center justify-between">
             <Button type="button" variant="outline" size="icon" aria-label="Um copo a menos" onClick={() => set(count - 1)}>
@@ -522,7 +615,7 @@ function StepView({
     case "measures":
       return (
         <div>
-          <QuestionTitle section={step.section} title={step.title} hint={step.hint} />
+          <QuestionTitle step={step} />
           <div className="grid grid-cols-2 gap-3">
             {(
               [
@@ -559,12 +652,15 @@ function StepView({
 }
 
 function Insight({ id, section, answers }: { id: string; section: string; answers: Answers }) {
+  const reduceMotion = useReducedMotion();
   if (id === "i_progressao") {
     const already = answers.carga === "sempre";
     return (
       <div>
         <p className="text-xs font-semibold tracking-wide text-primary uppercase">{section}</p>
-        <p className="mt-4 text-5xl font-bold text-primary">+1 rep</p>
+        <p className="mt-4 text-5xl font-bold text-primary">
+          <CountUp to={2.5} decimals={1} prefix="+" suffix=" kg" />
+        </p>
         <h2 className="mt-3 text-2xl font-bold text-foreground">
           {already ? "Você já faz o que mais importa." : "Sem progressão, o corpo para de mudar."}
         </h2>
@@ -581,7 +677,9 @@ function Insight({ id, section, answers }: { id: string; section: string; answer
     return (
       <div>
         <p className="text-xs font-semibold tracking-wide text-primary uppercase">{section}</p>
-        <p className="tabular mt-4 text-5xl font-bold text-primary">+385</p>
+        <p className="mt-4 text-5xl font-bold text-primary">
+          <CountUp to={385} prefix="+" />
+        </p>
         <p className="text-sm text-muted-foreground">kcal por dia</p>
         <h2 className="mt-3 text-2xl font-bold text-foreground">
           {good ? "Seu sono joga a seu favor." : "Dormir pouco dá fome."}
@@ -611,15 +709,24 @@ function Insight({ id, section, answers }: { id: string; section: string; answer
           { label: "Meta", ml: target, tone: "bg-sky-400" },
         ].map((bar) => (
           <div key={bar.label} className="flex flex-col items-center gap-2">
-            <span className="tabular text-sm font-semibold text-foreground">{formatLitersShort(bar.ml)}</span>
+            <span className="text-sm font-semibold text-foreground">
+              <CountLiters ml={bar.ml} />
+            </span>
             <div className="flex h-36 w-14 items-end overflow-hidden rounded-xl bg-muted">
-              <div className={cn("w-full rounded-xl", bar.tone)} style={{ height: `${Math.min(100, (bar.ml / target) * 100)}%` }} />
+              <motion.div
+                className={cn("w-full rounded-xl", bar.tone)}
+                initial={{ height: reduceMotion ? `${Math.min(100, (bar.ml / target) * 100)}%` : "0%" }}
+                animate={{ height: `${Math.min(100, (bar.ml / target) * 100)}%` }}
+                transition={{ duration: reduceMotion ? 0 : 1.1, ease: [0.33, 1, 0.68, 1] }}
+              />
             </div>
             <span className="text-xs text-muted-foreground">{bar.label}</span>
           </div>
         ))}
       </div>
-      <h2 className="mt-6 text-2xl font-bold text-foreground">Sua meta: {formatLitersShort(target)} de água por dia</h2>
+      <h2 className="mt-6 text-2xl font-bold text-foreground">
+        Sua meta: <CountLiters ml={target} /> de água por dia
+      </h2>
       <p className="mt-3 text-base leading-relaxed text-muted-foreground">
         {missing > 0
           ? `Hoje você bebe cerca de ${formatLitersShort(today)}. Faltam ${formatLitersShort(missing)} por dia. `
@@ -669,7 +776,50 @@ function Analysis({ reduceMotion }: { reduceMotion: boolean }) {
   );
 }
 
-function ScoreRing({ score, size, label }: { score: number; size: number; label?: string }) {
+/** Sobe de 0 até `to` desacelerando no fim; com "reduzir movimento", já mostra o valor final */
+function useCountUp(to: number, duration = 1100): number {
+  const reduceMotion = useReducedMotion();
+  const [value, setValue] = useState(reduceMotion ? to : 0);
+  useEffect(() => {
+    if (reduceMotion) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- sem animação, o valor final vem direto
+      setValue(to);
+      return;
+    }
+    let frame = 0;
+    const start = performance.now();
+    const tick = (now: number) => {
+      const t = Math.min(1, (now - start) / duration);
+      setValue(to * (1 - Math.pow(1 - t, 3)));
+      if (t < 1) frame = requestAnimationFrame(tick);
+    };
+    frame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame);
+  }, [to, duration, reduceMotion]);
+  return value;
+}
+
+function CountUp({ to, decimals = 0, prefix = "", suffix = "" }: { to: number; decimals?: number; prefix?: string; suffix?: string }) {
+  const value = useCountUp(to);
+  const text = value.toLocaleString("pt-BR", { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+  return (
+    <span className="tabular" aria-label={`${prefix}${to.toLocaleString("pt-BR", { maximumFractionDigits: decimals })}${suffix}`}>
+      {prefix}
+      {text}
+      {suffix}
+    </span>
+  );
+}
+
+/** Litros com a vírgula do pt-BR, subindo junto com a barra */
+function CountLiters({ ml }: { ml: number }) {
+  return <CountUp to={ml / 1000} decimals={1} suffix=" L" />;
+}
+
+/** Anel da nota: enche junto com o número (sem `animate`, fica parado no valor) */
+function ScoreRing({ score, size, label, animate }: { score: number; size: number; label?: string; animate?: boolean }) {
+  const counted = useCountUp(animate ? score : 0);
+  const shown = animate ? counted : score;
   const stroke = Math.max(6, size / 14);
   const r = (size - stroke) / 2;
   const circumference = 2 * Math.PI * r;
@@ -684,16 +834,17 @@ function ScoreRing({ score, size, label }: { score: number; size: number; label?
           fill="none"
           strokeWidth={stroke}
           strokeLinecap="round"
-          className="stroke-primary transition-[stroke-dashoffset] duration-500"
+          className={cn("stroke-primary", !animate && "transition-[stroke-dashoffset] duration-500")}
           strokeDasharray={circumference}
-          strokeDashoffset={circumference * (1 - Math.max(0, Math.min(100, score)) / 100)}
+          strokeDashoffset={circumference * (1 - Math.max(0, Math.min(100, shown)) / 100)}
         />
       </svg>
       <span
         className="tabular absolute inset-0 flex items-center justify-center font-bold text-foreground"
         style={{ fontSize: size / 4 }}
+        aria-label={label ?? String(score)}
       >
-        {label ?? score}
+        {label ?? Math.round(shown)}
       </span>
     </div>
   );
@@ -720,11 +871,12 @@ function Result({
 }) {
   const sortedAreas = [...result.areas].sort((a, b) => a.score - b.score);
   const pitch = BLOQUEIO_PITCH[answers.bloqueio ?? ""];
+  const conditions = selectedConditions(answers);
 
   return (
     <div className="pb-10">
       <header className="flex items-center gap-5 pt-4">
-        <ScoreRing score={result.score} size={104} />
+        <ScoreRing score={result.score} size={104} animate />
         <div className="min-w-0">
           <p className="text-xs font-semibold tracking-wide text-primary uppercase">Fase · {result.phase.name}</p>
           <h1 className="mt-1 text-2xl leading-tight font-bold text-foreground">
@@ -793,6 +945,26 @@ function Result({
           })}
         </ol>
       </section>
+
+      {conditions.length > 0 && (
+        <section className="mt-8 rounded-2xl border border-amber-400/40 bg-amber-400/5 p-4" aria-labelledby="dx-cuidados">
+          <h2 id="dx-cuidados" className="text-base font-bold text-foreground">
+            Cuidados com o seu corpo
+          </h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Você marcou: {conditions.map((c) => c.label).join("; ")}.
+          </p>
+          <p className="mt-2 text-sm text-foreground/90">
+            Conte isso ao Théo quando ele for montar seu treino: ele troca ou adapta os exercícios que forçam essas
+            regiões e ajusta a carga com calma.
+          </p>
+          {needsMedicalClearance(conditions) && (
+            <p className="mt-2 text-sm font-medium text-amber-300">
+              Antes de começar, converse com seu médico e peça liberação para treinar.
+            </p>
+          )}
+        </section>
+      )}
 
       <section className="mt-10 rounded-3xl border border-primary/30 bg-primary/5 p-5" aria-labelledby="dx-oferta">
         <div className="mb-4 flex items-center gap-3">
