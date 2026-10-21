@@ -287,6 +287,30 @@
   45%, 100% { transform: translateX(120%); }
 }
 
+/* Opções do diagnóstico: luz verde que segue o mouse dentro do botão (posição em --mx/--my, ver trackSpotlight) */
+.spotlight {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+}
+.spotlight::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: radial-gradient(
+    220px circle at var(--mx, 50%) var(--my, 50%),
+    color-mix(in oklch, var(--primary) 22%, transparent),
+    transparent 70%
+  );
+  opacity: 0;
+  transition: opacity 0.25s ease;
+  pointer-events: none;
+}
+@media (hover: hover) {
+  .spotlight:hover::before { opacity: 1; }
+}
+
 /* Selos sobre a foto de capa: sobem e descem devagar, cada um no seu tempo (animation-delay inline) */
 .hero-float {
   animation: float 4.2s ease-in-out infinite;

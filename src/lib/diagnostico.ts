@@ -319,8 +319,47 @@ export interface DiagnosticResult {
   kcalTarget: number;
   proteinG: number;
   trainingDays: number;
+  /** Treinos por semana hoje, como a pessoa respondeu ("1 a 2x"); vazio se não respondeu */
+  trainingNow: string;
+  trainingOnTarget: boolean;
+  /** Horas de sono hoje ("menos de 5 h") e se já estão na faixa de 7 a 9 h */
+  sleepNow: string;
+  sleepOnTarget: boolean;
+  /** Complemento do objetivo para as metas de comida ("para ganhar massa") */
+  goalLabel: string;
+  /** Ponto de partida */
+  weightKg: number;
+  heightCm: number;
+  bmi: number;
+  bmiLabel: string;
   /** As áreas mais fracas, da pior para a melhor (até 3) */
   focus: AreaKey[];
+}
+
+const GOAL_LABEL: Record<string, string> = {
+  emagrecer: "para emagrecer",
+  massa: "para ganhar massa",
+  forca: "para ganhar força",
+  saude: "para ter mais disposição",
+};
+
+const SLEEP_NOW: Record<string, string> = {
+  "<5": "menos de 5 h",
+  "5-6": "5 a 6 h",
+  "6-7": "6 a 7 h",
+  "7-9": "7 a 9 h",
+  "9+": "mais de 9 h",
+};
+
+const TRAINING_NOW: Record<string, string> = { "0": "nenhum", "1-2": "1 a 2x", "3-4": "3 a 4x", "5+": "5x ou mais" };
+const TRAINING_MAX: Record<string, number> = { "0": 0, "1-2": 2, "3-4": 4, "5+": 7 };
+
+/** Faixas de IMC da OMS para adultos */
+function bmiLabel(bmi: number): string {
+  if (bmi < 18.5) return "abaixo do peso";
+  if (bmi < 25) return "peso adequado";
+  if (bmi < 30) return "sobrepeso";
+  return "obesidade";
 }
 
 export function computeResult(answers: Answers): DiagnosticResult {
@@ -364,6 +403,16 @@ export function computeResult(answers: Answers): DiagnosticResult {
     kcalTarget,
     proteinG: Math.round((weight * proteinPerKg) / 5) * 5,
     trainingDays,
+    trainingNow: TRAINING_NOW[answers.frequencia] ?? "",
+    // Compara pelo topo da faixa respondida: "3 a 4x" já cumpre uma meta de 4 dias
+    trainingOnTarget: (TRAINING_MAX[answers.frequencia] ?? 0) >= trainingDays,
+    sleepNow: SLEEP_NOW[answers.sono] ?? "",
+    sleepOnTarget: answers.sono === "7-9",
+    goalLabel: GOAL_LABEL[answers.objetivo] ?? "",
+    weightKg: weight,
+    heightCm: height,
+    bmi: Math.round((weight / (height / 100) ** 2) * 10) / 10,
+    bmiLabel: bmiLabel(weight / (height / 100) ** 2),
     focus: [...areas].sort((a, b) => a.score - b.score).slice(0, 3).map((a) => a.key),
   };
 }

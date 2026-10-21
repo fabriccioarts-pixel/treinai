@@ -121,22 +121,22 @@ export function PlanCards({
         {mode === "trial" ? (
           <Link
             href={signupHref}
-            className={buttonVariants({ size: "lg", className: "h-12 w-full gap-2 text-base font-semibold" })}
+            className={buttonVariants({ size: "lg", className: "cta-shine group h-14 w-full gap-2 rounded-full text-base font-semibold" })}
           >
             {trialDays > 0 ? `Começar meus ${trialDays} dias grátis` : "Criar minha conta"}
-            <ArrowRight className="h-4 w-4" />
+            <ArrowRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-1" />
           </Link>
         ) : (
           <Button
             type="button"
             size="lg"
-            className="h-12 w-full gap-2 text-base font-semibold"
+            className="cta-shine group h-14 w-full gap-2 rounded-full text-base font-semibold"
             disabled={pending}
             onClick={checkout}
           >
             {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
             {pending ? "Abrindo pagamento…" : `Assinar por ${chosen ? formatBRL(monthlyCents(chosen)) : ""}/mês`}
-            {!pending && <ArrowRight className="h-4 w-4" />}
+            {!pending && <ArrowRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-1" />}
           </Button>
         )}
         <p className="mt-3 text-center text-xs text-muted-foreground">

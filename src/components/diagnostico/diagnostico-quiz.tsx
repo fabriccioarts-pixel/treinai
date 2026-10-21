@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { ArrowLeft, ArrowRight, Check, Droplet, Lock, Minus, Moon, Plus, Sparkles, Timer } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, Droplet, Dumbbell, Lock, Minus, Moon, Plus, Sparkles, Timer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PlanCards } from "@/components/billing/plan-cards";
@@ -77,6 +77,16 @@ const ANALYSIS_LINES = [
   "Calculando sua meta de água",
   "Montando seu plano",
 ];
+
+/** Passa a posição do mouse para a opção sob ele; a luz em si é o ::before de .spotlight (globals.css) */
+function trackSpotlight(e: React.PointerEvent) {
+  if (e.pointerType !== "mouse") return;
+  const el = (e.target as HTMLElement).closest<HTMLElement>(".spotlight");
+  if (!el) return;
+  const r = el.getBoundingClientRect();
+  el.style.setProperty("--mx", `${e.clientX - r.left}px`);
+  el.style.setProperty("--my", `${e.clientY - r.top}px`);
+}
 
 export function DiagnosticoQuiz({ plans, trialDays }: { plans: Plan[]; trialDays: number }) {
   const reduceMotion = useReducedMotion();
@@ -238,7 +248,7 @@ export function DiagnosticoQuiz({ plans, trialDays }: { plans: Plan[]; trialDays
   };
 
   return (
-    <div className="mx-auto flex min-h-dvh w-full max-w-md flex-col px-4 py-5 sm:max-w-lg">
+    <div className="mx-auto flex min-h-dvh w-full max-w-md flex-col px-4 py-5 sm:max-w-lg" onPointerMove={trackSpotlight}>
       {/* Luz verde difusa no topo e na base da tela, fixa enquanto a página rola */}
       <div
         aria-hidden
@@ -675,7 +685,7 @@ function StepView({
                   aria-pressed={selected}
                   onClick={() => onAnswer(step.id, o.value, true)}
                   className={cn(
-                    "flex items-center justify-between gap-3 rounded-2xl border p-4 text-left text-base font-medium transition-all active:scale-[0.98]",
+                    "spotlight flex items-center justify-between gap-3 rounded-2xl border p-4 text-left text-base font-medium transition-all active:scale-[0.98]",
                     step.layout === "chips" && "justify-center text-center",
                     selected
                       ? "border-primary/60 bg-primary/10 text-foreground ring-1 ring-primary/40"
@@ -721,7 +731,7 @@ function StepView({
                   aria-checked={selected}
                   onClick={() => toggle(o.value, o.exclusive)}
                   className={cn(
-                    "flex items-center justify-between gap-3 rounded-2xl border px-4 py-3.5 text-left text-sm font-medium transition-all active:scale-[0.98]",
+                    "spotlight flex items-center justify-between gap-3 rounded-2xl border px-4 py-3.5 text-left text-sm font-medium transition-all active:scale-[0.98]",
                     selected
                       ? "border-primary/60 bg-primary/10 text-foreground ring-1 ring-primary/40"
                       : "border-border/60 bg-card text-foreground hover:border-border hover:bg-muted/40",
@@ -1096,16 +1106,83 @@ function Result({
         </ul>
       </section>
 
+      <section className="mt-8" aria-labelledby="dx-partida">
+        <h2 id="dx-partida" className="text-lg font-bold text-foreground">
+          Seu ponto de partida
+        </h2>
+        <div className="mt-4 grid grid-cols-3 divide-x divide-border/60 rounded-2xl border border-border/60 bg-card py-4 text-center">
+          {[
+            { label: "Peso", value: `${result.weightKg.toLocaleString("pt-BR")} kg` },
+            {
+              label: "Altura",
+              value: `${(result.heightCm / 100).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} m`,
+            },
+            { label: "IMC", value: result.bmi.toLocaleString("pt-BR", { minimumFractionDigits: 1 }), note: result.bmiLabel },
+          ].map((s) => (
+            <div key={s.label} className="px-2">
+              <p className="text-xs text-muted-foreground">{s.label}</p>
+              <p className="tabular mt-0.5 text-xl font-bold text-foreground">{s.value}</p>
+              {s.note && <p className="text-[11px] text-muted-foreground">{s.note}</p>}
+            </div>
+          ))}
+        </div>
+        <p className="mt-2 text-xs text-muted-foreground">
+          O IMC não separa músculo de gordura. Serve só como referência de onde você parte.
+        </p>
+      </section>
+
+      <section className="mt-8" aria-labelledby="dx-meta">
+        <h2 id="dx-meta" className="text-lg font-bold text-foreground">
+          Hoje e a sua meta
+        </h2>
+        <ul className="mt-4 divide-y divide-border/60 rounded-2xl border border-border/60 bg-card">
+          {[
+            {
+              icon: Droplet,
+              label: "Água por dia",
+              now: formatLitersShort(result.waterTodayMl),
+              target: formatLitersShort(result.waterTargetMl),
+              onTarget: result.waterTodayMl >= result.waterTargetMl,
+            },
+            { icon: Moon, label: "Sono por noite", now: result.sleepNow, target: "7 a 9 h", onTarget: result.sleepOnTarget },
+            {
+              icon: Dumbbell,
+              label: "Treinos por semana",
+              now: result.trainingNow,
+              target: `${result.trainingDays}x`,
+              onTarget: result.trainingOnTarget,
+            },
+          ].map((row) => (
+            <li key={row.label} className="flex items-center gap-3 px-4 py-3.5">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary">
+                <row.icon className="h-4 w-4" />
+              </span>
+              <span className="min-w-0 flex-1 text-sm font-medium text-foreground">{row.label}</span>
+              {row.onTarget ? (
+                <span className="flex items-center gap-1 text-sm font-semibold text-primary">
+                  <Check className="h-4 w-4" strokeWidth={3} />
+                  {row.now || row.target}
+                </span>
+              ) : (
+                <span className="flex items-center gap-1.5 text-sm">
+                  {row.now && <span className="text-muted-foreground">{row.now}</span>}
+                  {row.now && <ArrowRight className="h-3.5 w-3.5 text-muted-foreground/60" aria-label="meta" />}
+                  <span className="font-bold text-primary">{row.target}</span>
+                </span>
+              )}
+            </li>
+          ))}
+        </ul>
+      </section>
+
       <section className="mt-8" aria-labelledby="dx-numeros">
         <h2 id="dx-numeros" className="text-lg font-bold text-foreground">
-          Seus números
+          Sua alimentação {result.goalLabel}
         </h2>
         <div className="mt-4 grid grid-cols-2 gap-3">
           {[
-            { value: formatLitersShort(result.waterTargetMl), label: "de água por dia" },
             { value: `~${result.kcalTarget.toLocaleString("pt-BR")}`, label: "kcal por dia (estimativa)" },
             { value: `~${result.proteinG} g`, label: "de proteína por dia" },
-            { value: `${result.trainingDays}x`, label: "treinos por semana" },
           ].map((n) => (
             <div key={n.label} className="rounded-2xl border border-border/60 bg-card p-4">
               <p className="tabular text-2xl font-bold text-foreground">{n.value}</p>
