@@ -1,4 +1,6 @@
 import { createWorkoutRecord, updateWorkoutRecord } from "./workout-mutations";
+import { saveMealRecord, logWaterRecord, type MealType } from "./meal-mutations";
+import { analyzeMeal } from "./meal-analysis";
 import type { CoachAction } from "./coach-conversations";
 
 /** Descrições dos campos de método, compartilhadas pelo Gemini e pelo Claude */
@@ -8,9 +10,11 @@ export const TECHNIQUE_DESCRIPTION =
   "Técnica de intensidade opcional: drop-set, rest-pause, piramide-crescente, piramide-decrescente, falha, parciais (parciais alongadas no fim), isometria (pausa na contração) ou cadencia (descida lenta). Omita para séries normais.";
 
 /*
- * Ferramentas do Théo (criar e editar treino), compartilhadas pelo chat de texto
+ * Ferramentas do Théo (treino, refeição e água), compartilhadas pelo chat de texto
  * e pela conversa por voz.
  */
+
+const MEAL_TYPES: MealType[] = ["cafe", "almoco", "lanche", "jantar"];
 
 interface ExerciseInput {
   exerciseId: string;
@@ -84,8 +88,14 @@ function toExerciseRows(exercises: ExerciseInput[] | undefined, exerciseMap: Map
   return rows.map((e, i) => ({ ...e, order: i + 1 }));
 }
 
-/** Executores das ferramentas para um usuário; cada treino criado ou alterado entra em `actions` */
-export async function createCoachToolExecutors(db: D1Database, userId: string, actions: CoachAction[]) {
+/** Executores das ferramentas para um usuário; cada treino criado/alterado ou registro de nutrição entra em `actions` */
+export async function createCoachToolExecutors(
+  db: D1Database,
+  userId: string,
+  actions: CoachAction[],
+  /** Chave de IA (Gemini ou Anthropic) usada só pelo log_meal para estimar a refeição; sem ela a ferramenta avisa o erro */
+  apiKey?: string,
+) {
   const exerciseMap = await resolveExerciseIdMap(db, userId);
 
   const createWorkout = async (input: CreateWorkoutInput) => {

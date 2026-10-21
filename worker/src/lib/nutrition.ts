@@ -182,3 +182,11 @@ export function calculateNutritionTargets(input: NutritionInput): NutritionTarge
 export function localDate(timeZone: string, date = new Date()): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit", day: "2-digit" }).format(date);
 }
+
+export const DEFAULT_TIME_ZONE = "America/Sao_Paulo";
+
+/** Fuso do usuário a partir do perfil, ou o padrão enquanto ele não preenche o perfil */
+export async function userTimeZone(db: D1Database, userId: string): Promise<string> {
+  const row = await db.prepare("SELECT timezone FROM user_profiles WHERE user_id = ?").bind(userId).first<{ timezone: string }>();
+  return row?.timezone ?? DEFAULT_TIME_ZONE;
+}
