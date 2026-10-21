@@ -41,18 +41,64 @@ const EXERCISES_WITH_DEMO = new Set([
   "supino-halteres",
   "puxada-neutra",
   "panturrilha",
+  "supino-inclinado-halteres",
+  "rosca-scott",
+  "elevacao-pelvica",
 ]);
 
-export interface ExerciseDemo {
-  video: string;
-  poster: string;
-}
+/**
+ * Demonstração em duas imagens no mesmo estilo (posição 1 em alongamento total, posição 2 em
+ * contração máxima), que o app alterna com transição suave. Usada nos exercícios sem vídeo.
+ * Os arquivos ficam em public/exercises/<exerciseId>/1.jpg e 2.jpg; quem tem vídeo continua com o vídeo.
+ */
+const EXERCISES_WITH_FRAMES = new Set<string>([
+  "abdominal-infra",
+  "agachamento-bulgaro",
+  "agachamento-goblet",
+  "barra-fixa-supinada",
+  "cadeira-adutora",
+  "crucifixo-polia",
+  "desenvolvimento-arnold",
+  "desenvolvimento-barra",
+  "desenvolvimento-smith",
+  "elevacao-lateral-polia",
+  "encolhimento-barra",
+  "face-pull",
+  "gluteo-polia",
+  "hack",
+  "levantamento-terra",
+  "prancha",
+  "puxada-supinada",
+  "remada-alta",
+  "remada-articulada",
+  "remada-cavalinho",
+  "remada-unilateral",
+  "rosca-barra-w",
+  "rosca-concentrada",
+  "rosca-inclinada",
+  "rosca-polia",
+  "rosca-scott-halter",
+  "supino-declinado-halteres",
+  "triceps-polia-acima-cabeca",
+  "voador",
+]);
 
-/** Retorna o vídeo e a capa do exercício, ou null se ele não tem demonstração (ex.: exercícios personalizados). */
+export type ExerciseDemo =
+  | { kind: "video"; video: string; poster: string }
+  | { kind: "frames"; frames: [string, string]; poster: string };
+
+/** Retorna a demonstração do exercício, ou null se ele não tem (ex.: exercícios personalizados). */
 export function getExerciseDemo(exerciseId: string): ExerciseDemo | null {
-  if (!EXERCISES_WITH_DEMO.has(exerciseId)) return null;
-  return {
-    video: `/exercises/${exerciseId}/demo.mp4`,
-    poster: `/exercises/${exerciseId}/poster.jpg`,
-  };
+  if (EXERCISES_WITH_DEMO.has(exerciseId)) {
+    return {
+      kind: "video",
+      video: `/exercises/${exerciseId}/demo.mp4`,
+      poster: `/exercises/${exerciseId}/poster.jpg`,
+    };
+  }
+  if (EXERCISES_WITH_FRAMES.has(exerciseId)) {
+    const first = `/exercises/${exerciseId}/1.jpg`;
+    return { kind: "frames", frames: [first, `/exercises/${exerciseId}/2.jpg`], poster: first };
+  }
+  return null;
 }

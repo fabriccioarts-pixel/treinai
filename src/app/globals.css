@@ -241,6 +241,13 @@
 }
 
 /* Foto dos cards do diagnóstico: aproxima devagar enquanto a pessoa lê a pergunta */
+/* Demonstração em duas imagens: segura a posição 1, passa para a 2, segura e volta */
+@keyframes demo-frames {
+  0%, 30% { opacity: 0; }
+  45%, 80% { opacity: 1; }
+  95%, 100% { opacity: 0; }
+}
+
 @keyframes photo-zoom-in {
   from { transform: scale(1); }
   to { transform: scale(1.12); }
