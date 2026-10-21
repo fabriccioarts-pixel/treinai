@@ -1,12 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowRight, CheckCircle2 } from "lucide-react";
+import { ArrowRight, Lock, Sparkles, Timer } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
-import { AsciiCoach } from "@/components/workout/ascii-coach";
-import { Illustration } from "@/components/ui/illustration";
 import {
-  FloatingBubble,
   LandingMotion,
   Reveal,
   Stagger,
@@ -18,6 +15,10 @@ import { PrDemo } from "@/components/landing/pr-demo";
 import { NutritionDemo } from "@/components/landing/nutrition-demo";
 import { ExerciseReel } from "@/components/landing/exercise-reel";
 import { LaunchVideo } from "@/components/landing/launch-video";
+import { PaymentMethods } from "@/components/landing/payment-methods";
+import { HeroVisual } from "@/components/landing/hero-visual";
+import { QuizTeaser } from "@/components/landing/quiz-teaser";
+import { AreaCards } from "@/components/landing/area-cards";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = {
@@ -53,14 +54,32 @@ function PrimaryCta({ className, children = "Fazer meu diagnóstico grátis" }: 
       className={buttonVariants({
         size: "lg",
         className: cn(
-          "h-12 gap-2 rounded-xl px-6 text-base font-semibold shadow-[0_12px_28px_-14px_var(--primary)]",
+          "cta-shine group h-14 gap-2 rounded-full px-7 text-base font-semibold",
           className,
         ),
       })}
     >
       {children}
-      <ArrowRight className="h-4 w-4" />
+      <ArrowRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-1" />
     </Link>
+  );
+}
+
+/** O que tira o medo de começar: tempo, teste grátis e sem cartão */
+function TrustLine({ className }: { className?: string }) {
+  return (
+    <ul className={cn("flex flex-wrap items-center gap-x-4 gap-y-1.5 text-sm text-muted-foreground", className)}>
+      <li className="flex items-center gap-1.5">
+        <Timer className="h-4 w-4 text-primary" />3 minutos
+      </li>
+      <li className="flex items-center gap-1.5">
+        <Sparkles className="h-4 w-4 text-primary" />3 dias grátis
+      </li>
+      <li className="flex items-center gap-1.5">
+        <Lock className="h-4 w-4 text-primary" />
+        Sem cartão agora
+      </li>
+    </ul>
   );
 }
 
@@ -88,79 +107,112 @@ export default function BemVindoPage() {
               <Link href="/login" className={buttonVariants({ variant: "ghost", className: "h-10 px-4" })}>
                 Entrar
               </Link>
-              <Link href="/cadastro" className={buttonVariants({ className: "h-10 rounded-lg px-4 font-semibold" })}>
-                Criar conta
+              <Link href="/diagnostico" className={buttonVariants({ className: "h-10 rounded-full px-4 font-semibold" })}>
+                Diagnóstico grátis
               </Link>
             </nav>
           </div>
         </header>
 
         <main>
-          {/* Hero: o Théo em holograma ASCII */}
+          {/* Hero: foto com os selos do diagnóstico, no estilo da abertura do quiz */}
           <section className="relative">
-            <div className="mx-auto grid max-w-6xl items-center gap-4 px-4 pt-12 sm:px-6 lg:grid-cols-[1.05fr_1fr] lg:gap-10 lg:pt-20">
-              <div className="relative z-10">
-                <h1 className="text-[2.75rem] leading-[1.02] font-bold tracking-[-0.04em] text-balance text-foreground sm:text-6xl lg:text-7xl">
-                  <Reveal as="span" immediate y={28} className="block">
+            {/* Luz verde difusa atrás do hero */}
+            <div
+              aria-hidden
+              className="pointer-events-none absolute inset-x-0 -top-16 -z-10 h-[46rem]"
+              style={{
+                background:
+                  "radial-gradient(ellipse 70% 55% at 70% 20%, color-mix(in oklch, var(--primary) 16%, transparent), transparent 70%)",
+              }}
+            />
+            <div className="mx-auto grid max-w-6xl items-center gap-6 px-4 sm:px-6 sm:pt-12 lg:grid-cols-[1.05fr_0.95fr] lg:gap-14 lg:pt-16">
+              <div className="order-1 lg:order-2">
+                <Reveal immediate y={16}>
+                  <HeroVisual />
+                </Reveal>
+              </div>
+              <div className="relative z-10 order-2 -mt-24 sm:mt-0 lg:order-1">
+                <Reveal immediate>
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-semibold tracking-wide text-primary uppercase">
+                    <Sparkles className="h-3.5 w-3.5" />
+                    Lançamento · 3 dias grátis
+                  </span>
+                </Reveal>
+                <h1 className="mt-5 text-[2.6rem] leading-[1.02] font-bold tracking-[-0.04em] text-balance text-foreground sm:text-6xl lg:text-7xl">
+                  <Reveal as="span" immediate y={28} delay={0.08} className="block">
                     Conheça o Théo.
                   </Reveal>
-                  <Reveal as="span" immediate y={28} delay={0.12} className="block text-primary">
+                  <Reveal as="span" immediate y={28} delay={0.18} className="block text-primary">
                     Seu personal de IA, direto de 2091.
                   </Reveal>
                 </h1>
-                <Reveal immediate delay={0.28}>
+                <Reveal immediate delay={0.3}>
                   <p className="mt-6 max-w-[34rem] text-lg leading-relaxed text-muted-foreground">
-                    Ele monta seus treinos, acompanha cada série e ajusta a carga com base nos seus dados reais — não em
-                    achismo. Você só precisa aparecer.
+                    Ele monta seus treinos, acompanha cada série e ajusta a carga com base nos seus dados reais, não em
+                    achismo. Comece pelo diagnóstico grátis: em 3 minutos você sabe o que está travando a sua evolução.
                   </p>
                 </Reveal>
-                <Reveal immediate delay={0.4}>
+                <Reveal immediate delay={0.42}>
                   <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
                     <PrimaryCta />
                     <Link
                       href="/login"
-                      className={buttonVariants({ variant: "outline", size: "lg", className: "h-12 rounded-xl px-6 text-base" })}
+                      className={buttonVariants({ variant: "ghost", size: "lg", className: "h-14 rounded-full px-6 text-base" })}
                     >
                       Já tenho conta
                     </Link>
                   </div>
+                  <TrustLine className="mt-6" />
                 </Reveal>
-                <Stagger
-                  as="ul"
-                  immediate
-                  delay={0.55}
-                  stagger={0.1}
-                  className="mt-8 flex flex-wrap gap-x-5 gap-y-2 text-sm text-muted-foreground"
-                >
+              </div>
+            </div>
+          </section>
+
+          {/* Diagnóstico dentro da landing: a primeira pergunta já se responde aqui */}
+          <section className="pt-20 pb-6 sm:pt-28">
+            <div className="mx-auto grid max-w-6xl gap-10 px-4 sm:px-6 lg:grid-cols-[1fr_0.9fr] lg:items-center lg:gap-16">
+              <div>
+                <SectionCopy title="Descubra em 3 minutos o que está travando a sua evolução.">
+                  <p>
+                    Um diagnóstico grátis, com perguntas rápidas sobre a sua rotina. No fim, você vê sua nota de 0 a 100
+                    em cada área e por onde o Théo começa com você.
+                  </p>
+                </SectionCopy>
+                <Stagger as="ol" stagger={0.1} className="mt-8 space-y-4">
                   {[
-                    "Treinos montados pela IA",
-                    "PRs detectados sozinhos",
-                    "Calorias por foto do prato",
-                    "Constância e conquistas",
-                  ].map((item) => (
-                    <StaggerItem as="li" key={item} className="flex items-center gap-1.5">
-                      <CheckCircle2 className="h-4 w-4 text-primary" />
-                      {item}
+                    { title: "Responda com sinceridade", text: "Treino, constância, sono, alimentação e água." },
+                    { title: "Veja sua nota em cada área", text: "Com sua meta de água, calorias e proteína." },
+                    { title: "Comece com o Théo", text: "3 dias grátis, sem cartão. Cancele quando quiser." },
+                  ].map((step, i) => (
+                    <StaggerItem as="li" key={step.title} className="flex gap-4">
+                      <span className="tabular flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-primary/40 bg-primary/10 text-sm font-bold text-primary">
+                        {i + 1}
+                      </span>
+                      <span>
+                        <span className="block font-semibold text-foreground">{step.title}</span>
+                        <span className="mt-0.5 block text-sm text-muted-foreground">{step.text}</span>
+                      </span>
                     </StaggerItem>
                   ))}
                 </Stagger>
               </div>
+              <Reveal>
+                <QuizTeaser />
+              </Reveal>
+            </div>
+          </section>
 
-              <div className="relative h-[400px] sm:h-[500px] lg:h-[600px]">
-                <AsciiCoach className="absolute inset-0" />
-                {/* Fala do Théo flutuando sobre o holograma */}
-                <FloatingBubble className="absolute bottom-10 left-0 z-10 sm:left-4">
-                  <div className="max-w-[17rem] rounded-2xl rounded-bl-sm border border-border bg-card p-3.5 shadow-[0_18px_40px_-20px_rgb(0_0_0/0.8)]">
-                    <p className="flex items-center gap-2 text-xs font-semibold text-primary">
-                      <Illustration name="theo" size={22} className="-my-1" />
-                      Théo
-                    </p>
-                    <p className="mt-1.5 text-sm leading-snug text-foreground">
-                      Seu supino subiu <strong className="text-primary">7,5 kg</strong> esse mês, monstro. Bora buscar os
-                      90 kg?
-                    </p>
-                  </div>
-                </FloatingBubble>
+          {/* As cinco áreas, com as pessoas de corpo real do quiz */}
+          <section className="py-20 sm:py-24">
+            <div className="mx-auto max-w-6xl px-4 sm:px-6">
+              <Reveal className="max-w-2xl">
+                <h2 className="text-3xl font-bold tracking-[-0.03em] text-balance text-foreground sm:text-4xl">
+                  Cinco áreas. Uma nota pra cada. Um plano que começa pela mais fraca.
+                </h2>
+              </Reveal>
+              <div className="mt-10">
+                <AreaCards />
               </div>
             </div>
           </section>
@@ -335,6 +387,7 @@ export default function BemVindoPage() {
                   Já tenho conta
                 </Link>
               </div>
+              <TrustLine className="mt-6 justify-center" />
             </Reveal>
           </section>
         </main>
@@ -346,6 +399,13 @@ export default function BemVindoPage() {
               Treinai
             </span>
             <span>O Théo é um assistente de IA e não substitui orientação médica.</span>
+          </div>
+          <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-3 border-t border-border/40 px-4 py-5 text-xs text-muted-foreground sm:flex-row sm:px-6">
+            <span className="flex items-center gap-1.5">
+              <Lock className="h-3.5 w-3.5" />
+              Pagamento seguro pela Cakto
+            </span>
+            <PaymentMethods className="flex items-center gap-4 text-muted-foreground/80" />
           </div>
         </footer>
       </div>

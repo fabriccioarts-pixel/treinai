@@ -9,6 +9,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PlanCards } from "@/components/billing/plan-cards";
 import { WaterGlass } from "@/components/ui/water-glass";
+import { CountUp, useCountUp } from "@/components/ui/count-up";
+import { HeroStats } from "./hero-stats";
 import { saveLeadAction } from "@/app/actions/billing-actions";
 import {
   BLOQUEIO_PITCH,
@@ -117,6 +119,27 @@ export function DiagnosticoQuiz({ plans, trialDays }: { plans: Plan[]; trialDays
       setUtm(Object.keys(fromUrl).length ? fromUrl : saved.utm);
     } else {
       setUtm(fromUrl);
+    }
+    // Veio da primeira pergunta respondida na landing: grava a resposta e segue para a segunda
+    const sexo = params.get("sexo");
+    if (sexo === "f" || sexo === "m" || sexo === "x") {
+      const answers = { ...(saved?.answers ?? {}), sexo };
+      setAnswers(answers);
+      setView("quiz");
+      setIndex(1);
+      // Grava já: se o efeito rodar de novo (sem o ?sexo na URL), ele reabre daqui e não do estado antigo
+      persist({
+        v: 1,
+        view: "quiz",
+        index: 1,
+        answers,
+        email: saved?.email ?? "",
+        whatsapp: saved?.whatsapp ?? "",
+        utm: Object.keys(fromUrl).length ? fromUrl : (saved?.utm ?? {}),
+      });
+      params.delete("sexo");
+      const rest = params.toString();
+      window.history.replaceState(null, "", `${window.location.pathname}${rest ? `?${rest}` : ""}`);
     }
     setHydrated(true);
     /* eslint-enable react-hooks/set-state-in-effect */
@@ -432,12 +455,6 @@ function Header({
 /** Tempo para a capa recolher e os textos da abertura sumirem antes da primeira pergunta */
 const LEAVE_MS = 700;
 
-/** Números de exemplo que flutuam sobre a foto de capa: mostram o que o app acompanha */
-const HERO_BADGES = [
-  { key: "sono", icon: Moon, label: "Sono", value: "7h 32min", className: "top-[22%] left-4", delay: 0 },
-  { key: "agua", icon: Droplet, label: "Água", value: "2,1 L", className: "top-[44%] right-4", delay: 1.2 },
-] as const;
-
 function Intro({ onStart, hasProgress, onRestart }: { onStart: () => void; hasProgress: boolean; onRestart: () => void }) {
   const reduceMotion = useReducedMotion();
   const [leaving, setLeaving] = useState(false);
@@ -468,62 +485,7 @@ function Intro({ onStart, hasProgress, onRestart }: { onStart: () => void; hasPr
           />
           {/* A base da foto some no fundo da página, para o título emendar */}
           <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-background via-background/60 to-transparent" />
-          {HERO_BADGES.map((b, i) => (
-            <motion.div
-              key={b.key}
-              initial={reduceMotion ? false : { opacity: 0, y: 12, scale: 0.92 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              transition={{ delay: 0.25 + i * 0.15, duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-              className={cn("absolute", b.className)}
-            >
-              <div
-                className="hero-float flex items-center gap-2.5 rounded-2xl border border-white/10 bg-black/45 py-2 pr-3.5 pl-2 backdrop-blur-md"
-                style={{ animationDelay: `${-b.delay}s` }}
-              >
-                <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/20 text-primary">
-                  <b.icon className="h-4.5 w-4.5" />
-                </span>
-                <span className="leading-tight">
-                  <span className="block text-[11px] text-white/70">{b.label}</span>
-                  <span className="block text-base font-bold text-white">{b.value}</span>
-                </span>
-              </div>
-            </motion.div>
-          ))}
-
-          <motion.div
-            initial={reduceMotion ? false : { opacity: 0, y: 12, scale: 0.92 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            transition={{ delay: 0.55, duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-            className="absolute top-[64%] left-10"
-          >
-            <div
-              className="hero-float flex items-center gap-2.5 rounded-2xl border border-white/10 bg-black/45 py-2 pr-3.5 pl-2 backdrop-blur-md"
-              style={{ animationDelay: "-2.4s" }}
-            >
-              <svg viewBox="0 0 36 36" className="h-10 w-10 -rotate-90" aria-hidden>
-                <circle cx="18" cy="18" r="14" fill="none" strokeWidth="4" className="stroke-white/15" />
-                <motion.circle
-                  cx="18"
-                  cy="18"
-                  r="14"
-                  fill="none"
-                  strokeWidth="4"
-                  strokeLinecap="round"
-                  className="stroke-primary"
-                  initial={{ pathLength: reduceMotion ? 0.72 : 0 }}
-                  animate={{ pathLength: 0.72 }}
-                  transition={{ delay: 0.7, duration: reduceMotion ? 0 : 1.2, ease: [0.33, 1, 0.68, 1] }}
-                />
-              </svg>
-              <span className="leading-tight">
-                <span className="block text-base font-bold text-white">
-                  <CountUp to={72} suffix="%" />
-                </span>
-                <span className="block text-[11px] text-white/70">da meta</span>
-              </span>
-            </div>
-          </motion.div>
+          <HeroStats />
         </div>
       </motion.div>
 
@@ -974,41 +936,6 @@ function Analysis({ reduceMotion }: { reduceMotion: boolean }) {
         })}
       </ul>
     </div>
-  );
-}
-
-/** Sobe de 0 até `to` desacelerando no fim; com "reduzir movimento", já mostra o valor final */
-function useCountUp(to: number, duration = 1100): number {
-  const reduceMotion = useReducedMotion();
-  const [value, setValue] = useState(reduceMotion ? to : 0);
-  useEffect(() => {
-    if (reduceMotion) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- sem animação, o valor final vem direto
-      setValue(to);
-      return;
-    }
-    let frame = 0;
-    const start = performance.now();
-    const tick = (now: number) => {
-      const t = Math.min(1, (now - start) / duration);
-      setValue(to * (1 - Math.pow(1 - t, 3)));
-      if (t < 1) frame = requestAnimationFrame(tick);
-    };
-    frame = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(frame);
-  }, [to, duration, reduceMotion]);
-  return value;
-}
-
-function CountUp({ to, decimals = 0, prefix = "", suffix = "" }: { to: number; decimals?: number; prefix?: string; suffix?: string }) {
-  const value = useCountUp(to);
-  const text = value.toLocaleString("pt-BR", { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
-  return (
-    <span className="tabular" aria-label={`${prefix}${to.toLocaleString("pt-BR", { maximumFractionDigits: decimals })}${suffix}`}>
-      {prefix}
-      {text}
-      {suffix}
-    </span>
   );
 }
 
