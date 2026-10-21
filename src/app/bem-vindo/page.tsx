@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowRight, Lock, Sparkles, Timer } from "lucide-react";
+import { ArrowRight, Lock, Plus, Sparkles, Timer } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 import {
   LandingMotion,
@@ -24,7 +24,7 @@ import { cn } from "@/lib/utils";
 export const metadata: Metadata = {
   title: "Treinai — Seu personal trainer de IA",
   description:
-    "Conheça o Théo: ele monta seus treinos, acompanha cada série e ajusta a carga com base nos seus dados reais. Constância, PRs automáticos e conquistas para manter o hábito.",
+    "Nunca treinou ou não sabe por onde começar? O Théo, seu personal de IA, monta o treino pro seu nível, mostra a execução em vídeo, diz o que comer e quanta água beber, e te lembra na hora certa. Faça o diagnóstico grátis.",
 };
 
 const STREAK_STAGES = [
@@ -44,6 +44,61 @@ const BADGES = [
   { key: "prs-20", label: "Máquina de PRs" },
   { key: "volume-10t", label: "Dez toneladas" },
   { key: "primeira-meta", label: "Meta batida" },
+];
+
+/** Os medos mais comuns de quem está começando, cada um com o que o app faz por ele */
+const BEGINNER_DOUBTS = [
+  {
+    doubt: "Não sei que exercício fazer.",
+    answer: "O Théo monta o treino inteiro pro seu nível, com séries, repetições e descanso. Você só segue.",
+  },
+  {
+    doubt: "Tenho vergonha de fazer errado.",
+    answer: "Cada exercício tem vídeo mostrando a execução certa. Você chega sabendo o que fazer.",
+  },
+  {
+    doubt: "Não sei quanto peso usar.",
+    answer: "Ele acompanha cada série que você marca e avisa quando dá pra aumentar a carga.",
+  },
+  {
+    doubt: "Não sei o que comer.",
+    answer: "Metas de proteína, calorias e água pro seu objetivo. Tirou foto do prato, ele calcula.",
+  },
+  {
+    doubt: "Começo e paro no meio.",
+    answer: "Lembretes de treino e de água ao longo do dia, e uma sequência de dias que o Théo acompanha com você.",
+  },
+  {
+    doubt: "Não tenho tempo nem aparelho.",
+    answer: "Diga quantos dias você tem e o que dá pra usar. O Théo adapta o treino e troca o exercício se precisar.",
+  },
+];
+
+const FAQ = [
+  {
+    q: "Nunca treinei. Serve pra mim?",
+    a: "Serve, e foi feito pensando em quem está começando. O treino começa no seu nível e fica mais difícil aos poucos, conforme você evolui.",
+  },
+  {
+    q: "E se eu não souber fazer um exercício?",
+    a: "Todo exercício tem um vídeo curto com o movimento certo e o músculo trabalhado em destaque. Se ainda ficar em dúvida, é só perguntar ao Théo no chat.",
+  },
+  {
+    q: "Preciso fazer dieta?",
+    a: "Não. O Théo mostra quanta proteína, calorias e água você precisa pro seu objetivo e te ajuda a acompanhar com uma foto do prato. Sem cortar tudo.",
+  },
+  {
+    q: "Dá pra treinar em casa?",
+    a: "Dá. Conte ao Théo o que você tem em casa e quantos dias pode treinar. Ele monta ou adapta o treino com o que dá pra fazer.",
+  },
+  {
+    q: "O Théo substitui médico ou nutricionista?",
+    a: "Não. Ele é um assistente de IA que organiza seu treino e seus hábitos. Se você tem alguma condição de saúde, converse com seu médico antes de começar.",
+  },
+  {
+    q: "Quanto custa?",
+    a: "Você testa grátis por 3 dias, sem cartão. Depois, R$ 49,90 por mês ou R$ 39,90 por mês no plano trimestral. Cancele quando quiser, direto no app.",
+  },
 ];
 
 /** Entrada do funil: diagnóstico grátis → contato → resultado e oferta → cadastro com teste grátis */
@@ -139,18 +194,19 @@ export default function BemVindoPage() {
                     Lançamento · 3 dias grátis
                   </span>
                 </Reveal>
-                <h1 className="mt-5 text-[2.6rem] leading-[1.02] font-bold tracking-[-0.04em] text-balance text-foreground sm:text-6xl lg:text-7xl">
+                <h1 className="mt-5 text-[2.4rem] leading-[1.04] font-bold tracking-[-0.04em] text-balance text-foreground sm:text-6xl lg:text-7xl">
                   <Reveal as="span" immediate y={28} delay={0.08} className="block">
-                    Conheça o Théo.
+                    Não sabe por onde começar a treinar?
                   </Reveal>
                   <Reveal as="span" immediate y={28} delay={0.18} className="block text-primary">
-                    Seu personal de IA, direto de 2091.
+                    O Théo te mostra cada passo.
                   </Reveal>
                 </h1>
                 <Reveal immediate delay={0.3}>
                   <p className="mt-6 max-w-[34rem] text-lg leading-relaxed text-muted-foreground">
-                    Ele monta seus treinos, acompanha cada série e ajusta a carga com base nos seus dados reais, não em
-                    achismo. Comece pelo diagnóstico grátis: em 3 minutos você sabe o que está travando a sua evolução.
+                    O Théo é seu personal de IA. Ele monta o treino pro seu nível, mostra a execução de cada exercício em
+                    vídeo, diz o que comer e quanta água beber, e te lembra na hora certa. Você não precisa saber nada
+                    antes, nem ter vergonha de perguntar.
                   </p>
                 </Reveal>
                 <Reveal immediate delay={0.42}>
@@ -173,16 +229,16 @@ export default function BemVindoPage() {
           <section className="pt-20 pb-6 sm:pt-28">
             <div className="mx-auto grid max-w-6xl gap-10 px-4 sm:px-6 lg:grid-cols-[1fr_0.9fr] lg:items-center lg:gap-16">
               <div>
-                <SectionCopy title="Descubra em 3 minutos o que está travando a sua evolução.">
+                <SectionCopy title="Comece pelo diagnóstico: em 3 minutos você sabe o que fazer primeiro.">
                   <p>
-                    Um diagnóstico grátis, com perguntas rápidas sobre a sua rotina. No fim, você vê sua nota de 0 a 100
-                    em cada área e por onde o Théo começa com você.
+                    Sem termo técnico e sem julgamento. Você conta como está hoje (treino, sono, comida e água) e recebe
+                    sua nota em cada área e o primeiro passo do seu plano.
                   </p>
                 </SectionCopy>
                 <Stagger as="ol" stagger={0.1} className="mt-8 space-y-4">
                   {[
-                    { title: "Responda com sinceridade", text: "Treino, constância, sono, alimentação e água." },
-                    { title: "Veja sua nota em cada área", text: "Com sua meta de água, calorias e proteína." },
+                    { title: "Responda do seu jeito", text: "Perguntas simples, pra quem nunca treinou ou já tentou e parou." },
+                    { title: "Veja onde você está", text: "Sua nota em cada área e suas metas de água, calorias e proteína." },
                     { title: "Comece com o Théo", text: "3 dias grátis, sem cartão. Cancele quando quiser." },
                   ].map((step, i) => (
                     <StaggerItem as="li" key={step.title} className="flex gap-4">
@@ -208,12 +264,36 @@ export default function BemVindoPage() {
             <div className="mx-auto max-w-6xl px-4 sm:px-6">
               <Reveal className="max-w-2xl">
                 <h2 className="text-3xl font-bold tracking-[-0.03em] text-balance text-foreground sm:text-4xl">
-                  Cinco áreas. Uma nota pra cada. Um plano que começa pela mais fraca.
+                  Resultado não vem só do treino. Vem do conjunto, e o Théo cuida de tudo.
                 </h2>
               </Reveal>
               <div className="mt-10">
                 <AreaCards />
               </div>
+            </div>
+          </section>
+
+          {/* Para quem está começando: cada medo comum com a resposta do app */}
+          <section className="border-t border-border/60 py-20 sm:py-24">
+            <div className="mx-auto max-w-6xl px-4 sm:px-6">
+              <Reveal className="max-w-2xl">
+                <p className="text-xs font-semibold tracking-wide text-primary uppercase">É pra quem está começando</p>
+                <h2 className="mt-3 text-3xl font-bold tracking-[-0.03em] text-balance text-foreground sm:text-4xl">
+                  Se você já pensou alguma dessas, o Treinai foi feito pra você.
+                </h2>
+              </Reveal>
+              <Stagger as="ul" stagger={0.08} className="mt-10 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {BEGINNER_DOUBTS.map((d) => (
+                  <StaggerItem
+                    as="li"
+                    key={d.doubt}
+                    className="rounded-3xl border border-border/60 bg-card/60 p-5 transition-colors hover:border-primary/40"
+                  >
+                    <p className="text-lg font-semibold text-foreground">“{d.doubt}”</p>
+                    <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{d.answer}</p>
+                  </StaggerItem>
+                ))}
+              </Stagger>
             </div>
           </section>
 
@@ -227,11 +307,12 @@ export default function BemVindoPage() {
           {/* Como começa */}
           <section className="border-t border-border/60 py-20 sm:py-24">
             <div className="mx-auto grid max-w-6xl gap-12 px-4 sm:px-6 lg:grid-cols-2 lg:items-center">
-              <SectionCopy title="Peça em uma frase. O treino sai pronto.">
+              <SectionCopy title="Diga o seu objetivo. O treino sai pronto pro seu nível.">
                 <p>
-                  Diga o que quer treinar ou qual é o seu objetivo. O Théo monta a divisão inteira, com séries e
-                  repetições, e salva direto no app — sem planilha, sem questionário infinito.
+                  Não precisa saber o que é divisão, série ou repetição. Conte o que você quer, quantos dias tem e onde
+                  treina. O Théo monta o treino inteiro, com séries, repetições e descanso, e salva no app.
                 </p>
+                <p>É só abrir e seguir, exercício por exercício.</p>
               </SectionCopy>
               <TheoChatDemo />
             </div>
@@ -244,12 +325,12 @@ export default function BemVindoPage() {
                 <TheoChatDemo variant="adapt" />
               </div>
               <div className="order-1 lg:order-2">
-                <SectionCopy title="Um personal que conhece cada série que você já fez.">
+                <SectionCopy title="Tire qualquer dúvida, sem vergonha e a qualquer hora.">
                   <p>
-                    O Théo lê seu histórico de verdade: cargas, repetições, recordes. Pergunte da sua evolução, peça um
-                    treino novo ou avise que algo dói — ele ajusta e salva o treino na hora.
+                    Não sabe se está fazendo certo? Algum exercício incomodou? Não tem o aparelho? Pergunte ao Théo. Ele
+                    conhece cada série que você já fez, responde na hora e troca o exercício se precisar.
                   </p>
-                  <p>Disponível a qualquer hora, sem horário marcado.</p>
+                  <p>Sem julgamento e sem horário marcado.</p>
                 </SectionCopy>
               </div>
             </div>
@@ -258,11 +339,12 @@ export default function BemVindoPage() {
           {/* Execução dos exercícios */}
           <section className="border-t border-border/60 py-20 sm:py-24">
             <div className="mx-auto grid max-w-6xl gap-12 px-4 sm:px-6 lg:grid-cols-[1fr_1.1fr] lg:items-center">
-              <SectionCopy title="Execução certa, não só o nome do exercício.">
+              <SectionCopy title="Aprenda a execução antes de pegar o peso.">
                 <p>
-                  Cada exercício da biblioteca tem um vídeo curto mostrando a forma certa, com o músculo
-                  trabalhado em destaque — direto na tela do treino, sem precisar sair do app pra pesquisar.
+                  Cada exercício tem um vídeo curto mostrando o movimento certo, com o músculo trabalhado em destaque,
+                  direto na tela do treino. Nada de copiar quem está do lado ou ficar com vergonha de perguntar.
                 </p>
+                <p>Execução certa é o que evita lesão e faz o resultado aparecer.</p>
               </SectionCopy>
               <ExerciseReel />
             </div>
@@ -272,10 +354,10 @@ export default function BemVindoPage() {
           <section className="border-y border-border/60 bg-card/40 py-20 sm:py-24">
             <div className="mx-auto grid max-w-6xl gap-12 px-4 sm:px-6 lg:grid-cols-2 lg:items-center">
               <div>
-                <SectionCopy title="Mantenha a constância. O Théo percebe.">
+                <SectionCopy title="Lembretes pra você não desistir no meio do caminho.">
                   <p>
-                    Cada dia de treino aumenta sua constância — e o Théo reage. Se você sumir, ele fica preocupado. Passou
-                    de 30 dias, vira lenda.
+                    O Théo te lembra do treino e de beber água ao longo do dia, comemora cada dia que você aparece e
+                    percebe quando você some. Começar é fácil; ele te ajuda a continuar.
                   </p>
                 </SectionCopy>
                 <Stagger as="ol" stagger={0.08} className="mt-8 flex flex-wrap gap-2">
@@ -302,10 +384,11 @@ export default function BemVindoPage() {
           {/* Evolução e PRs */}
           <section className="py-20 sm:py-24">
             <div className="mx-auto grid max-w-6xl gap-12 px-4 sm:px-6 lg:grid-cols-2 lg:items-center">
-              <SectionCopy title="Seus recordes aparecem sozinhos.">
+              <SectionCopy title="Veja que está funcionando, semana a semana.">
                 <p>
-                  Registre as séries em segundos. Todo PR — de carga, repetições, 1RM estimado ou volume — é detectado
-                  na hora, no meio do treino, sem você precisar anotar nada.
+                  Marque cada série com um toque. Quando você levanta mais peso ou faz mais repetições do que antes, o
+                  Théo mostra na hora. E avisa quando é hora de aumentar a carga, pra você não ficar parado no mesmo
+                  lugar.
                 </p>
               </SectionCopy>
               <PrDemo />
@@ -319,13 +402,12 @@ export default function BemVindoPage() {
                 <NutritionDemo />
               </div>
               <div className="order-1 lg:order-2">
-                <SectionCopy title="Tire uma foto do prato. As calorias aparecem sozinhas.">
+                <SectionCopy title="Comer melhor sem dieta maluca.">
                   <p>
-                    O Théo calcula suas metas de calorias, macros e água a partir do seu perfil e rotina. Para
-                    registrar uma refeição, basta uma foto — ou escrever do seu jeito — e ele estima tudo na
-                    hora.
+                    Não sabe o que comer pro seu objetivo? O Théo calcula quanta proteína, calorias e água você precisa.
+                    Pra registrar, é só tirar foto do prato ou escrever do seu jeito, e ele estima tudo na hora.
                   </p>
-                  <p>Água também é um toque: sem formulário, sem fricção.</p>
+                  <p>Sem cortar tudo, sem planilha. Só saber o que está no prato.</p>
                 </SectionCopy>
               </div>
             </div>
@@ -334,10 +416,10 @@ export default function BemVindoPage() {
           {/* Conquistas */}
           <section className="border-t border-border/60 py-20 sm:py-24">
             <div className="mx-auto grid max-w-6xl gap-12 px-4 sm:px-6 lg:grid-cols-[1fr_1.1fr] lg:items-center">
-              <SectionCopy title="Conquistas que dão vontade de colecionar.">
+              <SectionCopy title="Cada passo conta, desde o primeiro treino.">
                 <p>
-                  Metas de carga, nível e XP e emblemas para cada marco — do primeiro treino às dez toneladas
-                  levantadas. Sem rede social: só você contra a sua própria evolução.
+                  Emblemas, nível e metas pra cada marco: o primeiro treino, a primeira semana, o primeiro recorde.
+                  Sem rede social e sem comparação: só você contra a sua própria evolução.
                 </p>
               </SectionCopy>
               <Stagger as="ul" stagger={0.07} className="grid grid-cols-4 gap-x-2 gap-y-5">
@@ -361,6 +443,30 @@ export default function BemVindoPage() {
             </div>
           </section>
 
+          {/* Perguntas de quem ainda não conhece treino */}
+          <section className="border-t border-border/60 py-20 sm:py-24">
+            <div className="mx-auto grid max-w-6xl gap-10 px-4 sm:px-6 lg:grid-cols-[0.8fr_1.2fr]">
+              <SectionCopy title="Perguntas de quem está começando.">
+                <p>Se ficou alguma dúvida, provavelmente ela está aqui.</p>
+              </SectionCopy>
+              <Reveal>
+                <ul className="divide-y divide-border/60 rounded-3xl border border-border/60 bg-card/60">
+                  {FAQ.map((item) => (
+                    <li key={item.q}>
+                      <details className="group px-5 py-4 [&_summary::-webkit-details-marker]:hidden">
+                        <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-base font-semibold text-foreground">
+                          {item.q}
+                          <Plus className="h-4 w-4 shrink-0 text-primary transition-transform duration-200 group-open:rotate-45" />
+                        </summary>
+                        <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{item.a}</p>
+                      </details>
+                    </li>
+                  ))}
+                </ul>
+              </Reveal>
+            </div>
+          </section>
+
           {/* Chamada final */}
           <section className="border-t border-border/60">
             <Reveal className="mx-auto flex max-w-6xl flex-col items-center px-4 pt-16 pb-20 text-center sm:px-6 sm:pt-20">
@@ -376,10 +482,11 @@ export default function BemVindoPage() {
                 }}
               />
               <h2 className="mt-2 max-w-2xl text-4xl font-bold tracking-[-0.04em] text-balance text-foreground sm:text-5xl">
-                A Grande Atrofia não vai pegar você.
+                Seu primeiro treino pode ser hoje.
               </h2>
               <p className="mt-4 max-w-md text-base leading-relaxed text-muted-foreground">
-                O Théo atravessou o tempo pra te fazer treinar. O primeiro treino fica pronto em minutos.
+                Faça o diagnóstico, receba seu plano e comece com o Théo do seu lado: treino, comida, água e lembretes
+                num lugar só.
               </p>
               <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row">
                 <PrimaryCta>Começar agora</PrimaryCta>
