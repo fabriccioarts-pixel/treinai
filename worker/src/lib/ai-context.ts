@@ -24,17 +24,20 @@ const ACTIVITY_LABEL: Record<string, string> = {
  * Como o Théo se refere à pessoa. Vale primeiro o diagnóstico ("como você se identifica"); o perfil
  * pergunta sexo biológico só para a fórmula do metabolismo, então entra apenas quando não há diagnóstico.
  */
-function addressText(plan: ProfileWithTargets | null, diagnostic: DiagnosticAnswers | null): string {
+function addressText(plan: ProfileWithTargets | null, diagnostic: DiagnosticAnswers | null, firstName: string): string {
+  const name = firstName
+    ? `COMO TRATAR A PESSOA: o nome dela é ${firstName}. Chame pelo nome.`
+    : "COMO TRATAR A PESSOA: o nome não foi informado.";
   const fromDiagnostic = ({ f: "mulher", m: "homem", x: "neutro" } as Record<string, string>)[diagnostic?.sexo ?? ""];
   const fromProfile = ({ feminino: "mulher", masculino: "homem" } as Record<string, string>)[plan?.profile.sex ?? ""];
   const gender = fromDiagnostic ?? fromProfile ?? "neutro";
   if (gender === "mulher") {
-    return "COMO TRATAR A PESSOA: mulher. Use sempre o feminino, inclusive nas gírias e bordões (bem-vinda, parceira, monstra, minha consagrada, pronta, focada).";
+    return `${name} É mulher: use sempre o feminino, inclusive nas gírias e bordões (bem-vinda, parceira, monstra, minha consagrada, pronta, focada).`;
   }
   if (gender === "homem") {
-    return "COMO TRATAR A PESSOA: homem. Use o masculino (bem-vindo, parceiro, monstro, meu consagrado, pronto, focado).";
+    return `${name} É homem: use o masculino (bem-vindo, parceiro, monstro, meu consagrado, pronto, focado).`;
   }
-  return 'COMO TRATAR A PESSOA: gênero não informado. Prefira formas neutras ("você", "bora", "que demais"), sem parceiro/parceira, bem-vindo/bem-vinda ou monstro/monstra.';
+  return `${name} Gênero não informado: prefira formas neutras ("você", "bora", "que demais"), sem parceiro/parceira, bem-vindo/bem-vinda ou monstro/monstra.`;
 }
 
 function formatProfile(plan: ProfileWithTargets | null): string {
@@ -176,8 +179,11 @@ export async function buildCoachContext(db: D1Database, userId: string): Promise
     : "Nenhum treino concluído ainda.";
 
   const diagnostic = await loadDiagnosticAnswers(db, userId);
+  const account = await db.prepare("SELECT name FROM users WHERE id = ?").bind(userId).first<{ name: string }>();
+  // Primeiro nome da conta; sem ele, o nome dado no diagnóstico
+  const firstName = (account?.name || diagnostic?.nome || "").trim().split(/s+/)[0] ?? "";
 
-  return `${addressText(plan, diagnostic)}
+  return `${addressText(plan, diagnostic, firstName)}
 
 PERFIL E PLANO NUTRICIONAL (calculado pelo app — use estes números, não recalcule):
 ${formatProfile(plan)}${consumedText}
