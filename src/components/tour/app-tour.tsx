@@ -10,6 +10,10 @@ import { cn } from "@/lib/utils";
 const SEEN_KEY = "treinai:tour-visto";
 /** O Perfil reabre o tour mandando para a home com este parâmetro */
 export const TOUR_QUERY = "tour";
+/** Avisa quem espera o tour (o pop-up de lembretes) que ele fechou */
+export const TOUR_CLOSED_EVENT = "treinai:tour-closed";
+
+let tourActive = false;
 
 interface TourStep {
   /** Valor de data-tour do elemento destacado; sem alvo, o passo aparece no meio da tela */
@@ -96,6 +100,14 @@ function isAvailable(step: TourStep) {
   return !step.target || findTarget(step) !== null;
 }
 
+/**
+ * Outro pop-up da home deve esperar o tour? Sim enquanto ele está aberto ou ainda vai abrir sozinho
+ * (primeira visita deste aparelho, ou /?tour=1 vindo do Perfil). Nesses casos, espere TOUR_CLOSED_EVENT.
+ */
+export function tourBlocksPopups() {
+  return tourActive || !wasSeen() || new URLSearchParams(window.location.search).has(TOUR_QUERY);
+}
+
 function markSeen() {
   try {
     localStorage.setItem(SEEN_KEY, "1");
@@ -148,6 +160,7 @@ export function AppTour() {
         const query = params.toString();
         window.history.replaceState(null, "", query ? `/?${query}` : "/");
       }
+      tourActive = true;
       setIndex(0);
     }, forced ? 300 : 900);
     return () => clearTimeout(timer);
@@ -207,6 +220,8 @@ export function AppTour() {
     markSeen();
     setIndex(null);
     setRect(null);
+    tourActive = false;
+    window.dispatchEvent(new Event(TOUR_CLOSED_EVENT));
   }, []);
 
   const go = useCallback(
