@@ -54,14 +54,14 @@ export function getStreakState({ streakDays, streakAtRisk, lostStreakDays }: Str
 }
 
 const STATE_COPY: Record<StreakState, (d: StreakData) => string> = {
-  sleeping: () => "Bora acordar esse monstro? Um treino hoje e a constância começa.",
-  "at-risk": (d) => `Sua constância de ${d.streakDays} ${d.streakDays === 1 ? "dia" : "dias"} está em risco! A folga já foi, treina hoje que ainda dá tempo.`,
-  lost: (d) => `Quebramos uma constância de ${d.lostStreakDays} dias… Bora recomeçar hoje?`,
-  starting: () => "Começou! Amanhã tem mais, parceiro.",
-  warming: () => "Tá aquecendo. Não para agora!",
-  "on-fire": () => "Pegando fogo! O ferro não mente.",
-  beast: () => "Modo monstro ativado. Tá saindo da jaula!",
-  legendary: () => "Lendário. Nem em 2091 eu vi uma constância dessas.",
+  sleeping: () => "Um treino hoje começa a contagem.",
+  "at-risk": (d) => `Constância de ${d.streakDays} ${d.streakDays === 1 ? "dia" : "dias"} em risco. A folga já foi — treina hoje.`,
+  lost: (d) => `Caiu uma constância de ${d.lostStreakDays} dias. Hoje começa de novo.`,
+  starting: () => "Dia 1. Amanhã tem mais.",
+  warming: () => "Três dias firmes. Não para agora.",
+  "on-fire": () => "Uma semana cheia. Está pegando.",
+  beast: () => "Duas semanas. Virou rotina.",
+  legendary: () => "Um mês de constância. Isso é disciplina.",
 };
 
 const WEEKDAY_INITIAL = ["D", "S", "T", "Q", "Q", "S", "S"];

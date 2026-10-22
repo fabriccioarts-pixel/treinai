@@ -231,3 +231,32 @@ CREATE TABLE IF NOT EXISTS meal_plans (
   created_at TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_meal_plans_user ON meal_plans(user_id, created_at);
+
+-- Fotos do corpo, consentimento LGPD e análise do shape (migração 0017)
+CREATE TABLE IF NOT EXISTS body_photo_consents (
+  user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+  photos_consent_at TEXT,
+  ai_consent_at TEXT,
+  adult_confirmed_at TEXT,
+  updated_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS body_photos (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  pose TEXT NOT NULL CHECK (pose IN ('frente', 'lado', 'costas')),
+  photo_key TEXT NOT NULL,
+  taken_on TEXT NOT NULL,
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_body_photos_user ON body_photos(user_id, taken_on);
+
+CREATE TABLE IF NOT EXISTS body_analyses (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  taken_on TEXT NOT NULL,
+  result TEXT NOT NULL,
+  workout_id TEXT,
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_body_analyses_user ON body_analyses(user_id, created_at);

@@ -14,11 +14,11 @@ import { EASE_OUT, PhoneFrame, useScenario, useVisible } from "./phone-sim";
  */
 
 const STAGES = [
-  { days: 1, img: "starting", phrase: "Começou! Amanhã tem mais, parceiro." },
-  { days: 3, img: "warming", phrase: "Tá aquecendo. Não para agora!" },
-  { days: 7, img: "on-fire", phrase: "Pegando fogo! O ferro não mente." },
-  { days: 14, img: "beast", phrase: "Modo monstro ativado. Tá saindo da jaula!" },
-  { days: 30, img: "legendary", phrase: "Lendário. Nem em 2091 eu vi uma constância dessas." },
+  { days: 1, img: "starting", phrase: "Dia 1. Amanhã tem mais." },
+  { days: 3, img: "warming", phrase: "Três dias firmes. Não para agora." },
+  { days: 7, img: "on-fire", phrase: "Uma semana cheia. Está pegando." },
+  { days: 14, img: "beast", phrase: "Duas semanas. Virou rotina." },
+  { days: 30, img: "legendary", phrase: "Um mês de constância. Isso é disciplina." },
 ];
 const WEEK = ["S", "T", "Q", "Q", "S", "S", "D"];
 const LAST = STAGES.length - 1;

@@ -311,23 +311,6 @@ const ORIGINAL: string[] = [
   "Semana nova, carga nova.",
   "Meio de semana é onde a constância é testada. Passe no teste.",
 
-  // Théo e o futuro
-  "O ferro não mente.",
-  "Lá em 2091 ninguém mais levantava peso. Aqui ainda dá tempo.",
-  "Cada treino seu é uma vitória contra a Grande Atrofia.",
-  "No futuro, os músculos viraram lenda. Seja a lenda hoje.",
-  "Perna não se pula, nem em 2091.",
-  "Tá pago, e o futuro agradece.",
-  "Mais uma! No meu tempo ninguém fazia mais uma.",
-  "O Théo veio do futuro só para te lembrar: bora treinar.",
-  "Os exoesqueletos fizeram tudo por nós. Não deixe a preguiça fazer o mesmo.",
-  "Do Porão em 2091 até o seu treino hoje: o ferro continua o mesmo.",
-  "O sinal do futuro pode cair, mas o seu treino não pode.",
-  "Treinar hoje é mudar o futuro. Literalmente, segundo o Théo.",
-  "O Projeto ECO apostou em você. Não deixa o Théo na mão.",
-  "Cada repetição sua é um glitch a menos na Grande Atrofia.",
-  "Em 2091 os campeões treinavam escondidos. Você pode treinar à vontade. Aproveite.",
-
   // Variadas
   "O suor de hoje é o sorriso do espelho amanhã.",
   "Ninguém constrói um corpo forte com dias perfeitos. Constrói com dias comuns.",

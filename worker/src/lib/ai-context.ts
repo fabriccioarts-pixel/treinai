@@ -5,6 +5,7 @@ import { loadWeeklyMissions } from "./missions";
 import { loadStreak } from "./streak-shields";
 import { loadTotalXp } from "./xp";
 import { formatDiagnosticForCoach, loadDiagnosticAnswers, type DiagnosticAnswers } from "./diagnostic-summary";
+import { buildProgressionReport, formatProgressionForCoach } from "./progression-analysis";
 
 const GOAL_LABEL: Record<string, string> = {
   hipertrofia: "hipertrofia",
@@ -201,7 +202,10 @@ RECORDES PESSOAIS RECENTES (carga):
 ${prsText}
 
 ÚLTIMOS TREINOS CONCLUÍDOS:
-${sessionsText}${formatDiagnosticForCoach(diagnostic)}${await gamificationText(db, userId)}`;
+${sessionsText}
+
+ANÁLISE DE PROGRESSÃO (calculada pelo app — use estes números para falar da evolução do usuário; não recalcule):
+${await progressionText(db, userId)}${formatDiagnosticForCoach(diagnostic)}${await gamificationText(db, userId)}`;
 }
 
 /** Tabela nova (migração 0012): se ainda não existir, o Théo segue sem essa informação */
@@ -210,6 +214,15 @@ async function stabilityText(db: D1Database, userId: string): Promise<string> {
     return formatStabilityForCoach(await getRoutineStability(db, userId));
   } catch {
     return "Sem informação sobre trocas recentes de treino.";
+  }
+}
+
+/** Progressão por exercício e volume semanal. Falha silenciosa: sem a seção, o resto do contexto segue. */
+async function progressionText(db: D1Database, userId: string): Promise<string> {
+  try {
+    return formatProgressionForCoach(await buildProgressionReport(db, userId));
+  } catch {
+    return "Sem dados suficientes para calcular progressão agora.";
   }
 }
 

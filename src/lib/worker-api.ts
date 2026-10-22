@@ -6,6 +6,7 @@ import "server-only";
 import type { MealEstimate, MealItem, MealType, MealsToday, ProfileInput, ProfilePlan } from "@/lib/nutrition";
 import type { BadgeTier, Gamification, SessionSummary } from "@/lib/gamification";
 import type { MealPlanPreferences, SavedMealPlan } from "@/lib/meal-plan";
+import type { BodyAnalysis, BodyConsent, BodyOverview, BodyPose } from "@/lib/body-photos";
 
 /** Treino criado ou alterado pelo Théo numa resposta */
 /** O que o Théo fez com as ferramentas numa resposta (mesmo formato do worker) */
@@ -298,6 +299,63 @@ export const workerApi = {
 
   deleteSessionPhoto: (sessionId: string) =>
     workerFetch<{ ok: true }>(`/workout-sessions/${sessionId}/photo`, { method: "DELETE" }),
+
+  // --- Fotos do corpo (LGPD: só com consentimento; tudo passa pelo dono conferido no Next) ---
+
+  getBody: (userId: string) => workerFetch<BodyOverview>(`/body?userId=${encodeURIComponent(userId)}`),
+
+  setBodyConsent: (userId: string, input: { photos: boolean; ai: boolean; adult?: boolean }) =>
+    workerFetch<{ consent: BodyConsent }>("/body/consent", {
+      method: "PUT",
+      body: JSON.stringify({ userId, ...input }),
+    }),
+
+  uploadBodyPhoto: async (userId: string, pose: BodyPose, bytes: ArrayBuffer, contentType: string) => {
+    if (!BASE_URL || !SECRET) {
+      throw new Error("WORKER_API_URL / WORKER_API_SECRET não configurados.");
+    }
+    const res = await fetch(`${BASE_URL}/body/photos?userId=${encodeURIComponent(userId)}&pose=${pose}`, {
+      method: "PUT",
+      headers: { Authorization: `Bearer ${SECRET}`, "Content-Type": contentType },
+      body: bytes,
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new WorkerApiError(res.status, (body as { error?: string }).error ?? "request_failed");
+    }
+    return res.json() as Promise<{ id: string; pose: BodyPose; takenOn: string }>;
+  },
+
+  getBodyPhoto: async (userId: string, id: string): Promise<{ body: ReadableStream<Uint8Array>; contentType: string } | null> => {
+    if (!BASE_URL || !SECRET) {
+      throw new Error("WORKER_API_URL / WORKER_API_SECRET não configurados.");
+    }
+    const res = await fetch(`${BASE_URL}/body/photos/${id}?userId=${encodeURIComponent(userId)}`, {
+      headers: { Authorization: `Bearer ${SECRET}` },
+      cache: "no-store",
+    });
+    if (res.status === 404) return null;
+    if (!res.ok || !res.body) throw new WorkerApiError(res.status, "request_failed");
+    return { body: res.body, contentType: res.headers.get("content-type") ?? "image/jpeg" };
+  },
+
+  deleteBodyPhoto: (userId: string, id: string) =>
+    workerFetch<{ ok: true }>(`/body/photos/${id}?userId=${encodeURIComponent(userId)}`, { method: "DELETE" }),
+
+  deleteAllBodyData: (userId: string) =>
+    workerFetch<{ ok: true }>(`/body?userId=${encodeURIComponent(userId)}`, { method: "DELETE" }),
+
+  analyzeBody: (userId: string, takenOn: string) =>
+    workerFetch<{ analysis: BodyAnalysis }>("/body/analyze", {
+      method: "POST",
+      body: JSON.stringify({ userId, takenOn }),
+    }),
+
+  createWorkoutFromBodyAnalysis: (userId: string, analysisId: string) =>
+    workerFetch<{ workoutId: string }>(`/body/analyses/${analysisId}/workout`, {
+      method: "POST",
+      body: JSON.stringify({ userId }),
+    }),
 
   finishSession: (id: string, durationSeconds: number) =>
     workerFetch<{ ok: true }>(`/workout-sessions/${id}`, {

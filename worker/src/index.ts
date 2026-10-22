@@ -21,6 +21,7 @@ import { gamificationRoutes } from "./routes/gamification";
 import { billingRoutes, handleCaktoWebhook } from "./routes/billing";
 import { leadRoutes } from "./routes/leads";
 import { mealPlanRoutes } from "./routes/meal-plans";
+import { bodyRoutes } from "./routes/body";
 import { runHourlyReminders } from "./lib/reminders";
 
 const app = new Hono<{ Bindings: Env }>();
@@ -52,6 +53,7 @@ app.route("/gamification", gamificationRoutes);
 app.route("/billing", billingRoutes);
 app.route("/leads", leadRoutes);
 app.route("/meal-plans", mealPlanRoutes);
+app.route("/body", bodyRoutes);
 
 export default {
   fetch: app.fetch,

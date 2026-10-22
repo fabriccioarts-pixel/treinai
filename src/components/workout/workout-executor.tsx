@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
-import { Check, ChevronLeft, ChevronRight, Link2, Undo2, X, Zap } from "lucide-react";
+import { Check, ChevronDown, ChevronLeft, ChevronRight, Lightbulb, Link2, Undo2, X, Zap } from "lucide-react";
 import { PhotoIcon, StartIcon, GoalIcon, PrIcon } from "@/components/ui/app-icon";
 import { Card } from "@/components/ui/card";
 import { BadgeIcon } from "@/components/profile/badge-icon";
@@ -15,6 +15,8 @@ import { MUSCLE_GROUP_COLOR } from "@/lib/muscle-colors";
 import type { MuscleGroup } from "@/lib/types";
 import { usePreferences } from "@/lib/preferences";
 import { supersetLabel, techniqueInfo, toExerciseBlocks } from "@/lib/training-methods";
+import { cn } from "@/lib/utils";
+import { getExerciseTips } from "@/lib/exercise-tips";
 import {
   logSetAction,
   undoSetAction,
@@ -229,6 +231,7 @@ export function WorkoutExecutor({
   previousSets: Record<string, PreviousSetVM[]>;
 }) {
   const [index, setIndex] = useState(0);
+  const [showTips, setShowTips] = useState(false);
   const [loggedByExercise, setLoggedByExercise] = useState<Record<string, LoggedSetVM[]>>(() => {
     const grouped: Record<string, LoggedSetVM[]> = {};
     for (const set of initialSets) {
@@ -276,6 +279,7 @@ export function WorkoutExecutor({
   const isLastExercise = index === exercises.length - 1;
   const targetDone = loggedSets.length >= exercise.target_sets;
   const technique = techniqueInfo(exercise.technique);
+  const tips = getExerciseTips(exercise.exercise_id);
 
   // Conjugados como listas de índices; exercício sozinho é um bloco de 1
   const blocks = useMemo(
@@ -571,11 +575,31 @@ export function WorkoutExecutor({
           <ChevronRight className="h-[18px] w-[18px]" />
         </Button>
       </div>
-      <div className="mb-4 h-[3px] overflow-hidden rounded-full bg-muted">
-        <div
-          className="h-full rounded-full transition-all"
-          style={{ width: `${((index + 1) / exercises.length) * 100}%`, background: muscleColor }}
-        />
+      {/* Um segmento por exercício: verde quando as séries-alvo foram feitas, destacado o atual; toque leva até ele */}
+      <div className="mb-4 flex gap-1" role="group" aria-label="Exercícios do treino">
+        {exercises.map((ex, i) => {
+          const done = (loggedByExercise[ex.exercise_id]?.length ?? 0) >= ex.target_sets;
+          const started = (loggedByExercise[ex.exercise_id]?.length ?? 0) > 0;
+          const current = i === index;
+          return (
+            <button
+              key={ex.id}
+              type="button"
+              onClick={() => goTo(i)}
+              aria-label={`Exercício ${i + 1}: ${ex.exercise_name}${done ? ", concluído" : ""}`}
+              aria-current={current ? "step" : undefined}
+              className="flex h-5 flex-1 items-center"
+            >
+              <span
+                className={cn(
+                  "h-1.5 w-full rounded-full transition-colors",
+                  done ? "bg-primary" : started ? "bg-primary/45" : "bg-muted",
+                  current && "ring-2 ring-foreground/70 ring-offset-2 ring-offset-background",
+                )}
+              />
+            </button>
+          );
+        })}
       </div>
 
       {rest && restRemaining !== null && (
@@ -629,8 +653,6 @@ export function WorkoutExecutor({
       )}
 
       <Card className="relative gap-4 overflow-hidden p-[18px]">
-        <div className="absolute inset-x-0 top-0 h-[3px]" style={{ background: muscleColor }} />
-
         <div className="flex items-start justify-between gap-2.5">
           <div>
             <p className="text-xs font-semibold" style={{ color: muscleColor }}>
@@ -638,22 +660,35 @@ export function WorkoutExecutor({
             </p>
             <h1 className="mt-0.5 text-xl leading-tight font-bold text-foreground">{exercise.exercise_name}</h1>
           </div>
-          <div className="mt-1 flex shrink-0 gap-1" aria-label={`${loggedSets.length} de ${exercise.target_sets} séries`}>
-            {Array.from({ length: exercise.target_sets }).map((_, i) => (
-              <span
-                key={i}
-                className="h-[7px] w-[7px] rounded-full"
-                style={{ background: i < filledDots ? muscleColor : "var(--muted)" }}
-              />
-            ))}
-          </div>
+          {/* Contador de séries que vai enchendo; verde quando bate o alvo */}
+          <span
+            className={cn(
+              "tabular mt-0.5 shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold",
+              targetDone ? "bg-primary/15 text-primary" : "bg-muted text-foreground/85",
+            )}
+          >
+            {filledDots} de {exercise.target_sets} séries
+          </span>
         </div>
 
         <div className="-mt-2">
-          <p className="text-sm text-muted-foreground">
-            Alvo {exercise.target_sets}x {exercise.target_reps_min}–{exercise.target_reps_max} ·{" "}
-            {inSuperset ? `descanso ${blockRest}s ao fim da volta` : `descanso ${exercise.rest_time}s`}
-          </p>
+          {/* Alvo em pílulas; "12 reps" quando mínimo e máximo são iguais, descanso em minutos */}
+          <ul className="flex flex-wrap gap-1.5" aria-label="Alvo do exercício">
+            {[
+              `${exercise.target_sets} séries`,
+              exercise.target_reps_min === exercise.target_reps_max
+                ? `${exercise.target_reps_min} reps`
+                : `${exercise.target_reps_min}–${exercise.target_reps_max} reps`,
+              inSuperset ? `Descanso ${formatRest(blockRest)} ao fim da volta` : `Descanso ${formatRest(exercise.rest_time)}`,
+            ].map((label) => (
+              <li
+                key={label}
+                className="tabular rounded-full bg-muted/70 px-2.5 py-1 text-xs font-medium text-foreground/85"
+              >
+                {label}
+              </li>
+            ))}
+          </ul>
           {inSuperset && (
             <div className="mt-2.5 rounded-xl bg-primary/10 px-3 py-2 text-xs">
               <p className="flex items-center gap-1.5 font-semibold text-primary">
@@ -688,6 +723,39 @@ export function WorkoutExecutor({
           exerciseId={exercise.exercise_id}
           exerciseName={exercise.exercise_name}
         />
+
+        {/* Dicas de execução do catálogo; fica aberto ou fechado para os próximos exercícios também */}
+        {tips && (
+          <div className="-mt-1 rounded-2xl bg-muted/40">
+            <button
+              type="button"
+              onClick={() => setShowTips((open) => !open)}
+              aria-expanded={showTips}
+              className="flex w-full items-center justify-between gap-2 px-3.5 py-2.5 text-sm font-semibold text-foreground"
+            >
+              <span className="inline-flex items-center gap-2">
+                <Lightbulb className="h-4 w-4 text-primary" aria-hidden />
+                Como fazer
+              </span>
+              <ChevronDown
+                className={cn("h-4 w-4 text-muted-foreground transition-transform", showTips && "rotate-180")}
+                aria-hidden
+              />
+            </button>
+            {showTips && (
+              <ol className="space-y-2 px-3.5 pb-3">
+                {tips.map((tip, i) => (
+                  <li key={tip} className="flex gap-2.5 text-sm leading-relaxed text-foreground/85">
+                    <span className="tabular mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-background text-[11px] font-semibold text-muted-foreground">
+                      {i + 1}
+                    </span>
+                    {tip}
+                  </li>
+                ))}
+              </ol>
+            )}
+          </div>
+        )}
 
         {loggedSets.length > 0 && (
           <div className="flex flex-col gap-1.5">

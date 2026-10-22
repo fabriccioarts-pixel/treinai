@@ -12,7 +12,8 @@ import { GoalsSection } from "@/components/goals/goals-section";
 import { PrCard } from "@/components/pr/pr-card";
 import { ExerciseProgressList } from "@/components/progress/exercise-progress-list";
 import { summarizeExercises, topStrengthGains } from "@/lib/exercise-progress";
-import { BicepsFlexed } from "lucide-react";
+import { BicepsFlexed, ChevronRight } from "lucide-react";
+import { Illustration } from "@/components/ui/illustration";
 import { formatDate, formatWeight } from "@/lib/format";
 import { auth } from "@/auth";
 import { workerApi } from "@/lib/worker-api";
@@ -136,6 +137,21 @@ export default async function ProgressoPage() {
           />
         )}
       </section>
+
+      {/* Fotos do corpo: evolução visual e análise do shape */}
+      <Link
+        href="/progresso/corpo"
+        className="group flex items-center gap-4 rounded-2xl border border-border bg-card p-4 transition-colors hover:border-primary/40"
+      >
+        <Illustration name="photos" size={56} className="-my-2 -ml-1" />
+        <span className="min-w-0 flex-1">
+          <span className="block text-sm font-semibold text-foreground">Fotos do corpo</span>
+          <span className="mt-0.5 block text-xs text-muted-foreground">
+            Antes e depois, guia de fotos e análise do shape pela IA.
+          </span>
+        </span>
+        <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+      </Link>
 
       {/* Photos */}
       <section>
