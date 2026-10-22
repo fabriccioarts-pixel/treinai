@@ -1,8 +1,5 @@
 import { redirect } from "next/navigation";
-import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
-import { PageHeader } from "@/components/shared/page-header";
-import { buttonVariants } from "@/components/ui/button";
+import { SubpageHeader } from "@/components/shared/subpage-header";
 import { WorkoutBuilder } from "@/components/workout/workout-builder";
 import { RoutineChangeNotice } from "@/components/workout/routine-change-notice";
 import { auth } from "@/auth";
@@ -17,22 +14,13 @@ export default async function NovoTreinoPage() {
   ]);
 
   return (
-    <div>
-      <PageHeader
+    <div className="space-y-6">
+      <SubpageHeader
         title="Novo treino"
-        subtitle="Escolha os exercícios e ajuste séries, reps e descanso."
-        illustration="new-workout"
-        action={
-          <Link
-            href="/treinos"
-            className={buttonVariants({ variant: "ghost", size: "icon" })}
-            aria-label="Voltar"
-          >
-            <ArrowLeft className="h-5 w-5" />
-          </Link>
-        }
+        subtitle="Dê um nome e escolha os exercícios."
+        fallbackHref="/treinos"
       />
-      {stability && <RoutineChangeNotice stability={stability} className="mb-6" />}
+      {stability && <RoutineChangeNotice stability={stability} />}
       <WorkoutBuilder exercises={exercises} stability={stability} />
     </div>
   );

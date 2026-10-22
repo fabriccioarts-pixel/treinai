@@ -2,8 +2,9 @@
 
 import { useMemo, useRef, useState, useTransition } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, Minus, Trash2, ChevronUp, ChevronDown, Search, Check, StickyNote, Link2, Link2Off, Zap } from "lucide-react";
-import { WorkoutIcon, RestIcon, SetsIcon } from "@/components/ui/app-icon";
+import { Plus, Minus, Trash2, ChevronUp, ChevronDown, Search, Check, Circle, Sparkles, StickyNote, Link2, Link2Off, Zap } from "lucide-react";
+import { RestIcon, SetsIcon } from "@/components/ui/app-icon";
+import { Illustration } from "@/components/ui/illustration";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -80,6 +81,9 @@ const MUSCLE_GROUP_ORDER: MuscleGroup[] = [
 
 /** Tempo médio de execução de uma série, usado na estimativa de duração */
 const SET_EXECUTION_SECONDS = 40;
+
+/** Nomes comuns de divisão, para preencher com um toque */
+const NAME_SUGGESTIONS = ["Treino A", "Treino B", "Treino C", "Full body", "Superiores", "Inferiores"];
 
 function normalize(text: string) {
   return text.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
@@ -274,17 +278,32 @@ export function WorkoutBuilder({
     <div className="space-y-7">
       {/* Identificação do treino */}
       <section className="space-y-2">
-        <Label htmlFor="workout-name" className="sr-only">
+        <Label htmlFor="workout-name" className="px-1 text-sm font-semibold text-foreground">
           Nome do treino
         </Label>
         <Input
           id="workout-name"
-          placeholder="Nome do treino (ex.: Treino A — Peito e Tríceps)"
+          placeholder="Ex.: Treino A — Peito e tríceps"
           value={name}
           onChange={(e) => setName(e.target.value)}
           className="h-12 rounded-xl text-base font-semibold"
           autoComplete="off"
         />
+        {/* Sugestões de um toque enquanto o nome está vazio */}
+        {!name.trim() && (
+          <div className="flex flex-wrap gap-1.5" aria-label="Sugestões de nome">
+            {NAME_SUGGESTIONS.map((suggestion) => (
+              <button
+                key={suggestion}
+                type="button"
+                onClick={() => setName(suggestion)}
+                className="rounded-full border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground/85 transition-colors hover:border-primary/50 hover:text-primary"
+              >
+                {suggestion}
+              </button>
+            ))}
+          </div>
+        )}
         {showDescription ? (
           <Input
             id="workout-description"
@@ -323,22 +342,24 @@ export function WorkoutBuilder({
         </div>
 
         {rows.length === 0 ? (
-          <button
-            type="button"
-            onClick={openPicker}
-            className="group flex w-full items-center gap-3 rounded-xl border border-dashed border-border px-4 py-4 text-left transition-colors hover:border-primary/50"
-          >
-            <WorkoutIcon className="h-5 w-5 shrink-0 text-muted-foreground transition-colors group-hover:text-primary" />
-            <span className="min-w-0 flex-1">
-              <span className="block text-sm font-semibold text-foreground">
-                Nenhum exercício ainda
-              </span>
-              <span className="mt-0.5 block text-sm text-muted-foreground">
-                Escolha os exercícios do treino
-              </span>
-            </span>
-            <Plus className="h-4 w-4 shrink-0 text-muted-foreground transition-colors group-hover:text-primary" />
-          </button>
+          <div className="flex flex-col items-center rounded-3xl border border-dashed border-border bg-card/40 px-6 pt-6 pb-5 text-center">
+            <Illustration name="new-workout" size={104} className="-mt-2" />
+            <p className="mt-2 text-base font-semibold text-foreground">Monte seu treino</p>
+            <p className="mt-1 max-w-xs text-sm leading-relaxed text-muted-foreground">
+              Escolha os exercícios na biblioteca. Depois dá para ajustar séries, repetições e descanso de cada um.
+            </p>
+            <Button type="button" onClick={openPicker} className="mt-5 h-11 w-full max-w-xs gap-2 rounded-xl font-semibold">
+              <Plus className="h-4 w-4" />
+              Adicionar exercícios
+            </Button>
+            <Link
+              href="/theo"
+              className="mt-3 inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-primary"
+            >
+              <Sparkles className="h-4 w-4" />
+              Pedir para o Théo montar
+            </Link>
+          </div>
         ) : (
           <div className="space-y-3">
             <AnimatePresence initial={false}>
@@ -578,36 +599,40 @@ export function WorkoutBuilder({
 
       {error && <p className="text-sm text-destructive">{error}</p>}
 
-      {/* Barra de salvar fixa acima da navegação inferior */}
-      <div className="sticky bottom-[calc(5.5rem+env(safe-area-inset-bottom))] z-10 -mx-1 rounded-2xl border border-border/60 bg-background/85 p-2 shadow-lg shadow-black/20 backdrop-blur-lg">
-        <div className="flex items-center gap-3">
-          <div className="min-w-0 flex-1 pl-2">
-            {canSave ? (
-              <p className="tabular flex items-center gap-3 text-xs text-muted-foreground">
-                <span className="inline-flex items-center gap-1">
-                  <SetsIcon className="h-3.5 w-3.5" />
-                  {rows.length} exerc.
-                </span>
-                <span className="inline-flex items-center gap-1">
-                  <RestIcon className="h-3.5 w-3.5" />~{estimatedMinutes} min
-                </span>
-              </p>
-            ) : (
-              <p className="text-xs text-muted-foreground">
-                {!name.trim() ? "Dê um nome ao treino" : "Adicione ao menos 1 exercício"}
-              </p>
-            )}
+      {/* Barra de salvar fixa acima da navegação inferior; com a lista vazia ela cobriria o botão de adicionar */}
+      {rows.length > 0 && (
+        <div className="sticky bottom-[calc(5.5rem+env(safe-area-inset-bottom))] z-10 -mx-1 rounded-2xl border border-border/60 bg-background/85 p-2 shadow-lg shadow-black/20 backdrop-blur-lg">
+          <div className="flex items-center gap-3">
+            <div className="min-w-0 flex-1 pl-2">
+              {canSave ? (
+                <p className="tabular flex items-center gap-3 text-xs text-muted-foreground">
+                  <span className="inline-flex items-center gap-1">
+                    <SetsIcon className="h-3.5 w-3.5" />
+                    {rows.length} exerc.
+                  </span>
+                  <span className="inline-flex items-center gap-1">
+                    <RestIcon className="h-3.5 w-3.5" />~{estimatedMinutes} min
+                  </span>
+                </p>
+              ) : (
+                // Com exercícios na lista, só falta o nome
+                <p className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <Circle className="h-3 w-3" />
+                  Falta o nome do treino
+                </p>
+              )}
+            </div>
+            <Button
+              type="button"
+              className="h-11 shrink-0 rounded-xl px-6 font-semibold"
+              onClick={() => handleSave()}
+              disabled={pending || !canSave}
+            >
+              {pending ? "Salvando…" : "Salvar treino"}
+            </Button>
           </div>
-          <Button
-            type="button"
-            className="h-11 shrink-0 rounded-xl px-6 font-semibold"
-            onClick={() => handleSave()}
-            disabled={pending || !canSave}
-          >
-            {pending ? "Salvando…" : "Salvar treino"}
-          </Button>
         </div>
-      </div>
+      )}
 
       {/* Aviso de trocas frequentes: a pessoa decide, mas com a informação na frente */}
       {changeWarning && (
