@@ -242,6 +242,18 @@
 
 /* Foto dos cards do diagnóstico: aproxima devagar enquanto a pessoa lê a pergunta */
 /* Demonstração em duas imagens: segura a posição 1, passa para a 2, segura e volta */
+/* Linha do scanner da foto de refeição: desce até o fim da moldura e volta */
+@keyframes scan-line {
+  0%, 100% { top: 0; }
+  50% { top: 100%; }
+}
+
+/* Clarão de disparo da câmera do scanner */
+@keyframes shutter {
+  from { opacity: 0.8; }
+  to { opacity: 0; }
+}
+
 @keyframes demo-frames {
   0%, 30% { opacity: 0; }
   45%, 80% { opacity: 1; }

@@ -1,11 +1,13 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
+import { useCallback, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { ArrowRight, Camera, Loader2, PencilLine, X } from "lucide-react";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { FoodScanner } from "@/components/nutrition/food-scanner";
+import { ScannerFrame } from "@/components/nutrition/scanner-frame";
 import { analyzeMealAction, saveMealAction } from "@/app/actions/nutrition-actions";
 import { resizeImageToJpegBase64 } from "@/lib/image";
 import {
@@ -52,6 +54,8 @@ function scaled(item: DraftItem): MealItem {
 
 export function MealLogger() {
   const fileInput = useRef<HTMLInputElement>(null);
+  const galleryInput = useRef<HTMLInputElement>(null);
+  const [scannerOpen, setScannerOpen] = useState(false);
   const [step, setStep] = useState<Step>({ name: "closed" });
   const [source, setSource] = useState<"foto" | "texto">("foto");
   const [description, setDescription] = useState("");
@@ -97,7 +101,33 @@ export function MealLogger() {
       setStep({ name: "error", previewUrl: preview, message: "Não consegui abrir essa foto. Tente outra." });
     } finally {
       if (fileInput.current) fileInput.current.value = "";
+      if (galleryInput.current) galleryInput.current.value = "";
     }
+  }
+
+  /** Abre o scanner (câmera do app com moldura); a foto anterior, se houver, sai de cena */
+  function openScanner() {
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    setStep({ name: "closed" });
+    setScannerOpen(true);
+  }
+
+  const closeScanner = useCallback(() => setScannerOpen(false), []);
+
+  function handleCapture(file: File) {
+    setScannerOpen(false);
+    void handlePhoto(file);
+  }
+
+  // Os seletores de arquivo precisam ser abertos no mesmo toque, antes de fechar o scanner
+  function pickFromGallery() {
+    galleryInput.current?.click();
+    setScannerOpen(false);
+  }
+
+  function openNativeCamera() {
+    fileInput.current?.click();
+    setScannerOpen(false);
   }
 
   function handleDescribe() {
@@ -134,7 +164,7 @@ export function MealLogger() {
           type="button"
           size="lg"
           className="h-14 gap-2 rounded-xl text-sm font-semibold"
-          onClick={() => fileInput.current?.click()}
+          onClick={openScanner}
         >
           <Camera className="h-5 w-5" />
           Foto do prato
@@ -150,7 +180,7 @@ export function MealLogger() {
           Escrever
         </Button>
       </div>
-      {/* capture abre direto a câmera traseira no celular; no computador abre o seletor de arquivos */}
+      {/* Reserva do scanner: capture abre direto a câmera nativa no celular; no computador, o seletor de arquivos */}
       <input
         ref={fileInput}
         type="file"
@@ -159,6 +189,23 @@ export function MealLogger() {
         className="hidden"
         onChange={(e) => handlePhoto(e.target.files?.[0])}
       />
+      {/* Galeria, sem capture: escolher uma foto já tirada */}
+      <input
+        ref={galleryInput}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={(e) => handlePhoto(e.target.files?.[0])}
+      />
+
+      {scannerOpen && (
+        <FoodScanner
+          onCapture={handleCapture}
+          onPickFromGallery={pickFromGallery}
+          onNativeCamera={openNativeCamera}
+          onClose={closeScanner}
+        />
+      )}
 
       <Sheet open={step.name !== "closed"} onOpenChange={(open) => !open && !saving && close()}>
         <SheetContent side="bottom" className="max-h-[92dvh] gap-0 overflow-y-auto rounded-t-3xl px-4 pt-5 pb-6">
@@ -176,8 +223,23 @@ export function MealLogger() {
           </SheetHeader>
 
           {previewUrl && (
-            // eslint-disable-next-line @next/next/no-img-element -- prévia local (blob:), sem otimização do next/image
-            <img src={previewUrl} alt="Foto da refeição" className="mt-3 h-40 w-full rounded-2xl object-cover" />
+            <div className={cn("relative mt-3 overflow-hidden rounded-2xl", step.name === "analyzing" ? "h-64" : "h-40")}>
+              {/* eslint-disable-next-line @next/next/no-img-element -- prévia local (blob:), sem otimização do next/image */}
+              <img src={previewUrl} alt="Foto da refeição" className="h-full w-full object-cover" />
+              {/* Enquanto o Théo analisa, a mesma moldura do scanner varre a foto */}
+              {step.name === "analyzing" && (
+                <>
+                  <div className="absolute inset-0 bg-black/25" aria-hidden />
+                  <ScannerFrame className="inset-3" />
+                  <p
+                    role="status"
+                    className="absolute inset-x-0 bottom-5 mx-auto w-fit rounded-full bg-black/60 px-3 py-1.5 text-xs font-medium text-white backdrop-blur"
+                  >
+                    Identificando os alimentos…
+                  </p>
+                </>
+              )}
+            </div>
           )}
 
           {step.name === "describe" && (
@@ -203,7 +265,7 @@ export function MealLogger() {
             </div>
           )}
 
-          {step.name === "analyzing" && (
+          {step.name === "analyzing" && !previewUrl && (
             <div className="flex items-center justify-center gap-2 py-10 text-sm text-muted-foreground" role="status">
               <Loader2 className="h-5 w-5 animate-spin text-primary" />
               Analisando…
@@ -222,7 +284,7 @@ export function MealLogger() {
                 </Link>
               ) : (
                 <div className="grid grid-cols-2 gap-2">
-                  <Button type="button" variant="outline" onClick={() => fileInput.current?.click()}>
+                  <Button type="button" variant="outline" onClick={openScanner}>
                     Outra foto
                   </Button>
                   <Button type="button" variant="outline" onClick={() => setStep({ name: "describe" })}>
