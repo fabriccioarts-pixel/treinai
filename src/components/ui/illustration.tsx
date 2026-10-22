@@ -37,7 +37,8 @@ export type IllustrationName =
   | "cardio"
   | "recovery"
   // Nutrição
-  | "water";
+  | "water"
+  | "meal-plan";
 
 export const MUSCLE_ILLUSTRATION: Record<MuscleGroup, IllustrationName> = {
   peito: "chest",

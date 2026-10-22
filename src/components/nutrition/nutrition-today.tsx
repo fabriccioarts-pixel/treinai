@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { ChevronRight, UtensilsCrossed } from "lucide-react";
+import { ChevronRight } from "lucide-react";
+import { Illustration } from "@/components/ui/illustration";
 import { MealLogger } from "@/components/nutrition/meal-logger";
 import { MealList } from "@/components/nutrition/meal-list";
 import { WaterTracker } from "@/components/nutrition/water-tracker";
@@ -95,9 +96,7 @@ export function NutritionToday({
           href="/cardapio"
           className="group flex items-center gap-4 rounded-2xl border border-border bg-card p-4 transition-colors hover:border-primary/40"
         >
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary">
-            <UtensilsCrossed className="h-5 w-5" />
-          </span>
+          <Illustration name="meal-plan" size={56} className="-my-2 -ml-1" />
           <div className="min-w-0 flex-1">
             <p className="text-sm font-semibold text-foreground">Cardápio da semana</p>
             <p className="mt-0.5 text-xs text-muted-foreground">O que comer em cada dia, com trocas e lista de compras.</p>
