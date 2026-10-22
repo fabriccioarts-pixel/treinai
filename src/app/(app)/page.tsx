@@ -13,6 +13,7 @@ import { ShortcutGrid } from "@/components/home/shortcut-grid";
 import { StreakCard } from "@/components/streak/streak-card";
 import { NutritionToday } from "@/components/nutrition/nutrition-today";
 import { EnableNotificationsPrompt } from "@/components/home/enable-notifications-prompt";
+import { InstallAppPrompt } from "@/components/install/install-app-prompt";
 import { WeeklyMissions } from "@/components/gamification/weekly-missions";
 import { CelebrationToast } from "@/components/gamification/celebration-toast";
 import { buttonVariants } from "@/components/ui/button";
@@ -223,6 +224,9 @@ export default async function InicioPage() {
           </p>
         }
       />
+
+      {/* Some quando o app já está instalado; no computador sem suporte nem aparece */}
+      <InstallAppPrompt />
 
       {workoutFirst && workoutSection}
 

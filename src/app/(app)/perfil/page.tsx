@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { SlidersHorizontal, Download, Info, ChevronRight, Scale, Compass } from "lucide-react";
+import { SlidersHorizontal, Download, Info, ChevronRight, Scale, Compass, Smartphone } from "lucide-react";
 import { formatKcal } from "@/lib/nutrition";
 import { WorkoutIcon, XpIcon } from "@/components/ui/app-icon";
 import { PageHeader } from "@/components/shared/page-header";
@@ -15,6 +15,7 @@ const SETTINGS_ITEMS = [
   { label: "Biblioteca de exercícios", href: "/perfil/exercicios", icon: WorkoutIcon },
   { label: "Preferências", href: "/perfil/preferencias", icon: SlidersHorizontal },
   { label: "Exportar dados", href: "/perfil/exportar", icon: Download },
+  { label: "Instalar o app", href: "/perfil/instalar", icon: Smartphone },
   // Volta para a home com ?tour=1, que reabre o tour de boas-vindas
   { label: "Tour pelo app", href: "/?tour=1", icon: Compass },
   { label: "Sobre o Treinai", href: "/perfil/sobre", icon: Info },

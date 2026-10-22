@@ -24,6 +24,11 @@ const STEPS: TourStep[] = [
     body: "Em menos de um minuto eu te mostro onde fica cada coisa. Se preferir explorar por conta própria, é só pular.",
   },
   {
+    target: "instalar",
+    title: "Coloque na tela inicial",
+    body: "O Treinai ainda não está nas lojas: você instala direto daqui. Abre em tela cheia, como um app, e no iPhone libera os lembretes.",
+  },
+  {
     target: "treino-hoje",
     title: "Treino de hoje",
     body: "O app escolhe o próximo treino da sua divisão. Toque para começar e registrar cada série com carga e repetições.",

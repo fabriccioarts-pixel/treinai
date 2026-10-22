@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
+import Link from "next/link";
 import { Bell, BellOff } from "lucide-react";
 import {
   disableNotifications,
@@ -81,6 +82,11 @@ export function ReminderSettings() {
                 ? "As notificações estão bloqueadas neste navegador."
                 : DESCRIPTION[status])}
           </p>
+          {status === "ios-install" && !error && (
+            <Link href="/perfil/instalar" className="mt-1 inline-block text-xs font-medium text-primary hover:underline">
+              Ver como instalar
+            </Link>
+          )}
         </div>
         {canToggle && (
           <button
