@@ -4,7 +4,7 @@ import { computeLevel } from "./badges";
 import { loadWeeklyMissions } from "./missions";
 import { loadStreak } from "./streak-shields";
 import { loadTotalXp } from "./xp";
-import { formatDiagnosticForCoach, loadDiagnosticAnswers } from "./diagnostic-summary";
+import { formatDiagnosticForCoach, loadDiagnosticAnswers, type DiagnosticAnswers } from "./diagnostic-summary";
 
 const GOAL_LABEL: Record<string, string> = {
   hipertrofia: "hipertrofia",
@@ -19,6 +19,23 @@ const ACTIVITY_LABEL: Record<string, string> = {
   moderado: "moderada (em pé/andando a maior parte do dia)",
   intenso: "intensa (trabalho físico pesado)",
 };
+
+/**
+ * Como o Théo se refere à pessoa. Vale primeiro o diagnóstico ("como você se identifica"); o perfil
+ * pergunta sexo biológico só para a fórmula do metabolismo, então entra apenas quando não há diagnóstico.
+ */
+function addressText(plan: ProfileWithTargets | null, diagnostic: DiagnosticAnswers | null): string {
+  const fromDiagnostic = ({ f: "mulher", m: "homem", x: "neutro" } as Record<string, string>)[diagnostic?.sexo ?? ""];
+  const fromProfile = ({ feminino: "mulher", masculino: "homem" } as Record<string, string>)[plan?.profile.sex ?? ""];
+  const gender = fromDiagnostic ?? fromProfile ?? "neutro";
+  if (gender === "mulher") {
+    return "COMO TRATAR A PESSOA: mulher. Use sempre o feminino, inclusive nas gírias e bordões (bem-vinda, parceira, monstra, minha consagrada, pronta, focada).";
+  }
+  if (gender === "homem") {
+    return "COMO TRATAR A PESSOA: homem. Use o masculino (bem-vindo, parceiro, monstro, meu consagrado, pronto, focado).";
+  }
+  return 'COMO TRATAR A PESSOA: gênero não informado. Prefira formas neutras ("você", "bora", "que demais"), sem parceiro/parceira, bem-vindo/bem-vinda ou monstro/monstra.';
+}
 
 function formatProfile(plan: ProfileWithTargets | null): string {
   if (!plan) {
@@ -158,7 +175,11 @@ export async function buildCoachContext(db: D1Database, userId: string): Promise
         .join("\n")
     : "Nenhum treino concluído ainda.";
 
-  return `PERFIL E PLANO NUTRICIONAL (calculado pelo app — use estes números, não recalcule):
+  const diagnostic = await loadDiagnosticAnswers(db, userId);
+
+  return `${addressText(plan, diagnostic)}
+
+PERFIL E PLANO NUTRICIONAL (calculado pelo app — use estes números, não recalcule):
 ${formatProfile(plan)}${consumedText}
 
 CATÁLOGO DE EXERCÍCIOS DISPONÍVEIS (use somente estes ids):
@@ -174,7 +195,7 @@ RECORDES PESSOAIS RECENTES (carga):
 ${prsText}
 
 ÚLTIMOS TREINOS CONCLUÍDOS:
-${sessionsText}${formatDiagnosticForCoach(await loadDiagnosticAnswers(db, userId))}${await gamificationText(db, userId)}`;
+${sessionsText}${formatDiagnosticForCoach(diagnostic)}${await gamificationText(db, userId)}`;
 }
 
 /** Tabela nova (migração 0012): se ainda não existir, o Théo segue sem essa informação */
