@@ -80,13 +80,17 @@ async function estimateWorkout(workoutId: string, sessions: FinishedSession[]) {
       : workout.exercises.reduce((sum, e) => sum + e.target_sets * (SECONDS_PER_SET + e.rest_time), 0);
   const minutes = Math.max(5, Math.round(seconds / 60 / 5) * 5);
 
-  // Capas dos primeiros exercícios com demonstração, para ilustrar o card
-  const posters = [...new Set(workout.exercises.map((e) => e.exercise_id))]
-    .map((exerciseId) => getExerciseDemo(exerciseId)?.poster)
-    .filter((poster): poster is string => Boolean(poster))
-    .slice(0, 4);
+  const ordered = [...workout.exercises].sort((a, b) => a.order_index - b.order_index);
+  // Capa do card: a demonstração do primeiro exercício que tem uma
+  const cover = ordered.map((e) => getExerciseDemo(e.exercise_id)?.poster).find(Boolean) ?? null;
+  const exercises = ordered.slice(0, 3).map((e) => ({
+    name: e.exercise_name,
+    sets: e.target_sets,
+    repsMin: e.target_reps_min,
+    repsMax: e.target_reps_max,
+  }));
 
-  return { sets, time: `~${minutes} min`, posters };
+  return { sets, time: `~${minutes} min`, cover, exercises };
 }
 
 function greeting() {
@@ -192,7 +196,8 @@ export default async function InicioPage() {
           estimatedSets={todayEstimate?.sets ?? todayWorkout.exercise_count * 3}
           estimatedTime={todayEstimate?.time ?? "45–60 min"}
           muscleGroups={(todayWorkout.muscle_groups?.split(",").filter(Boolean) as MuscleGroup[]) ?? []}
-          posters={todayEstimate?.posters ?? []}
+          cover={todayEstimate?.cover}
+          exercises={todayEstimate?.exercises}
         />
       ) : (
         <EmptyState
