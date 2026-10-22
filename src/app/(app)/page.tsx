@@ -27,6 +27,7 @@ import type { MuscleGroup } from "@/lib/types";
 const DEFAULT_STATS = {
   workoutsThisWeek: 0,
   weeklyVolumeKg: 0,
+  weeklyMuscleSets: undefined as { muscle: string; sets: number }[] | undefined,
   recentPRsCount: 0,
   streakDays: 0,
   trainedToday: false,
@@ -225,6 +226,9 @@ export default async function InicioPage() {
         }
       />
 
+      {/* Constância logo abaixo da frase do dia: é o primeiro motivo para abrir o app */}
+      <StreakCard compact data={stats} shields={gamification?.shields.available} />
+
       {/* Some quando o app já está instalado; no computador sem suporte nem aparece */}
       <InstallAppPrompt />
 
@@ -251,9 +255,7 @@ export default async function InicioPage() {
         </>
       )}
 
-      <WeekVolumeHero series={stats.weeklyVolumeSeries} />
-
-      <StreakCard compact data={stats} shields={gamification?.shields.available} />
+      <WeekVolumeHero muscleSets={stats.weeklyMuscleSets} series={stats.weeklyVolumeSeries} />
 
       <MetricStrip
         metrics={[

@@ -227,6 +227,12 @@
   to { transform: scaleY(1); opacity: 1; }
 }
 
+/* Mesma entrada das barras, na horizontal (séries por músculo) */
+@keyframes bar-rise-x {
+  from { transform: scaleX(0.04); opacity: 0.35; }
+  to { transform: scaleX(1); opacity: 1; }
+}
+
 /* Água ondulando dentro do copo (WaterGlass): desliza um período da onda (22 unidades do SVG) */
 @keyframes water-wave {
   from { transform: translateX(0); }

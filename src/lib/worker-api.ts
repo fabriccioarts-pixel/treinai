@@ -362,6 +362,8 @@ export const workerApi = {
     workerFetch<{
       workoutsThisWeek: number;
       weeklyVolumeKg: number;
+      /** Séries concluídas por grupo muscular nos últimos 7 dias (ausente em worker antigo) */
+      weeklyMuscleSets?: { muscle: string; sets: number }[];
       recentPRsCount: number;
       streakDays: number;
       trainedToday: boolean;

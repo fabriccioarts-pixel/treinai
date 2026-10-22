@@ -4,8 +4,8 @@ import type { MuscleGroup } from "@/lib/types";
 
 /*
  * Ilustrações 3D do Treinai (grafite + verde neon), estilo "objeto solto" como os serviços da Uber.
- * Os arquivos em /public/illustrations têm fundo preto: `mix-blend-screen` faz o preto sumir
- * sobre as superfícies escuras do app, sobrando só o objeto e o brilho.
+ * As antigas em /public/illustrations são JPG com fundo preto: `mix-blend-screen` faz o preto sumir
+ * sobre as superfícies escuras do app. As novas são PNG com fundo transparente e dispensam o efeito.
  */
 export type IllustrationName =
   // Áreas do app
@@ -36,6 +36,9 @@ export type IllustrationName =
   | "abs"
   | "cardio"
   | "recovery"
+  | "volume"
+  // Assinatura
+  | "trial"
   // Nutrição
   | "water"
   | "meal-plan";
@@ -51,6 +54,9 @@ export const MUSCLE_ILLUSTRATION: Record<MuscleGroup, IllustrationName> = {
   cardio: "cardio",
 };
 
+/** Já em PNG transparente; as demais ainda são JPG com fundo preto */
+const TRANSPARENT: ReadonlySet<IllustrationName> = new Set(["meal-plan", "volume", "trial"]);
+
 export function Illustration({
   name,
   size = 96,
@@ -62,16 +68,17 @@ export function Illustration({
   className?: string;
   priority?: boolean;
 }) {
+  const transparent = TRANSPARENT.has(name);
   return (
     <Image
-      src={`/illustrations/${name}.jpg`}
+      src={`/illustrations/${name}.${transparent ? "png" : "jpg"}`}
       alt=""
       aria-hidden
       width={size}
       height={size}
       priority={priority}
       // max-w-none: o reset do Tailwind (max-width: 100%) encolhia só a largura dentro de caixas menores
-      className={cn("max-w-none shrink-0 select-none mix-blend-screen", className)}
+      className={cn("max-w-none shrink-0 select-none", !transparent && "mix-blend-screen", className)}
       style={{ width: size, height: size }}
       draggable={false}
     />

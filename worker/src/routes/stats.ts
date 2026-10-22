@@ -13,6 +13,7 @@ interface SetRow {
   session_id: string;
   weight: number;
   reps: number;
+  muscle_group: string;
 }
 
 interface PrRow {
@@ -48,8 +49,9 @@ statsRoutes.get("/", async (c) => {
   if (sessions.length > 0) {
     const placeholders = sessions.map(() => "?").join(",");
     const { results } = await c.env.DB.prepare(
-      `SELECT session_id, weight, reps FROM sets
-       WHERE completed = 1 AND session_id IN (${placeholders})`
+      `SELECT s.session_id, s.weight, s.reps, e.muscle_group FROM sets s
+       JOIN exercises e ON e.id = s.exercise_id
+       WHERE s.completed = 1 AND s.session_id IN (${placeholders})`
     )
       .bind(...sessions.map((s) => s.id))
       .all<SetRow>();
@@ -73,9 +75,12 @@ statsRoutes.get("/", async (c) => {
   // --- Volume da semana / treinos da semana ---
   const sessionsThisWeek = sessions.filter((s) => daysAgo(s.started_at) < 7);
   const sessionIdsThisWeek = new Set(sessionsThisWeek.map((s) => s.id));
-  const weeklyVolumeKg = sets
-    .filter((s) => sessionIdsThisWeek.has(s.session_id))
-    .reduce((sum, s) => sum + s.weight * s.reps, 0);
+  const setsThisWeek = sets.filter((s) => sessionIdsThisWeek.has(s.session_id));
+  const weeklyVolumeKg = setsThisWeek.reduce((sum, s) => sum + s.weight * s.reps, 0);
+  // Séries concluídas por grupo muscular nos últimos 7 dias: a métrica de volume que a hipertrofia usa
+  const muscleSetCounts = new Map<string, number>();
+  for (const s of setsThisWeek) muscleSetCounts.set(s.muscle_group, (muscleSetCounts.get(s.muscle_group) ?? 0) + 1);
+  const weeklyMuscleSets = [...muscleSetCounts].map(([muscle, count]) => ({ muscle, sets: count }));
 
   // --- Constância (dias com treino concluído, tolerando folga curta — ver lib/streak) ---
   // Consulta própria só com as datas (a lista de sessões acima cobre apenas 6 semanas) e escudos aplicados
@@ -185,6 +190,7 @@ statsRoutes.get("/", async (c) => {
   return c.json({
     workoutsThisWeek: sessionsThisWeek.length,
     weeklyVolumeKg,
+    weeklyMuscleSets,
     recentPRsCount,
     streakDays,
     trainedToday,

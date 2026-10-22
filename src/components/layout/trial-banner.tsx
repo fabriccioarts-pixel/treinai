@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { ChevronRight, Sparkles } from "lucide-react";
+import { ChevronRight } from "lucide-react";
+import { Illustration } from "@/components/ui/illustration";
 import { daysLeft } from "@/lib/billing";
 import type { BillingAccess } from "@/lib/worker-api";
 import { cn } from "@/lib/utils";
@@ -32,7 +33,7 @@ export function TrialBanner({ access }: { access: BillingAccess }) {
           : "border-border/60 bg-card hover:bg-muted/40",
       )}
     >
-      <Sparkles className="h-5 w-5 shrink-0 text-primary" />
+      <Illustration name="trial" size={44} className="-my-2 -ml-1" />
       <span className="min-w-0 flex-1">
         <span className="block text-sm font-semibold text-foreground">{title}</span>
         <span className="block text-xs text-muted-foreground">{detail}</span>
