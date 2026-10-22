@@ -2,7 +2,25 @@ import { newId, nowIso } from "./id";
 import { localDate, userTimeZone } from "./nutrition";
 import type { MealEstimate } from "./meal-analysis";
 
-export type MealType = "cafe" | "almoco" | "lanche" | "jantar";
+export const MEAL_TYPES = ["cafe", "almoco", "lanche", "jantar"] as const;
+export type MealType = (typeof MEAL_TYPES)[number];
+
+/** Refeição pelo horário local, quando o usuário não diz qual foi */
+export function mealTypeByHour(hour: number): MealType {
+  if (hour < 10) return "cafe";
+  if (hour < 15) return "almoco";
+  if (hour < 18) return "lanche";
+  return "jantar";
+}
+
+/** Quanto de água já foi registrado no dia local do usuário */
+export async function waterTotalMl(db: D1Database, userId: string, date: string): Promise<number> {
+  const row = await db
+    .prepare("SELECT COALESCE(SUM(amount_ml), 0) AS ml FROM water_logs WHERE user_id = ? AND local_date = ?")
+    .bind(userId, date)
+    .first<{ ml: number }>();
+  return row?.ml ?? 0;
+}
 
 export interface SaveMealInput {
   mealType: MealType;
@@ -42,12 +60,16 @@ export async function saveMealRecord(db: D1Database, userId: string, input: Save
 }
 
 /** Registra um consumo de água; usada pela rota REST e pelas ferramentas do Théo */
-export async function logWaterRecord(db: D1Database, userId: string, amountMl: number): Promise<{ id: string }> {
+export async function logWaterRecord(
+  db: D1Database,
+  userId: string,
+  amountMl: number,
+): Promise<{ id: string; date: string }> {
   const id = newId();
   const date = localDate(await userTimeZone(db, userId));
   await db
     .prepare("INSERT INTO water_logs (id, user_id, amount_ml, local_date, logged_at) VALUES (?, ?, ?, ?, ?)")
     .bind(id, userId, amountMl, date, nowIso())
     .run();
-  return { id };
+  return { id, date };
 }

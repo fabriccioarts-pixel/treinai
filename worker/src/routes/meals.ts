@@ -1,24 +1,15 @@
 import { Hono } from "hono";
 import { z } from "zod";
 import Anthropic from "@anthropic-ai/sdk";
-import { newId, nowIso } from "../lib/id";
-import { localDate } from "../lib/nutrition";
+import { localDate, userTimeZone } from "../lib/nutrition";
+import { MEAL_TYPES, saveMealRecord } from "../lib/meal-mutations";
 import { MealAnalysisError, analyzeMeal } from "../lib/meal-analysis";
 import { requireAiAccess } from "../lib/billing";
 
 export const mealRoutes = new Hono<{ Bindings: Env }>();
 
-const DEFAULT_TIME_ZONE = "America/Sao_Paulo";
 /** ~3,75 MB de imagem: o app reduz a foto antes de enviar, isso é só o teto de segurança */
 const MAX_PHOTO_BASE64_LENGTH = 5_000_000;
-const MEAL_TYPES = ["cafe", "almoco", "lanche", "jantar"] as const;
-
-async function userTimeZone(db: D1Database, userId: string): Promise<string> {
-  const row = await db.prepare("SELECT timezone FROM user_profiles WHERE user_id = ?")
-    .bind(userId)
-    .first<{ timezone: string }>();
-  return row?.timezone ?? DEFAULT_TIME_ZONE;
-}
 
 const analyzeSchema = z.object({
   userId: z.string().min(1),
@@ -78,26 +69,8 @@ mealRoutes.post("/", async (c) => {
   const parsed = saveSchema.safeParse(await c.req.json().catch(() => null));
   if (!parsed.success) return c.json({ error: "invalid_meal" }, 400);
   const { userId, mealType, source, items } = parsed.data;
-
-  const total = (key: "kcal" | "protein_g" | "carbs_g" | "fat_g") =>
-    Math.round(items.reduce((sum, i) => sum + i[key], 0));
-  const mealId = newId();
-  const date = localDate(await userTimeZone(c.env.DB, userId));
-
-  await c.env.DB.batch([
-    c.env.DB.prepare(
-      `INSERT INTO meals (id, user_id, local_date, meal_type, source, kcal, protein_g, carbs_g, fat_g, logged_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-    ).bind(mealId, userId, date, mealType, source, total("kcal"), total("protein_g"), total("carbs_g"), total("fat_g"), nowIso()),
-    ...items.map((i) =>
-      c.env.DB.prepare(
-        `INSERT INTO meal_items (id, meal_id, name, grams, kcal, protein_g, carbs_g, fat_g)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
-      ).bind(newId(), mealId, i.name, i.grams, i.kcal, i.protein_g, i.carbs_g, i.fat_g),
-    ),
-  ]);
-
-  return c.json({ id: mealId });
+  const { id } = await saveMealRecord(c.env.DB, userId, { mealType, source, items });
+  return c.json({ id });
 });
 
 /** Refeições de hoje (no fuso do usuário) com os totais do dia */

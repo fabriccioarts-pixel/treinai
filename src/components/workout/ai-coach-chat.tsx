@@ -2,7 +2,7 @@
 
 import { useState, useTransition, useRef, useEffect } from "react";
 import Link from "next/link";
-import { ArrowUp, CheckCircle2, ArrowRight, AudioLines } from "lucide-react";
+import { ArrowUp, ArrowRight, AudioLines } from "lucide-react";
 import { AiIcon } from "@/components/ui/app-icon";
 import { motion, AnimatePresence } from "framer-motion";
 import { Card } from "@/components/ui/card";
@@ -16,6 +16,7 @@ import {
 import { GeminiLiveCall, type CallStatus } from "@/lib/voice/gemini-live-call";
 import type { CoachAction } from "@/lib/worker-api";
 import { AiMessageRenderer, parseAiMessage } from "./ai-message-renderer";
+import { CoachActionCard } from "./coach-action-card";
 import { AsciiCoach } from "./ascii-coach";
 import { VoiceCallOverlay } from "./voice-call-overlay";
 
@@ -51,10 +52,15 @@ function TypingDots() {
   );
 }
 
+/** O treino que o Théo acabou de criar nesta resposta, se houver */
+function createdWorkout(actions: CoachAction[] | undefined) {
+  return actions?.find((a): a is Extract<CoachAction, { workoutId: string }> => a.type === "workout_created");
+}
+
 export interface Turn {
   role: "user" | "assistant";
   text: string;
-  actions?: { type: "workout_created" | "workout_updated"; workoutId: string; name: string }[];
+  actions?: CoachAction[];
   error?: boolean;
   /** Erro por fim do teste grátis: mostra o botão para assinar */
   paywall?: boolean;
@@ -149,7 +155,7 @@ export function AiCoachChat({
       onToolCall: async (name, args) => {
         const { output, actions } = await runVoiceToolAction(name, args);
         voiceActionsRef.current.push(...actions);
-        const created = actions.find((a) => a.type === "workout_created");
+        const created = createdWorkout(actions);
         if (created) onWorkoutCreated?.({ workoutId: created.workoutId, name: created.name });
         return output;
       },
@@ -208,7 +214,7 @@ export function AiCoachChat({
         : { role: "assistant", text, actions: result.actions },
     ]);
     adoptConversation(result.conversationId);
-    const created = result.actions?.find((a) => a.type === "workout_created");
+    const created = createdWorkout(result.actions);
     if (created) onWorkoutCreated?.({ workoutId: created.workoutId, name: created.name });
     setSpeaking(true);
     clearTimeout(speakingTimerRef.current);
@@ -362,35 +368,11 @@ export function AiCoachChat({
                     </div>
                   </div>
 
-                  {/* Action badges / Workout created or updated */}
+                  {/* O que o Théo fez nesta resposta: treino, refeição ou água */}
                   {turn.actions && turn.actions.length > 0 && (
                     <div className="ml-10 mt-3 space-y-2 border-t border-border/40 pt-3">
                       {turn.actions.map((action, j) => (
-                        <div
-                          key={j}
-                          className="group/action flex items-center justify-between gap-3 rounded-xl border border-primary/30 bg-primary/5 p-3 transition-all hover:border-primary/50 hover:bg-primary/10"
-                        >
-                          <div className="flex min-w-0 items-center gap-2.5">
-                            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/20 text-primary">
-                              <CheckCircle2 className="h-4.5 w-4.5" />
-                            </div>
-                            <div className="min-w-0">
-                              <span className="text-[11px] font-bold uppercase tracking-wider text-primary">
-                                {action.type === "workout_created" ? "Treino criado" : "Treino atualizado"}
-                              </span>
-                              <h4 className="truncate text-sm font-semibold text-foreground">
-                                {action.name}
-                              </h4>
-                            </div>
-                          </div>
-                          <Link
-                            href={`/treinos/${action.workoutId}`}
-                            className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground shadow-sm transition-all hover:bg-primary/90 hover:shadow-md hover:shadow-primary/25"
-                          >
-                            <span>Ver treino</span>
-                            <ArrowRight className="h-3.5 w-3.5" />
-                          </Link>
-                        </div>
+                        <CoachActionCard key={j} action={action} />
                       ))}
                     </div>
                   )}

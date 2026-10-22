@@ -1,6 +1,10 @@
 import { newId, nowIso } from "./id";
 
-export type CoachAction = { type: "workout_created" | "workout_updated"; workoutId: string; name: string };
+/** O que o Théo fez com as ferramentas numa resposta; o app mostra cada uma como um cartão no chat */
+export type CoachAction =
+  | { type: "workout_created" | "workout_updated"; workoutId: string; name: string }
+  | { type: "meal_logged"; mealId: string; mealType: string; kcal: number; proteinG: number; items: string[] }
+  | { type: "water_logged"; logId: string; amountMl: number; totalMl: number; targetMl: number | null };
 
 interface MessageRow {
   role: "user" | "assistant";

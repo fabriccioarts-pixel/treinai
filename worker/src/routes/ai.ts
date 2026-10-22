@@ -7,9 +7,14 @@ import { findConversation, loadModelHistory, saveExchange, type CoachAction } fr
 import {
   createCoachToolExecutors,
   GEMINI_COACH_FUNCTIONS,
+  LOG_MEAL_DESCRIPTION,
+  LOG_MEAL_TEXT_DESCRIPTION,
+  LOG_MEAL_TYPE_DESCRIPTION,
+  LOG_WATER_DESCRIPTION,
   SUPERSET_GROUP_DESCRIPTION,
   TECHNIQUE_DESCRIPTION,
 } from "../lib/coach-tools";
+import { MEAL_TYPES } from "../lib/meal-mutations";
 import { TECHNIQUES } from "../lib/workout-mutations";
 import { COACH_RULES, THEO_PERSONA } from "../lib/coach-persona";
 import { COACH_KNOWLEDGE } from "../lib/coach-knowledge";
@@ -94,7 +99,8 @@ aiRoutes.post("/coach", async (c) => {
 
   const context = await buildCoachContext(c.env.DB, userId);
   const actions: CoachAction[] = [];
-  const tools = await createCoachToolExecutors(c.env.DB, userId, actions);
+  // A estimativa de refeição usa a mesma chave da análise da foto do prato
+  const tools = await createCoachToolExecutors(c.env.DB, userId, actions, geminiKey || anthropicKey);
 
   // Construct alternating messages array with history
   const rawList: { role: "user" | "assistant"; content: string }[] = [];
@@ -275,6 +281,25 @@ aiRoutes.post("/coach", async (c) => {
       run: async (input) => tools.updateWorkout(input),
     });
 
+    const logMealTool = betaZodTool({
+      name: "log_meal",
+      description: LOG_MEAL_DESCRIPTION,
+      inputSchema: z.object({
+        description: z.string().min(2).max(500).describe(LOG_MEAL_TEXT_DESCRIPTION),
+        mealType: z.enum(MEAL_TYPES).optional().describe(LOG_MEAL_TYPE_DESCRIPTION),
+      }),
+      run: async (input) => tools.logMeal(input),
+    });
+
+    const logWaterTool = betaZodTool({
+      name: "log_water",
+      description: LOG_WATER_DESCRIPTION,
+      inputSchema: z.object({
+        amountMl: z.coerce.number().int().min(50).max(2000).describe("Quantidade em ml"),
+      }),
+      run: async (input) => tools.logWater(input),
+    });
+
     try {
       const finalMessage = await client.beta.messages.toolRunner({
         model: MODEL,
@@ -284,7 +309,7 @@ aiRoutes.post("/coach", async (c) => {
           { type: "text", text: SYSTEM_PROMPT, cache_control: { type: "ephemeral" } },
           { type: "text", text: `CONTEXTO DO USUÁRIO:\n${context}` },
         ],
-        tools: [createWorkoutTool, updateWorkoutTool],
+        tools: [createWorkoutTool, updateWorkoutTool, logMealTool, logWaterTool],
         messages: messagesToSend,
       });
 

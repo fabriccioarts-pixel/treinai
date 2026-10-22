@@ -7,7 +7,11 @@ import type { MealEstimate, MealItem, MealType, MealsToday, ProfileInput, Profil
 import type { BadgeTier, Gamification, SessionSummary } from "@/lib/gamification";
 
 /** Treino criado ou alterado pelo Théo numa resposta */
-export type CoachAction = { type: "workout_created" | "workout_updated"; workoutId: string; name: string };
+/** O que o Théo fez com as ferramentas numa resposta (mesmo formato do worker) */
+export type CoachAction =
+  | { type: "workout_created" | "workout_updated"; workoutId: string; name: string }
+  | { type: "meal_logged"; mealId: string; mealType: string; kcal: number; proteinG: number; items: string[] }
+  | { type: "water_logged"; logId: string; amountMl: number; totalMl: number; targetMl: number | null };
 
 const BASE_URL = process.env.WORKER_API_URL;
 const SECRET = process.env.WORKER_API_SECRET;

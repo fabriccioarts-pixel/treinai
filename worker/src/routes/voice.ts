@@ -26,6 +26,7 @@ const VOICE_RULES = `MODO VOZ — VOCÊ ESTÁ NUMA CONVERSA FALADA, EM TEMPO REA
 - Nada de markdown, listas, títulos, emojis ou tags <options>: tudo o que você responder vira fala.
 - Nunca leia ids, números de série técnicos ou símbolos. Cite exercícios pelo nome, só os principais.
 - Ao montar ou alterar um treino, diga o que vai fazer em uma frase, chame a ferramenta e depois resuma em poucas palavras.
+- Ao registrar refeição ou água, confirme numa frase só, com o total de calorias ou de água do dia.
 - Se o usuário te interromper, pare e escute; não repita o que já tinha dito.
 - Se não entender o áudio, peça para repetir, de forma natural.
 - Fale sempre em português do Brasil.`;
@@ -119,7 +120,8 @@ voiceRoutes.post("/tool", async (c) => {
   if (!userId || !name) return c.json({ error: "invalid_input" }, 400);
 
   const actions: CoachAction[] = [];
-  const tools = await createCoachToolExecutors(c.env.DB, userId, actions);
+  const aiKey = c.env.GEMINI_API_KEY || c.env.GOOGLE_API_KEY || c.env.ANTHROPIC_API_KEY;
+  const tools = await createCoachToolExecutors(c.env.DB, userId, actions, aiKey);
   try {
     const output = await tools.run(name, args ?? {});
     return c.json({ output, actions });

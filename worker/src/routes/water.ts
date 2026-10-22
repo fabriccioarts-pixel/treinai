@@ -1,19 +1,11 @@
 import { Hono } from "hono";
-import { newId, nowIso } from "../lib/id";
-import { localDate } from "../lib/nutrition";
+import { DEFAULT_TIME_ZONE, localDate } from "../lib/nutrition";
 import { loadProfileWithTargets } from "../lib/profile";
+import { logWaterRecord } from "../lib/meal-mutations";
 
 export const waterRoutes = new Hono<{ Bindings: Env }>();
 
-const DEFAULT_TIME_ZONE = "America/Sao_Paulo";
 const DEFAULT_TARGET_ML = 2000;
-
-async function userTimeZone(db: D1Database, userId: string): Promise<string> {
-  const row = await db.prepare("SELECT timezone FROM user_profiles WHERE user_id = ?")
-    .bind(userId)
-    .first<{ timezone: string }>();
-  return row?.timezone ?? DEFAULT_TIME_ZONE;
-}
 
 /** Água de hoje (no fuso do usuário) e a meta do dia */
 waterRoutes.get("/", async (c) => {
@@ -46,14 +38,7 @@ waterRoutes.post("/", async (c) => {
     return c.json({ error: "invalid_amount" }, 400);
   }
 
-  const id = newId();
-  const date = localDate(await userTimeZone(c.env.DB, userId));
-  await c.env.DB.prepare(
-    "INSERT INTO water_logs (id, user_id, amount_ml, local_date, logged_at) VALUES (?, ?, ?, ?, ?)"
-  )
-    .bind(id, userId, amountMl, date, nowIso())
-    .run();
-
+  const { id } = await logWaterRecord(c.env.DB, userId, amountMl);
   return c.json({ id });
 });
 
