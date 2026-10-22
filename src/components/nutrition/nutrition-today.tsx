@@ -35,7 +35,7 @@ export function NutritionToday({
   const remaining = target ? target.targetKcal - eaten.kcal : null;
 
   return (
-    <section aria-label="Registro de hoje" className="space-y-3">
+    <section aria-label="Registro de hoje" data-tour="nutricao" className="space-y-3">
       <div className="rounded-2xl border border-border bg-card p-4 shadow-[inset_0_1px_0_oklch(1_0_0/0.05)]">
         <div className="flex items-baseline justify-between gap-3">
           <p className="tabular text-2xl font-bold tracking-tight text-foreground">

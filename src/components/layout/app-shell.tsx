@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { BottomNav } from "./bottom-nav";
 import { ResumeWorkoutBanner } from "@/components/workout/resume-workout-banner";
 import { TrialBanner } from "./trial-banner";
+import { AppTour } from "@/components/tour/app-tour";
 import type { BillingAccess } from "@/lib/worker-api";
 
 interface ActiveSessionVM {
@@ -41,6 +42,7 @@ export function AppShell({
         {children}
       </main>
       <BottomNav />
+      <AppTour />
     </div>
   );
 }

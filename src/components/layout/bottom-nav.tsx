@@ -8,11 +8,11 @@ import { cn } from "@/lib/utils";
 import { AsciiCoach } from "@/components/workout/ascii-coach";
 
 const NAV_ITEMS = [
-  { href: "/", label: "Início", icon: HomeIcon },
-  { href: "/treinos", label: "Treinos", icon: WorkoutIcon },
-  { href: "/theo", label: "Théo", icon: Bot },
-  { href: "/progresso", label: "Progresso", icon: ProgressIcon },
-  { href: "/perfil", label: "Perfil", icon: ProfileIcon },
+  { href: "/", label: "Início", icon: HomeIcon, tour: "nav-inicio" },
+  { href: "/treinos", label: "Treinos", icon: WorkoutIcon, tour: "nav-treinos" },
+  { href: "/theo", label: "Théo", icon: Bot, tour: "nav-theo" },
+  { href: "/progresso", label: "Progresso", icon: ProgressIcon, tour: "nav-progresso" },
+  { href: "/perfil", label: "Perfil", icon: ProfileIcon, tour: "nav-perfil" },
 ] as const;
 
 export function BottomNav() {
@@ -21,7 +21,7 @@ export function BottomNav() {
   return (
     <nav className="fixed inset-x-0 bottom-0 z-50 border-t border-border/80 bg-background/85 backdrop-blur-lg safe-bottom">
       <div className="mx-auto flex max-w-md items-stretch justify-between px-2 sm:max-w-lg">
-        {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
+        {NAV_ITEMS.map(({ href, label, icon: Icon, tour }) => {
           const isActive =
             href === "/" ? pathname === "/" : pathname.startsWith(href);
 
@@ -31,6 +31,7 @@ export function BottomNav() {
               href={href}
               className="relative flex flex-1 flex-col items-center gap-1 py-2.5 text-[11px] font-medium transition-colors"
               aria-current={isActive ? "page" : undefined}
+              data-tour={tour}
             >
               <span
                 className={cn(

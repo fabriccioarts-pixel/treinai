@@ -56,6 +56,7 @@ export function WeeklyMissions({ data }: { data: Gamification }) {
   return (
     <section
       aria-label="Missões da semana"
+      data-tour="missoes"
       className="rounded-3xl border border-border bg-card p-5 shadow-[inset_0_1px_0_oklch(1_0_0/0.06)]"
     >
       <Link href="/perfil/conquistas" className="group block">

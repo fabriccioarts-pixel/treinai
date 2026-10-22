@@ -111,15 +111,18 @@ function Section({
   title,
   href,
   linkLabel = "Ver tudo",
+  tour,
   children,
 }: {
   title: string;
   href?: string;
   linkLabel?: string;
+  /** Marca a seção para o tour de boas-vindas destacar */
+  tour?: string;
   children: React.ReactNode;
 }) {
   return (
-    <section className="space-y-3">
+    <section className="space-y-3" data-tour={tour}>
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold tracking-tight text-foreground">{title}</h2>
         {href && (
@@ -177,6 +180,7 @@ export default async function InicioPage() {
       title={stats.trainedToday ? "Próximo treino" : "Treino de hoje"}
       href="/treinos"
       linkLabel="Meus treinos"
+      tour="treino-hoje"
     >
       {todayWorkout ? (
         <NextWorkout

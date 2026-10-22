@@ -12,7 +12,7 @@ const SHORTCUTS: { href: string; label: string; art: IllustrationName }[] = [
 /** Atalhos ilustrados, no espírito da grade de serviços da Uber */
 export function ShortcutGrid() {
   return (
-    <nav aria-label="Atalhos" className="grid grid-cols-4 gap-2">
+    <nav aria-label="Atalhos" data-tour="atalhos" className="grid grid-cols-4 gap-2">
       {SHORTCUTS.map((s) => (
         <Link
           key={s.href}
