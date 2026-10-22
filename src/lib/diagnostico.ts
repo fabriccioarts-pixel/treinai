@@ -21,6 +21,8 @@ export type Step =
   | { id: string; kind: "multi"; section: string; title: string; hint?: string; options: (Option & { exclusive?: boolean })[] }
   | { id: "copos"; kind: "glasses"; section: string; title: string; hint?: string }
   | { id: "medidas"; kind: "measures"; section: string; title: string; hint?: string }
+  /** Peso que a pessoa quer alcançar, com a data prevista no ritmo recomendado */
+  | { id: "peso_meta"; kind: "goal"; section: string; title: string; hint?: string }
   | { id: string; kind: "insight"; section: string };
 
 export const STEPS: Step[] = [
@@ -148,6 +150,33 @@ export const STEPS: Step[] = [
     options: ["2", "3", "4", "5", "6"].map((d) => ({ value: d, label: `${d} dias` })),
   },
   {
+    id: "local",
+    kind: "single",
+    section: "Treino",
+    title: "Onde você vai treinar?",
+    hint: "O treino usa só o que você tem.",
+    options: [
+      { value: "academia", label: "Academia completa" },
+      { value: "academia-pequena", label: "Academia pequena, com poucas máquinas" },
+      { value: "casa-halteres", label: "Em casa, com halteres" },
+      { value: "casa", label: "Em casa, sem equipamento" },
+    ],
+  },
+  {
+    id: "tempo",
+    kind: "single",
+    section: "Treino",
+    title: "Quanto tempo você tem por treino?",
+    hint: "Contando aquecimento, séries e descanso.",
+    layout: "chips",
+    options: [
+      { value: "30", label: "30 min" },
+      { value: "45", label: "45 min" },
+      { value: "60", label: "1 hora" },
+      { value: "75", label: "Mais de 1 hora" },
+    ],
+  },
+  {
     id: "recomecos",
     kind: "single",
     area: "constancia",
@@ -230,6 +259,13 @@ export const STEPS: Step[] = [
     hint: "É com eles que calculo sua meta de água e de calorias.",
   },
   { id: "i_agua", kind: "insight", section: "Água" },
+  {
+    id: "peso_meta",
+    kind: "goal",
+    section: "Sua meta",
+    title: "Qual peso você quer alcançar?",
+    hint: "Arraste ou use os botões. Dá pra mudar depois.",
+  },
 ];
 
 export const AREA_LABEL: Record<AreaKey, string> = {
@@ -260,6 +296,58 @@ export function validMeasures(answers: Answers): boolean {
   const height = num(answers.altura);
   const weight = num(answers.peso);
   return height >= 120 && height <= 230 && weight >= 30 && weight <= 300;
+}
+
+/** Peso mínimo saudável para a altura: IMC 18,5 (OMS) */
+export function healthyMinKg(heightCm: number): number {
+  return Math.ceil(18.5 * (heightCm / 100) ** 2 * 2) / 2;
+}
+
+const roundHalf = (kg: number) => Math.round(kg * 2) / 2;
+
+/** Sugestão inicial do peso meta pelo objetivo escolhido */
+export function defaultGoalKg(answers: Answers): number {
+  const weight = num(answers.peso);
+  const height = num(answers.altura);
+  const bmi = weight / (height / 100) ** 2;
+  const factor =
+    answers.objetivo === "emagrecer" ? 0.9 : answers.objetivo === "massa" || answers.objetivo === "forca" ? 1.05 : bmi >= 25 ? 0.95 : 1;
+  return Math.max(healthyMinKg(height), roundHalf(weight * factor));
+}
+
+/** Peso meta escolhido (ou a sugestão), já dentro do intervalo permitido */
+export function goalKg(answers: Answers): number {
+  const chosen = num(answers.peso_meta);
+  return Number.isFinite(chosen) ? chosen : defaultGoalKg(answers);
+}
+
+export interface GoalProjection {
+  direction: "perder" | "ganhar" | "manter";
+  /** kg por semana no ritmo usado na conta */
+  ratePerWeek: number;
+  weeks: number;
+  /** Data aproximada em que a meta é alcançada (ISO) */
+  date: string;
+}
+
+/**
+ * Ritmo recomendado: perder cerca de 0,7% do peso por semana (as pesquisas indicam 0,5% a 1% para
+ * perder gordura sem perder músculo) e ganhar cerca de 0,25% por semana (ganho de massa magra).
+ */
+export function goalProjection(weightKg: number, targetKg: number, now = new Date()): GoalProjection {
+  const diff = targetKg - weightKg;
+  if (Math.abs(diff) < 0.5) {
+    return { direction: "manter", ratePerWeek: 0, weeks: 0, date: now.toISOString() };
+  }
+  const direction = diff < 0 ? "perder" : "ganhar";
+  const ratePerWeek = direction === "perder" ? Math.max(0.25, weightKg * 0.007) : Math.max(0.1, weightKg * 0.0025);
+  const weeks = Math.ceil(Math.abs(diff) / ratePerWeek);
+  return { direction, ratePerWeek, weeks, date: new Date(now.getTime() + weeks * 7 * 86_400_000).toISOString() };
+}
+
+/** "fevereiro de 2027" */
+export function monthYear(iso: string): string {
+  return new Date(iso).toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
 }
 
 function optionScore(stepId: string, value: string | undefined): number | null {
@@ -332,9 +420,21 @@ export interface DiagnosticResult {
   heightCm: number;
   bmi: number;
   bmiLabel: string;
+  /** Peso meta e quando a pessoa chega lá */
+  goal: { kg: number; projection: GoalProjection };
+  /** Onde treina e tempo por treino, como a pessoa respondeu */
+  trainingPlace: string;
+  sessionMinutes: number | null;
   /** As áreas mais fracas, da pior para a melhor (até 3) */
   focus: AreaKey[];
 }
+
+const PLACE_LABEL: Record<string, string> = {
+  academia: "na academia",
+  "academia-pequena": "numa academia pequena",
+  "casa-halteres": "em casa, com halteres",
+  casa: "em casa, sem equipamento",
+};
 
 const GOAL_LABEL: Record<string, string> = {
   emagrecer: "para emagrecer",
@@ -413,6 +513,9 @@ export function computeResult(answers: Answers): DiagnosticResult {
     heightCm: height,
     bmi: Math.round((weight / (height / 100) ** 2) * 10) / 10,
     bmiLabel: bmiLabel(weight / (height / 100) ** 2),
+    goal: { kg: goalKg(answers), projection: goalProjection(weight, goalKg(answers)) },
+    trainingPlace: PLACE_LABEL[answers.local] ?? "",
+    sessionMinutes: Number(answers.tempo) || null,
     focus: [...areas].sort((a, b) => a.score - b.score).slice(0, 3).map((a) => a.key),
   };
 }
@@ -422,8 +525,8 @@ export function planStep(area: AreaKey, r: DiagnosticResult): { title: string; t
   switch (area) {
     case "treino":
       return {
-        title: `Treinar ${r.trainingDays}x por semana com um plano feito pra você`,
-        text: "O Théo monta a divisão pro seu objetivo e nível, com vídeo de execução de cada exercício e a carga sugerida.",
+        title: `Treinar ${r.trainingDays}x por semana${r.sessionMinutes ? `, ${r.sessionMinutes} min por treino` : ""}`,
+        text: `O Théo monta a divisão pro seu objetivo e nível${r.trainingPlace ? `, só com o que dá pra fazer ${r.trainingPlace}` : ""}, com vídeo de execução de cada exercício e a carga sugerida.`,
       };
     case "constancia":
       return {

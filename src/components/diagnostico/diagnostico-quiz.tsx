@@ -20,6 +20,10 @@ import {
   computeResult,
   formatLitersShort,
   formatWhatsapp,
+  goalKg,
+  goalProjection,
+  healthyMinKg,
+  monthYear,
   needsMedicalClearance,
   planStep,
   selectedConditions,
@@ -209,6 +213,10 @@ export function DiagnosticoQuiz({ plans, trialDays }: { plans: Plan[]; trialDays
     if (step.kind === "measures" && !validMeasures(answers)) {
       setError("Confere a altura (em cm) e o peso (em kg)?");
       return;
+    }
+    // Quem segue sem mexer no peso meta fica com a sugestão mostrada na tela
+    if (step.kind === "goal" && !answers.peso_meta) {
+      setAnswers((prev) => ({ ...prev, peso_meta: String(goalKg(prev)) }));
     }
     go(index + 1);
   }
@@ -808,9 +816,118 @@ function StepView({
         </div>
       );
 
+    case "goal":
+      return <GoalStep step={step} answers={answers} onAnswer={onAnswer} />;
+
     case "insight":
       return <Insight id={step.id} section={step.section} answers={answers} />;
   }
+}
+
+const kgText = (kg: number) => kg.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+
+/** Peso meta: número grande com −/+, régua e a data prevista no ritmo recomendado */
+function GoalStep({
+  step,
+  answers,
+  onAnswer,
+}: {
+  step: Extract<Step, { kind: "goal" }>;
+  answers: Answers;
+  onAnswer: (id: string, value: string, autoAdvance: boolean) => void;
+}) {
+  const reduceMotion = useReducedMotion();
+  const weight = Number((answers.peso ?? "").replace(",", "."));
+  const height = Number((answers.altura ?? "").replace(",", "."));
+  const minKg = Math.max(healthyMinKg(height), Math.round((weight - 40) * 2) / 2);
+  const maxKg = Math.round((weight + 30) * 2) / 2;
+  const target = Math.min(maxKg, Math.max(minKg, goalKg(answers)));
+  const projection = goalProjection(weight, target);
+  const set = (kg: number) => onAnswer("peso_meta", String(Math.min(maxKg, Math.max(minKg, Math.round(kg * 2) / 2))), false);
+
+  // Curva do peso de hoje até a meta: desce para perder, sobe para ganhar
+  const [y0, y1] = projection.direction === "perder" ? [22, 78] : projection.direction === "ganhar" ? [78, 22] : [50, 50];
+  const curve = `M 12 ${y0} C 120 ${y0}, 170 ${y1}, 288 ${y1}`;
+
+  return (
+    <div>
+      <QuestionTitle step={step} />
+      <div className="flex items-center justify-between gap-3">
+        <Button type="button" variant="outline" size="icon" aria-label="Meio quilo a menos" onClick={() => set(target - 0.5)}>
+          <Minus className="h-4 w-4" />
+        </Button>
+        <p className="tabular text-5xl font-bold text-foreground">
+          {kgText(target)}
+          <span className="ml-1 text-lg font-medium text-muted-foreground">kg</span>
+        </p>
+        <Button type="button" variant="outline" size="icon" aria-label="Meio quilo a mais" onClick={() => set(target + 0.5)}>
+          <Plus className="h-4 w-4" />
+        </Button>
+      </div>
+      <input
+        type="range"
+        min={minKg}
+        max={maxKg}
+        step={0.5}
+        value={target}
+        onChange={(e) => set(Number(e.target.value))}
+        aria-label="Peso meta em kg"
+        className="mt-5 w-full accent-[var(--primary)]"
+      />
+
+      <div className="mt-6 rounded-2xl border border-border/60 bg-card p-4">
+        {projection.direction === "manter" ? (
+          <>
+            <p className="text-xs font-semibold tracking-wide text-primary uppercase">Manter o peso</p>
+            <p className="mt-1.5 text-sm text-foreground/90">
+              O foco vira trocar gordura por músculo: o número da balança fica, o corpo muda.
+            </p>
+          </>
+        ) : (
+          <>
+            <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">Você chega lá por volta de</p>
+            <p className="mt-1 text-2xl font-bold text-primary first-letter:uppercase">{monthYear(projection.date)}</p>
+            <svg viewBox="0 0 300 100" className="mt-3 h-24 w-full overflow-visible" aria-hidden>
+              <defs>
+                <linearGradient id="dx-goal-fill" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="var(--primary)" stopOpacity="0.25" />
+                  <stop offset="100%" stopColor="var(--primary)" stopOpacity="0" />
+                </linearGradient>
+              </defs>
+              <path d={`${curve} L 288 100 L 12 100 Z`} fill="url(#dx-goal-fill)" />
+              <motion.path
+                key={projection.direction}
+                d={curve}
+                fill="none"
+                stroke="var(--primary)"
+                strokeWidth="3"
+                strokeLinecap="round"
+                initial={{ pathLength: reduceMotion ? 1 : 0 }}
+                animate={{ pathLength: 1 }}
+                transition={{ duration: reduceMotion ? 0 : 0.9, ease: [0.33, 1, 0.68, 1] }}
+              />
+              <circle cx="12" cy={y0} r="5" className="fill-muted-foreground" />
+              <circle cx="288" cy={y1} r="6" fill="var(--primary)" />
+            </svg>
+            <div className="mt-1 flex justify-between text-xs text-muted-foreground">
+              <span>Hoje · {kgText(weight)} kg</span>
+              <span className="font-semibold text-foreground">
+                {kgText(target)} kg · {projection.weeks} {projection.weeks === 1 ? "semana" : "semanas"}
+              </span>
+            </div>
+            <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
+              {projection.direction === "perder"
+                ? `Estimativa no ritmo de ${kgText(projection.ratePerWeek)} kg por semana, dentro do que as pesquisas recomendam para perder gordura sem perder músculo (0,5% a 1% do peso por semana).`
+                : `Estimativa no ritmo de ${kgText(projection.ratePerWeek)} kg por semana, o ganho de massa magra que as pesquisas costumam observar em quem treina e come proteína suficiente.`}
+            </p>
+          </>
+        )}
+        <p className="mt-2 text-xs text-muted-foreground">
+          Peso saudável para a sua altura: a partir de {kgText(healthyMinKg(height))} kg (IMC 18,5, OMS).
+        </p>
+      </div>
+    </div>
+  );
 }
 
 function Insight({ id, section, answers }: { id: string; section: string; answers: Answers }) {
@@ -1056,6 +1173,26 @@ function Result({
         <p className="mt-2 text-xs text-muted-foreground">
           O IMC não separa músculo de gordura. Serve só como referência de onde você parte.
         </p>
+        <div className="mt-4 flex items-center justify-between gap-3 rounded-2xl border border-primary/30 bg-primary/5 px-4 py-3.5">
+          <span>
+            <span className="block text-xs text-muted-foreground">Sua meta</span>
+            <span className="tabular block text-xl font-bold text-foreground">
+              {result.goal.kg.toLocaleString("pt-BR", { maximumFractionDigits: 1 })} kg
+            </span>
+          </span>
+          <span className="text-right text-sm">
+            {result.goal.projection.direction === "manter" ? (
+              <span className="text-foreground/90">Manter o peso e trocar gordura por músculo</span>
+            ) : (
+              <>
+                <span className="block text-muted-foreground">por volta de</span>
+                <span className="block font-semibold text-primary first-letter:uppercase">
+                  {monthYear(result.goal.projection.date)}
+                </span>
+              </>
+            )}
+          </span>
+        </div>
       </section>
 
       <section className="mt-8" aria-labelledby="dx-meta">
