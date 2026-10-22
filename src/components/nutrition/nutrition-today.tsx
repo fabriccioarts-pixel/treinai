@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, UtensilsCrossed } from "lucide-react";
 import { MealLogger } from "@/components/nutrition/meal-logger";
 import { MealList } from "@/components/nutrition/meal-list";
 import { WaterTracker } from "@/components/nutrition/water-tracker";
@@ -89,6 +89,22 @@ export function NutritionToday({
       </div>
 
       <WaterTracker entries={water?.entries ?? []} targetMl={water?.targetMl ?? plan?.waterTodayMl ?? 2000} />
+
+      {plan && (
+        <Link
+          href="/cardapio"
+          className="group flex items-center gap-4 rounded-2xl border border-border bg-card p-4 transition-colors hover:border-primary/40"
+        >
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary">
+            <UtensilsCrossed className="h-5 w-5" />
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold text-foreground">Cardápio da semana</p>
+            <p className="mt-0.5 text-xs text-muted-foreground">O que comer em cada dia, com trocas e lista de compras.</p>
+          </div>
+          <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+        </Link>
+      )}
 
       {!plan && (
         <Link

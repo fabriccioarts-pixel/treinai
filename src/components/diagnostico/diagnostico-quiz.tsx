@@ -35,6 +35,7 @@ import {
 } from "@/lib/diagnostico";
 import type { Plan } from "@/lib/worker-api";
 import { cn } from "@/lib/utils";
+import { trackSpotlight } from "@/lib/spotlight";
 
 /*
  * Quiz público: uma pergunta por tela, avanço automático nas escolhas únicas, progresso salvo no
@@ -83,16 +84,6 @@ const ANALYSIS_LINES = [
   "Calculando sua meta de água",
   "Montando seu plano",
 ];
-
-/** Passa a posição do mouse para a opção sob ele; a luz em si é o ::before de .spotlight (globals.css) */
-function trackSpotlight(e: React.PointerEvent) {
-  if (e.pointerType !== "mouse") return;
-  const el = (e.target as HTMLElement).closest<HTMLElement>(".spotlight");
-  if (!el) return;
-  const r = el.getBoundingClientRect();
-  el.style.setProperty("--mx", `${e.clientX - r.left}px`);
-  el.style.setProperty("--my", `${e.clientY - r.top}px`);
-}
 
 export function DiagnosticoQuiz({ plans, trialDays }: { plans: Plan[]; trialDays: number }) {
   const reduceMotion = useReducedMotion();

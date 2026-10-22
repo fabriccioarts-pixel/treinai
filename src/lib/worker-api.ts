@@ -5,6 +5,7 @@
 import "server-only";
 import type { MealEstimate, MealItem, MealType, MealsToday, ProfileInput, ProfilePlan } from "@/lib/nutrition";
 import type { BadgeTier, Gamification, SessionSummary } from "@/lib/gamification";
+import type { MealPlanPreferences, SavedMealPlan } from "@/lib/meal-plan";
 
 /** Treino criado ou alterado pelo Théo numa resposta */
 /** O que o Théo fez com as ferramentas numa resposta (mesmo formato do worker) */
@@ -621,6 +622,21 @@ export const workerApi = {
       method: "POST",
       body: JSON.stringify({ userId }),
     }),
+
+  /** Cardápio da semana mais recente (null se ainda não montou) */
+  getMealPlan: (userId: string) =>
+    workerFetch<{ mealPlan: SavedMealPlan | null }>(`/meal-plans?userId=${encodeURIComponent(userId)}`),
+
+  /** Monta um cardápio novo com as metas do perfil (cerca de 1 minuto) */
+  createMealPlan: (userId: string, preferences: MealPlanPreferences) =>
+    workerFetch<{ mealPlan: SavedMealPlan }>("/meal-plans", {
+      method: "POST",
+      body: JSON.stringify({ userId, preferences }),
+    }),
+
+  /** Respostas do diagnóstico feito com o e-mail da conta (null se não fez) */
+  getDiagnosticAnswers: (userId: string) =>
+    workerFetch<{ answers: Record<string, string> | null }>(`/leads/mine?userId=${encodeURIComponent(userId)}`),
 
   /** Contato deixado no fim do diagnóstico */
   saveLead: (lead: {

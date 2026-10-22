@@ -4,6 +4,7 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { ArrowRight } from "lucide-react";
 import { STEPS } from "@/lib/diagnostico";
+import { trackSpotlight } from "@/lib/spotlight";
 
 /*
  * Primeira pergunta do diagnóstico dentro da landing. A resposta segue para /diagnostico?sexo=…,
@@ -29,14 +30,7 @@ export function QuizTeaser() {
   return (
     <div
       className="rounded-[1.75rem] border border-white/10 bg-card/70 p-4 shadow-[0_40px_80px_-48px_color-mix(in_oklch,var(--primary)_55%,transparent)] backdrop-blur-sm sm:p-5"
-      onPointerMove={(e) => {
-        if (e.pointerType !== "mouse") return;
-        const el = (e.target as HTMLElement).closest<HTMLElement>(".spotlight");
-        if (!el) return;
-        const r = el.getBoundingClientRect();
-        el.style.setProperty("--mx", `${e.clientX - r.left}px`);
-        el.style.setProperty("--my", `${e.clientY - r.top}px`);
-      }}
+      onPointerMove={trackSpotlight}
     >
       <div className="flex items-center gap-3">
         <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">

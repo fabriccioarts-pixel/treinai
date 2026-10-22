@@ -4,6 +4,7 @@ import { computeLevel } from "./badges";
 import { loadWeeklyMissions } from "./missions";
 import { loadStreak } from "./streak-shields";
 import { loadTotalXp } from "./xp";
+import { formatDiagnosticForCoach, loadDiagnosticAnswers } from "./diagnostic-summary";
 
 const GOAL_LABEL: Record<string, string> = {
   hipertrofia: "hipertrofia",
@@ -173,7 +174,7 @@ RECORDES PESSOAIS RECENTES (carga):
 ${prsText}
 
 ÚLTIMOS TREINOS CONCLUÍDOS:
-${sessionsText}${await gamificationText(db, userId)}`;
+${sessionsText}${formatDiagnosticForCoach(await loadDiagnosticAnswers(db, userId))}${await gamificationText(db, userId)}`;
 }
 
 /** Tabela nova (migração 0012): se ainda não existir, o Théo segue sem essa informação */

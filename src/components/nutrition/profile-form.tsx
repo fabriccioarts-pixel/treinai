@@ -147,9 +147,12 @@ function NumberField({
 export function ProfileForm({
   mode,
   initial,
+  prefill,
 }: {
   mode: "onboarding" | "edit";
   initial?: Partial<ProfileInput>;
+  /** Respostas já conhecidas (ex.: do diagnóstico): vêm marcadas, mas a pessoa passa por todas as perguntas */
+  prefill?: Partial<ProfileInput>;
 }) {
   const router = useRouter();
   const reduceMotion = useReducedMotion();
@@ -166,19 +169,20 @@ export function ProfileForm({
   const [pending, startTransition] = useTransition();
   const advanceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const [goal, setGoal] = useState<Goal | null>(initial?.goal ?? null);
-  const [emphasis, setEmphasis] = useState<string | null>(initial?.emphasis ?? null);
-  const [trainingDays, setTrainingDays] = useState<number | null>(initial?.trainingDays ?? null);
-  const [sex, setSex] = useState<Sex | null>(initial?.sex ?? null);
-  const [birthDate, setBirthDate] = useState(initial?.birthDate ?? "");
-  const [height, setHeight] = useState(initial?.heightCm ? String(initial.heightCm) : "");
-  const [weight, setWeight] = useState(toInput(initial?.weightKg));
-  const [bodyFat, setBodyFat] = useState(toInput(initial?.bodyFatPct));
-  const [targetWeight, setTargetWeight] = useState(toInput(initial?.targetWeightKg));
-  const [activity, setActivity] = useState<ActivityLevel | null>(initial?.activityLevel ?? null);
-  const [wakeTime, setWakeTime] = useState(initial?.wakeTime ?? "07:00");
-  const [sleepTime, setSleepTime] = useState(initial?.sleepTime ?? "23:00");
-  const [healthRestriction, setHealthRestriction] = useState<boolean | null>(initial?.healthRestriction ?? null);
+  const seed = initial ?? prefill;
+  const [goal, setGoal] = useState<Goal | null>(seed?.goal ?? null);
+  const [emphasis, setEmphasis] = useState<string | null>(seed?.emphasis ?? null);
+  const [trainingDays, setTrainingDays] = useState<number | null>(seed?.trainingDays ?? null);
+  const [sex, setSex] = useState<Sex | null>(seed?.sex ?? null);
+  const [birthDate, setBirthDate] = useState(seed?.birthDate ?? "");
+  const [height, setHeight] = useState(seed?.heightCm ? String(seed.heightCm) : "");
+  const [weight, setWeight] = useState(toInput(seed?.weightKg));
+  const [bodyFat, setBodyFat] = useState(toInput(seed?.bodyFatPct));
+  const [targetWeight, setTargetWeight] = useState(toInput(seed?.targetWeightKg));
+  const [activity, setActivity] = useState<ActivityLevel | null>(seed?.activityLevel ?? null);
+  const [wakeTime, setWakeTime] = useState(seed?.wakeTime ?? "07:00");
+  const [sleepTime, setSleepTime] = useState(seed?.sleepTime ?? "23:00");
+  const [healthRestriction, setHealthRestriction] = useState<boolean | null>(seed?.healthRestriction ?? null);
   const [consent, setConsent] = useState(!needsConsent);
 
   const step = STEPS[stepIndex];

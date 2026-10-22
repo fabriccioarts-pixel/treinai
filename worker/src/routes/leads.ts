@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { z } from "zod";
 import { newId, nowIso } from "../lib/id";
+import { loadDiagnosticAnswers } from "../lib/diagnostic-summary";
 
 export const leadRoutes = new Hono<{ Bindings: Env }>();
 
@@ -39,6 +40,13 @@ leadRoutes.post("/", async (c) => {
     )
     .run();
   return c.json({ id }, 201);
+});
+
+/** Respostas do diagnóstico ligado à conta (pré-preenche o perfil no onboarding) */
+leadRoutes.get("/mine", async (c) => {
+  const userId = c.req.query("userId");
+  if (!userId) return c.json({ error: "missing_userId" }, 400);
+  return c.json({ answers: await loadDiagnosticAnswers(c.env.DB, userId) });
 });
 
 /** Liga os diagnósticos feitos com esse e-mail à conta recém-criada (para medir o funil) */
