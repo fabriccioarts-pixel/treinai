@@ -27,7 +27,7 @@
     "crons": ["0 * * * *"]
   },
   "vars": {
-    "APP_URL": "https://treinai-taupe.vercel.app",
+    "APP_URL": "https://treinai.fit",
     "VAPID_SUBJECT": "mailto:fabriccioarts@gmail.com",
     // Dias de teste grátis com a IA liberada; depois, só com assinatura (src/lib/billing.ts)
     "TRIAL_DAYS": "3",
