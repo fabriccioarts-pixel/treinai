@@ -33,7 +33,10 @@
     "TRIAL_DAYS": "3",
     // Ids das ofertas na Cakto (o final do link pay.cakto.com.br/<id>); vazio = checkout desligado
     "CAKTO_OFFER_MENSAL": "3esbaq9_1222082",
-    "CAKTO_OFFER_TRIMESTRAL": "8g6hp4p"
+    "CAKTO_OFFER_TRIMESTRAL": "8g6hp4p",
+    // Remetente dos e-mails (Resend). O onboarding@resend.dev só entrega para o dono da conta Resend:
+    // troque por um endereço do seu domínio verificado no Resend (ex.: "Théo do Treinai <theo@seudominio.com>")
+    "EMAIL_FROM": "Treinai <onboarding@resend.dev>"
   }
   // Segredos da Cakto (wrangler secret put): CAKTO_WEBHOOK_SECRET (obrigatório),
   // CAKTO_CLIENT_ID e CAKTO_CLIENT_SECRET (opcionais: cancelar a assinatura pelo app)

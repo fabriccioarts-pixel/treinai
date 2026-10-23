@@ -23,6 +23,7 @@ import { leadRoutes } from "./routes/leads";
 import { mealPlanRoutes } from "./routes/meal-plans";
 import { bodyRoutes } from "./routes/body";
 import { runHourlyReminders } from "./lib/reminders";
+import { runTrialEmails } from "./lib/trial-emails";
 
 const app = new Hono<{ Bindings: Env }>();
 
@@ -57,8 +58,9 @@ app.route("/body", bodyRoutes);
 
 export default {
   fetch: app.fetch,
-  // Cron de hora em hora (wrangler.jsonc): lembretes de água e de treino
+  // Cron de hora em hora (wrangler.jsonc): lembretes de água e de treino e e-mails do teste grátis
   async scheduled(_controller, env, ctx) {
     ctx.waitUntil(runHourlyReminders(env));
+    ctx.waitUntil(runTrialEmails(env));
   },
 } satisfies ExportedHandler<Env>;

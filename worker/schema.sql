@@ -260,3 +260,11 @@ CREATE TABLE IF NOT EXISTS body_analyses (
   created_at TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_body_analyses_user ON body_analyses(user_id, created_at);
+
+-- E-mails do ciclo do teste já enviados (migração 0018)
+CREATE TABLE IF NOT EXISTS email_log (
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  kind TEXT NOT NULL,
+  sent_at TEXT NOT NULL,
+  PRIMARY KEY (user_id, kind)
+);

@@ -9,6 +9,7 @@ interface __BaseEnv_Env {
 	TRIAL_DAYS: "3";
 	CAKTO_OFFER_MENSAL: string;
 	CAKTO_OFFER_TRIMESTRAL: string;
+	EMAIL_FROM: "Treinai <onboarding@resend.dev>";
 	WORKER_API_SECRET: string;
 	RESEND_API_KEY: string;
 	ANTHROPIC_API_KEY: string;
@@ -31,7 +32,7 @@ type StringifyValues<EnvType extends Record<string, unknown>> = {
 	[Binding in keyof EnvType]: EnvType[Binding] extends string ? EnvType[Binding] : string;
 };
 declare namespace NodeJS {
-	interface ProcessEnv extends StringifyValues<Pick<Cloudflare.Env, "APP_URL" | "VAPID_SUBJECT" | "TRIAL_DAYS" | "CAKTO_OFFER_MENSAL" | "CAKTO_OFFER_TRIMESTRAL" | "WORKER_API_SECRET" | "RESEND_API_KEY" | "ANTHROPIC_API_KEY" | "GEMINI_API_KEY" | "GOOGLE_API_KEY" | "VAPID_PUBLIC_KEY" | "VAPID_PRIVATE_KEY" | "CAKTO_WEBHOOK_SECRET" | "CAKTO_CLIENT_ID" | "CAKTO_CLIENT_SECRET">> {}
+	interface ProcessEnv extends StringifyValues<Pick<Cloudflare.Env, "APP_URL" | "VAPID_SUBJECT" | "TRIAL_DAYS" | "CAKTO_OFFER_MENSAL" | "CAKTO_OFFER_TRIMESTRAL" | "EMAIL_FROM" | "WORKER_API_SECRET" | "RESEND_API_KEY" | "ANTHROPIC_API_KEY" | "GEMINI_API_KEY" | "GOOGLE_API_KEY" | "VAPID_PUBLIC_KEY" | "VAPID_PRIVATE_KEY" | "CAKTO_WEBHOOK_SECRET" | "CAKTO_CLIENT_ID" | "CAKTO_CLIENT_SECRET">> {}
 }
 
 // Begin runtime types

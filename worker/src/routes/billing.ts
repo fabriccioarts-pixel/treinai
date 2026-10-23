@@ -2,8 +2,7 @@ import { Hono, type Context } from "hono";
 import { PLANS, getAccess, isPlanKey, trialDays } from "../lib/billing";
 import { CaktoError, applyCaktoEvent, cancelCaktoSubscription, checkoutUrl, verifyCaktoWebhook, type CaktoOrder } from "../lib/cakto";
 import { nowIso } from "../lib/id";
-import { loadStreak } from "../lib/streak-shields";
-import { loadDiagnosticAnswers } from "../lib/diagnostic-summary";
+import { loadTrialRecap } from "../lib/trial-recap";
 
 export const billingRoutes = new Hono<{ Bindings: Env }>();
 
@@ -21,69 +20,13 @@ billingRoutes.get("/", async (c) => {
   return c.json({ ...access, plans: plansPayload(), trialDays: trialDays(c.env) });
 });
 
-/** Datas do D1: "AAAA-MM-DD HH:MM:SS" (UTC, sem fuso) ou ISO completo */
-function parseDbDate(value: string): number {
-  return Date.parse(/[zZ]|[+-]dd:?dd$/.test(value) ? value : `${value.replace(" ", "T")}Z`);
-}
-
-/**
- * Resumo do que a pessoa fez desde o cadastro, para a tela de fim de teste mostrar o que ela
- * conquistou e o que perde sem assinar. Tabelas opcionais (migração ainda não rodou) contam zero.
- */
+/** O que a pessoa fez desde o cadastro, para a tela de fim de teste (src/lib/trial-recap.ts) */
 billingRoutes.get("/recap", async (c) => {
   const userId = c.req.query("userId");
   if (!userId) return c.json({ error: "invalid_input" }, 400);
-  const db = c.env.DB;
-
-  const user = await db.prepare("SELECT name, created_at FROM users WHERE id = ?")
-    .bind(userId)
-    .first<{ name: string; created_at: string }>();
-  if (!user) return c.json({ error: "user_not_found" }, 404);
-
-  const count = async (sql: string) => {
-    try {
-      return (await db.prepare(sql).bind(userId).first<{ n: number }>())?.n ?? 0;
-    } catch {
-      return 0;
-    }
-  };
-
-  const [workoutsDone, workoutsCreated, meals, waterMl, records, coachMessages, mealPlans, streak, profile, diagnostic] =
-    await Promise.all([
-      count("SELECT COUNT(*) AS n FROM workout_sessions WHERE user_id = ? AND finished_at IS NOT NULL"),
-      count("SELECT COUNT(*) AS n FROM workouts WHERE user_id = ? AND archived_at IS NULL"),
-      count("SELECT COUNT(*) AS n FROM meals WHERE user_id = ?"),
-      count("SELECT COALESCE(SUM(amount_ml), 0) AS n FROM water_logs WHERE user_id = ?"),
-      count("SELECT COUNT(*) AS n FROM personal_records WHERE user_id = ?"),
-      count(
-        `SELECT COUNT(*) AS n FROM coach_messages m JOIN coach_conversations c ON c.id = m.conversation_id
-         WHERE c.user_id = ? AND m.role = 'user' AND m.hidden = 0`,
-      ),
-      count("SELECT COUNT(*) AS n FROM meal_plans WHERE user_id = ?"),
-      loadStreak(db, userId).catch(() => null),
-      db.prepare("SELECT weight_kg, target_weight_kg FROM user_profiles WHERE user_id = ?")
-        .bind(userId)
-        .first<{ weight_kg: number; target_weight_kg: number | null }>()
-        .catch(() => null),
-      loadDiagnosticAnswers(db, userId),
-    ]);
-
-  const weightKg = profile?.weight_kg ?? (Number(diagnostic?.peso) || null);
-  const targetKg = profile?.target_weight_kg ?? (Number(diagnostic?.peso_meta) || null);
-
-  return c.json({
-    firstName: (user.name || diagnostic?.nome || "").trim().split(/\s+/)[0] ?? "",
-    daysSinceSignup: Math.max(1, Math.ceil((Date.now() - parseDbDate(user.created_at)) / 86_400_000)),
-    workoutsDone,
-    workoutsCreated,
-    meals,
-    waterMl,
-    records,
-    coachMessages,
-    hasMealPlan: mealPlans > 0,
-    streakDays: streak?.streakDays ?? 0,
-    goal: weightKg && targetKg ? { weightKg, targetKg } : null,
-  });
+  const recap = await loadTrialRecap(c.env.DB, userId);
+  if (!recap) return c.json({ error: "user_not_found" }, 404);
+  return c.json(recap);
 });
 
 /** Link de pagamento da Cakto para o plano, já com a conta e o contato da pessoa */
