@@ -670,6 +670,9 @@ export const workerApi = {
   /** Teste grátis, assinatura e planos do usuário */
   getBilling: (userId: string) => workerFetch<Billing>(`/billing?userId=${encodeURIComponent(userId)}`),
 
+  /** O que a pessoa fez desde o cadastro, para a tela de fim de teste */
+  getTrialRecap: (userId: string) => workerFetch<TrialRecap>(`/billing/recap?userId=${encodeURIComponent(userId)}`),
+
   /** Link de pagamento da Cakto para o plano, já com a conta e o contato da pessoa */
   createCheckout: (userId: string, plan: PlanKey) =>
     workerFetch<{ url: string }>("/billing/checkout", {
@@ -721,6 +724,20 @@ export interface Plan {
   label: string;
   months: number;
   amountCents: number;
+}
+
+export interface TrialRecap {
+  firstName: string;
+  daysSinceSignup: number;
+  workoutsDone: number;
+  workoutsCreated: number;
+  meals: number;
+  waterMl: number;
+  records: number;
+  coachMessages: number;
+  hasMealPlan: boolean;
+  streakDays: number;
+  goal: { weightKg: number; targetKg: number } | null;
 }
 
 export interface BillingAccess {

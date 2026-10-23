@@ -6,6 +6,7 @@ import { ArrowLeft } from "lucide-react";
 import { auth } from "@/auth";
 import { PlanCards } from "@/components/billing/plan-cards";
 import { CancelSubscriptionButton } from "@/components/billing/cancel-subscription-button";
+import { TrialRecap } from "@/components/billing/trial-recap";
 import { daysLeft, formatBRL, formatDate } from "@/lib/billing";
 import { workerApi } from "@/lib/worker-api";
 
@@ -65,10 +66,15 @@ export default async function AssinarPage() {
         ? days <= 1
           ? "Seu teste grátis termina hoje. Escolha um plano para continuar com o Théo."
           : `Faltam ${days} dias do seu teste grátis. Assine agora e continue sem interrupção.`
-        : "Seu teste grátis acabou. Seus treinos e registros continuam salvos — assine para voltar a falar com o Théo.";
+        : "Seu teste grátis acabou. Escolha um plano para voltar a falar com o Théo.";
+
+  // No teste ou depois dele: o resumo do que a pessoa já fez vem antes dos planos
+  const recap =
+    billing.status !== "active" ? await workerApi.getTrialRecap(session.user.id).catch(() => null) : null;
 
   return (
     <Shell title="Continue com o Théo" subtitle={subtitle}>
+      {recap && <TrialRecap recap={recap} expired={billing.status === "expired"} />}
       <PlanCards plans={billing.plans} mode="checkout" trialDays={billing.trialDays} />
     </Shell>
   );
