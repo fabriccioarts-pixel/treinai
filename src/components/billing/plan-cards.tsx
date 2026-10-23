@@ -142,7 +142,7 @@ export function PlanCards({
         <p className="mt-3 text-center text-xs text-muted-foreground">
           {mode === "trial"
             ? `Sem cartão agora. Depois do teste, escolha o plano para continuar com o Théo.`
-            : "Pagamento seguro pela Cakto. Você tem 7 dias para desistir com reembolso integral."}
+            : "Pagamento seguro. Você tem 7 dias para desistir com reembolso integral."}
         </p>
       </div>
     </div>

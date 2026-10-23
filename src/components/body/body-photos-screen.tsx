@@ -221,7 +221,7 @@ export function BodyPhotosScreen({
           ) : !consent.ai ? (
             <div className="space-y-3">
               <p className="text-sm leading-relaxed text-muted-foreground">
-                Para analisar, as fotos do dia são enviadas ao serviço de IA do app (Google Gemini). Você ainda não
+                Para analisar, as fotos do dia são enviadas a um serviço de inteligência artificial parceiro. Você ainda não
                 autorizou isso.
               </p>
               <Button
@@ -368,7 +368,7 @@ export function BodyPhotosScreen({
             <span>
               <span className="block text-sm font-medium text-foreground">Análise por IA</span>
               <span className="block text-xs leading-relaxed text-muted-foreground">
-                Envia as fotos do dia ao serviço de IA (Google Gemini) só quando você pede uma análise.
+                Envia as fotos do dia a um serviço de IA parceiro só quando você pede uma análise.
               </span>
             </span>
             <input

@@ -37,7 +37,7 @@ export default async function AssinaturaObrigadoPage() {
       <p className="mt-2 text-sm text-muted-foreground">
         {confirmed
           ? "Sua assinatura está ativa. Bora pro próximo treino?"
-          : "Assim que a Cakto confirmar, o Théo é liberado — no cartão é na hora, no Pix pode levar alguns minutos. Use o mesmo e-mail da sua conta no Treinai."}
+          : "Assim que o pagamento for confirmado, o Théo é liberado — no cartão é na hora, no Pix pode levar alguns minutos. Use o mesmo e-mail da sua conta no Treinai."}
       </p>
       <Link
         href={confirmed ? "/" : "/assinar"}

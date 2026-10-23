@@ -31,7 +31,7 @@ export async function cancelSubscriptionAction(): Promise<{ error?: string }> {
   } catch (err) {
     if (err instanceof WorkerApiError && err.status === 503) {
       return {
-        error: "O cancelamento pelo app ainda não está ativo. Use o link do e-mail de confirmação da Cakto ou fale com a gente.",
+        error: "O cancelamento pelo app ainda não está ativo. Use o link do e-mail de confirmação da compra ou fale com a gente.",
       };
     }
     return { error: "Não foi possível cancelar agora. Tente de novo ou fale com a gente." };

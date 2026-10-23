@@ -81,7 +81,7 @@ export function BodyConsent({ className }: { className?: string }) {
         </Check>
         <Check checked={ai} onChange={setAi}>
           <strong className="font-semibold text-foreground">Autorizo a análise por IA</strong>: quando eu pedir, as
-          fotos daquele dia são enviadas ao serviço de IA do app (Google Gemini) para avaliar o shape e sugerir um
+          fotos daquele dia são enviadas a um serviço de inteligência artificial parceiro para avaliar o shape e sugerir um
           treino. <span className="text-muted-foreground">(opcional, dá para mudar depois)</span>
         </Check>
         <Check checked={adult} onChange={setAdult}>

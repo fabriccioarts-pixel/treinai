@@ -19,14 +19,14 @@ const SECTIONS = [
   {
     title: "Sobre o Théo",
     body: [
-      "O Théo é uma inteligência artificial (Google Gemini) com a personalidade de um treinador. Ele pode errar.",
+      "O Théo é uma inteligência artificial com a personalidade de um treinador. Ele pode errar.",
       "Ele não substitui médico, nutricionista ou educador físico. Com dor, lesão ou condição de saúde, procure um profissional antes de mudar o treino.",
     ],
   },
   {
     title: "Seus dados",
     body: [
-      "Treinos, séries, conversas com o Théo e fotos de treino ficam guardados na sua conta, em servidores da Cloudflare. As fotos de treino só aparecem para você.",
+      "Treinos, séries, conversas com o Théo e fotos de treino ficam guardados na sua conta, em servidores seguros. As fotos de treino só aparecem para você.",
       "Fotos de refeição são usadas só para estimar os nutrientes e não são guardadas.",
       "Os dados de corpo e saúde (peso, altura, rotina) só são salvos com o seu consentimento e podem ser apagados a qualquer momento em Corpo e plano.",
     ],
@@ -34,7 +34,7 @@ const SECTIONS = [
   {
     title: "Créditos",
     body: [
-      "Vídeos de demonstração gerados com o Google Flow a partir das fotos do free-exercise-db, de domínio público.",
+      "Vídeos de demonstração criados a partir das fotos do free-exercise-db, de domínio público.",
     ],
   },
 ];
