@@ -87,34 +87,46 @@ export default async function TreinoDetalhePage({
         </DropdownMenu>
       </div>
 
-      <h1 className="text-[2rem] font-semibold tracking-tight text-foreground">{workout.name}</h1>
-      <p className="mt-1.5 mb-5 text-sm text-muted-foreground">
-        {workout.exercises.length} exercícios · {totalSets} séries · ~{estimatedMinutes} min
-      </p>
+      <h1 className="text-[2rem] leading-tight font-bold tracking-tight text-balance text-foreground">{workout.name}</h1>
+
+      {/* Resumo do treino em três números */}
+      <dl className="mt-4 grid grid-cols-3 gap-2">
+        {[
+          { value: workout.exercises.length, label: "exercícios" },
+          { value: totalSets, label: "séries" },
+          { value: `~${estimatedMinutes}`, label: "minutos" },
+        ].map((stat) => (
+          <div key={stat.label} className="rounded-2xl border border-border/60 bg-card px-3 py-3 text-center">
+            <dd className="tabular text-2xl font-bold text-foreground">{stat.value}</dd>
+            <dt className="mt-0.5 text-[11px] text-muted-foreground">{stat.label}</dt>
+          </div>
+        ))}
+      </dl>
 
       {groupList.length > 1 && (
-        <div className="mb-6 rounded-xl bg-card p-4 ring-1 ring-foreground/10">
-          <p className="mb-2.5 text-xs font-semibold text-muted-foreground">
-            Distribuição por grupo muscular
-          </p>
-          <div className="flex h-2 w-full overflow-hidden rounded-full bg-muted">
+        <div className="mt-3 mb-6 rounded-2xl border border-border/60 bg-card p-4">
+          <p className="mb-3 text-xs font-semibold text-muted-foreground">Séries por grupo muscular</p>
+          <div className="flex h-2.5 w-full gap-0.5">
             {groupList.map((g) => (
               <div
                 key={g.key}
+                className="h-full rounded-full first:rounded-l-full last:rounded-r-full"
                 style={{ width: `${(g.sets / totalSets) * 100}%`, background: g.color }}
               />
             ))}
           </div>
-          <div className="mt-3 flex flex-wrap gap-3.5">
+          <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1.5">
             {groupList.map((g) => (
-              <span key={g.key} className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                <span className="h-2 w-2 rounded-full" style={{ background: g.color }} />
-                {g.label} · {Math.round((g.sets / totalSets) * 100)}%
+              <span key={g.key} className="flex items-center gap-2 text-xs text-muted-foreground">
+                <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: g.color }} />
+                <span className="flex-1 text-foreground/90">{g.label}</span>
+                <span className="tabular">{g.sets} {g.sets === 1 ? "série" : "séries"}</span>
               </span>
             ))}
           </div>
         </div>
       )}
+      {groupList.length <= 1 && <div className="mb-6" />}
 
       <WorkoutExerciseGroups
         exercises={workout.exercises}

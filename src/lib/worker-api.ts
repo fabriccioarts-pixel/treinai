@@ -729,7 +729,8 @@ export interface BillingAccess {
   trialEndsAt: string | null;
   subscription: {
     id: string;
-    plan: PlanKey;
+    /** vitalicio: acesso liberado à mão, sem cobrança */
+    plan: PlanKey | "vitalicio";
     /** canceled: sem renovação, mas o acesso vale até paidUntil; refunded/chargeback: acesso encerrado */
     status: "active" | "canceled" | "refunded" | "chargeback" | string;
     amountCents: number;

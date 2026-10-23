@@ -27,6 +27,18 @@ export default async function AssinarPage() {
   const sub = billing.subscription;
   const plan = sub ? billing.plans.find((p) => p.key === sub.plan) : null;
 
+  // Acesso vitalício (liberado à mão): sem cobrança, sem próxima data e sem botão de cancelar
+  if (billing.status === "active" && sub?.plan === "vitalicio") {
+    return (
+      <Shell title="Sua assinatura" subtitle="Tudo certo: o Théo está liberado.">
+        <div className="rounded-2xl border border-border/60 bg-card p-5">
+          <p className="text-base font-semibold text-foreground">Acesso vitalício</p>
+          <p className="mt-1 text-sm text-muted-foreground">Sem cobrança. Tudo do Treinai liberado, sem prazo para acabar.</p>
+        </div>
+      </Shell>
+    );
+  }
+
   if (billing.status === "active" && sub && sub.status === "active") {
     return (
       <Shell title="Sua assinatura" subtitle="Tudo certo: o Théo está liberado.">
