@@ -1,3 +1,5 @@
+import { layout, p } from "./email-layout";
+
 export interface EmailMessage {
   to: string;
   subject: string;
@@ -34,14 +36,26 @@ export async function sendEmail(env: Env, message: EmailMessage): Promise<void> 
   }
 }
 
-export async function sendPasswordResetEmail(env: Env, to: string, resetUrl: string): Promise<void> {
-  await sendEmail(env, {
+export function passwordResetEmail(to: string, resetUrl: string, appUrl: string): EmailMessage {
+  return {
     to,
     subject: "Redefinir sua senha — Treinai",
-    html: `
-        <p>Recebemos um pedido para redefinir sua senha no Treinai.</p>
-        <p><a href="${resetUrl}">Clique aqui para criar uma nova senha</a>. Este link expira em 1 hora.</p>
-        <p>Se você não pediu isso, ignore este e-mail.</p>
-      `,
-  });
+    html: layout({
+      appUrl,
+      preheader: "O link vale por 1 hora.",
+      eyebrow: "SUA CONTA",
+      title: "Vamos criar uma senha nova",
+      body: [
+        p("Recebemos um pedido para redefinir a senha da sua conta no Treinai."),
+        p("Toque no botão abaixo para escolher a nova senha. O link vale por <strong>1 hora</strong>."),
+      ].join(""),
+      cta: { label: "Criar nova senha", href: resetUrl },
+      ctaNote: "Se não foi você que pediu, ignore este e-mail: sua senha continua a mesma.",
+      reason: "Você recebe este e-mail porque alguém pediu para redefinir a senha desta conta.",
+    }),
+  };
+}
+
+export async function sendPasswordResetEmail(env: Env, to: string, resetUrl: string): Promise<void> {
+  await sendEmail(env, passwordResetEmail(to, resetUrl, env.APP_URL));
 }

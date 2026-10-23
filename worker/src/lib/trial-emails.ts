@@ -1,4 +1,5 @@
 import { sendEmail, type EmailMessage } from "./email";
+import { bullets, escapeHtml, layout, p, stats, steps } from "./email-layout";
 import { getAccess, trialDays } from "./billing";
 import { loadTrialRecap, type TrialRecap } from "./trial-recap";
 
@@ -14,58 +15,24 @@ type EmailKind = "boas-vindas" | "teste-acaba-amanha" | "teste-acabou";
 
 const HOUR_MS = 3_600_000;
 
-const COLORS = { bg: "#0b0d0b", card: "#151915", border: "#262b26", text: "#f1f5f1", muted: "#9aa59a", green: "#5ee36a" };
-
-function escapeHtml(value: string): string {
-  return value.replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[ch]!);
-}
-
 const liters = (ml: number) => `${(ml / 1000).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} L`;
 
-/** Moldura dos e-mails: fundo escuro, cartão, botão verde e rodapé explicando o porquê do e-mail */
-function layout({ preheader, body, cta }: { preheader: string; body: string; cta: { label: string; href: string } }): string {
-  return `<!doctype html>
-<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;padding:0;background:${COLORS.bg};">
-<span style="display:none;max-height:0;overflow:hidden;opacity:0;">${escapeHtml(preheader)}</span>
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${COLORS.bg};padding:24px 12px;">
-<tr><td align="center">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:${COLORS.card};border:1px solid ${COLORS.border};border-radius:20px;">
-<tr><td style="padding:28px 24px 8px;font-family:Arial,Helvetica,sans-serif;font-size:13px;font-weight:bold;letter-spacing:1px;color:${COLORS.green};">TREINAI</td></tr>
-<tr><td style="padding:8px 24px 0;font-family:Arial,Helvetica,sans-serif;font-size:16px;line-height:1.55;color:${COLORS.text};">${body}</td></tr>
-<tr><td style="padding:24px;">
-<a href="${cta.href}" style="display:block;text-align:center;background:${COLORS.green};color:#0b1a0c;font-family:Arial,Helvetica,sans-serif;font-size:16px;font-weight:bold;text-decoration:none;padding:16px;border-radius:999px;">${escapeHtml(cta.label)}</a>
-</td></tr>
-</table>
-<p style="max-width:520px;margin:16px auto 0;font-family:Arial,Helvetica,sans-serif;font-size:12px;line-height:1.5;color:${COLORS.muted};">
-Você recebe este e-mail porque criou uma conta no Treinai. São só 3 e-mails no seu teste grátis.
-</p>
-</td></tr></table>
-</body></html>`;
-}
-
-const p = (html: string) => `<p style="margin:0 0 14px;">${html}</p>`;
-const list = (items: string[]) =>
-  `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:4px 0 14px;">${items
-    .map(
-      (item) =>
-        `<tr><td style="padding:4px 10px 4px 0;vertical-align:top;color:${COLORS.green};font-weight:bold;">•</td><td style="padding:4px 0;color:${COLORS.text};">${item}</td></tr>`,
-    )
-    .join("")}</table>`;
+const REASON = "Você recebe este e-mail porque criou uma conta no Treinai. São só 3 e-mails no seu teste grátis.";
 
 /** "Fulana, " ou vazio, para abrir as frases */
 const hi = (recap: TrialRecap) => (recap.firstName ? `${escapeHtml(recap.firstName)}, ` : "");
 
-/** O que a pessoa fez no teste, só o que não for zero */
-function doneLines(r: TrialRecap): string[] {
-  return [
-    r.workoutsDone > 0 && `<strong>${r.workoutsDone}</strong> ${r.workoutsDone === 1 ? "treino concluído" : "treinos concluídos"}`,
-    r.records > 0 && `<strong>${r.records}</strong> ${r.records === 1 ? "recorde batido" : "recordes batidos"}`,
-    r.streakDays > 0 && `<strong>${r.streakDays}</strong> ${r.streakDays === 1 ? "dia" : "dias"} de constância`,
-    r.meals > 0 && `<strong>${r.meals}</strong> ${r.meals === 1 ? "refeição registrada" : "refeições registradas"}`,
-    r.waterMl > 0 && `<strong>${liters(r.waterMl)}</strong> de água registrados`,
-    r.coachMessages > 0 && `<strong>${r.coachMessages}</strong> ${r.coachMessages === 1 ? "conversa" : "conversas"} com o Théo`,
-  ].filter(Boolean) as string[];
+/** O que a pessoa fez no teste, em números, só o que não for zero */
+function doneStats(r: TrialRecap): { value: string; label: string }[] {
+  const items: ({ value: string; label: string } | false)[] = [
+    r.workoutsDone > 0 && { value: String(r.workoutsDone), label: r.workoutsDone === 1 ? "treino concluído" : "treinos concluídos" },
+    r.records > 0 && { value: String(r.records), label: r.records === 1 ? "recorde batido" : "recordes batidos" },
+    r.streakDays > 0 && { value: String(r.streakDays), label: r.streakDays === 1 ? "dia de constância" : "dias de constância" },
+    r.meals > 0 && { value: String(r.meals), label: r.meals === 1 ? "refeição registrada" : "refeições registradas" },
+    r.waterMl > 0 && { value: liters(r.waterMl), label: "de água registrados" },
+    r.coachMessages > 0 && { value: String(r.coachMessages), label: r.coachMessages === 1 ? "conversa com o Théo" : "conversas com o Théo" },
+  ];
+  return items.filter((i): i is { value: string; label: string } => Boolean(i));
 }
 
 const STOPS = [
@@ -80,65 +47,82 @@ export function welcomeEmail(recap: TrialRecap, to: string, appUrl: string, days
     to,
     subject: `Seu teste de ${days} dias com o Théo começou`,
     html: layout({
+      appUrl,
       preheader: "3 passos para aproveitar o teste desde hoje.",
+      eyebrow: `TESTE GRÁTIS · ${days} DIAS`,
+      title: recap.firstName ? `${recap.firstName}, seu teste começou!` : "Seu teste começou!",
+      hero: { src: "/email/theo-hero.png", alt: "Théo, seu personal no Treinai", size: 120, round: true },
       body: [
-        p(`${recap.firstName ? `Oi, ${escapeHtml(recap.firstName)}!` : "Oi!"} Aqui é o Théo, seu personal no Treinai.`),
+        p("Aqui é o Théo, seu personal no Treinai."),
         p(
           recap.workoutsCreated > 0
-            ? `Seu plano já está montado: <strong>${recap.workoutsCreated} ${recap.workoutsCreated === 1 ? "treino" : "treinos"}</strong> pro seu nível. Você tem ${days} dias de teste grátis, com tudo liberado.`
-            : `Você tem ${days} dias de teste grátis, com tudo liberado. Me conta seu objetivo no chat que eu monto seu treino na hora.`,
+            ? `Seu plano já está montado: <strong>${recap.workoutsCreated} ${recap.workoutsCreated === 1 ? "treino" : "treinos"}</strong> pro seu nível. Você tem ${days} dias com tudo liberado.`
+            : `Você tem ${days} dias com tudo liberado. Me conta seu objetivo no chat que eu monto seu treino na hora.`,
         ),
-        p("Pra aproveitar de verdade, faça estes 3 passos:"),
-        list([
-          "<strong>Faça o primeiro treino</strong>, com o vídeo de cada exercício na tela",
+        p("Pra aproveitar de verdade, comece por aqui:"),
+        steps([
+          "<strong>Faça o primeiro treino</strong>, com a demonstração de cada exercício na tela",
           "<strong>Registre uma refeição</strong> tirando foto do prato",
           "<strong>Monte o cardápio da semana</strong>, com a lista de compras",
         ]),
       ].join(""),
       cta: { label: "Abrir o Treinai", href: appUrl },
+      ctaNote: "Dica: coloque o Treinai na tela inicial do celular para abrir como app.",
+      reason: REASON,
     }),
   };
 }
 
 export function trialEndingEmail(recap: TrialRecap, to: string, appUrl: string, hoursLeft: number): EmailMessage {
   const when = hoursLeft <= 12 ? "hoje" : "amanhã";
-  const done = doneLines(recap);
+  const done = doneStats(recap);
   return {
     to,
     subject: `${recap.firstName ? `${recap.firstName}, seu` : "Seu"} teste grátis acaba ${when}`,
     html: layout({
+      appUrl,
       preheader: "Seus treinos ficam salvos. O Théo é que para.",
+      eyebrow: `TESTE GRÁTIS · ACABA ${when.toUpperCase()}`,
+      title: `Seu teste grátis acaba ${when}`,
+      hero: { src: "/illustrations/trial.png", alt: "Ampulheta", size: 120 },
       body: [
-        p(`${hi(recap)}seu teste grátis no Treinai acaba <strong>${when}</strong>.`),
         done.length > 0
-          ? p(`Até aqui, você já fez isso:`) + list(done)
-          : p("Ainda dá tempo de fazer o primeiro treino e sentir a diferença. Seu plano está pronto te esperando."),
+          ? p(`${hi(recap)}olha o que você já conquistou até aqui:`) + stats(done)
+          : p(`${hi(recap)}ainda dá tempo de fazer o primeiro treino e sentir a diferença. Seu plano está pronto te esperando.`),
         recap.goal
           ? p(`Sua meta é chegar a <strong>${recap.goal.targetKg.toLocaleString("pt-BR")} kg</strong>. Dá pra continuar exatamente de onde você parou.`)
           : "",
         p("Seus treinos e registros ficam salvos. Sem assinatura, isto para:"),
-        list(STOPS),
+        bullets(STOPS),
       ].join(""),
       cta: { label: "Continuar com o Théo", href: `${appUrl}/assinar` },
+      ctaNote: "Assine em 1 minuto e não perde nenhum dia.",
+      reason: REASON,
     }),
   };
 }
 
 export function trialEndedEmail(recap: TrialRecap, to: string, appUrl: string): EmailMessage {
-  const done = doneLines(recap);
+  const done = doneStats(recap);
   return {
     to,
     subject: "Seu teste acabou, mas seus treinos continuam salvos",
     html: layout({
+      appUrl,
       preheader: "Assine e continue de onde parou, com o Théo.",
+      eyebrow: "SEU TESTE GRÁTIS ACABOU",
+      title: "Seus treinos continuam aqui",
+      hero: { src: "/illustrations/trial.png", alt: "Ampulheta", size: 120 },
       body: [
-        p(`${hi(recap)}seu teste grátis acabou.`),
-        done.length > 0 ? p("Tudo o que você fez continua na sua conta:") + list(done) : "",
+        done.length > 0
+          ? p(`${hi(recap)}seu teste grátis acabou, mas tudo o que você fez continua na sua conta:`) + stats(done)
+          : p(`${hi(recap)}seu teste grátis acabou, mas sua conta e seu plano continuam salvos.`),
         p(
           "Pra voltar a falar com o Théo, registrar comida pela foto e montar o cardápio, é só escolher um plano. Você continua exatamente de onde parou.",
         ),
       ].join(""),
       cta: { label: "Ver os planos", href: `${appUrl}/assinar` },
+      reason: REASON,
     }),
   };
 }
